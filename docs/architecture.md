@@ -1,6 +1,6 @@
 # Архитектура «Image2GDRAM Converter» 1.0
 
-> **Целевая архитектура, а не описание написанного кода.** Документ составлен на этапе 0 по разделам 4 и 5 `agents.md` и п. 4.6 ТЗ. Реализация не начата: в репозитории есть только заготовка WPF-приложения в корне (`image2gdram_converter.csproj`, пустое `MainWindow.xaml`). По мере реализации разделы переводятся из «целевого» в «фактическое» состояние (таблица в разделе 10), а расхождения с этим документом фиксируются здесь же.
+> **Целевая архитектура плюс отметки о фактическом состоянии.** Документ составлен на этапе 0 по разделам 4 и 5 `agents.md` и п. 4.6 ТЗ. После этапа 1 **фактически существуют** решение, четыре проекта и модуль упаковки (`Image2Gdram.Core.Packing`, `Image2Gdram.Core.Text.ProductInfo`); их описание помечено «**Фактически (этап 1)**» и совпадает с кодом. Остальные разделы — целевые: сигнатуры в них ориентировочные. Сводка — таблица в разделе 10; расхождения с целевой архитектурой фиксируются здесь же.
 
 Связанные файлы: [`implementation-plan.md`](implementation-plan.md) (этапы), [`decisions.md`](decisions.md) (решения D/F/N/K), [`requirements_checklist.md`](requirements_checklist.md) (трассировка требований).
 
@@ -30,13 +30,13 @@ docs/                           документация и файлы сост�
 | Проект | Путь | Платформа | Тип | Ссылки | Пакеты |
 |---|---|---|---|---|---|
 | `image2gdram_converter` | `src/image2gdram_converter/` | `net8.0-windows` | WinExe (WPF) | `Image2Gdram.Core` | `CommunityToolkit.Mvvm` 8.4.2, AvalonEdit (MIT) — этап 6 |
-| `Image2Gdram.Core` | `src/Image2Gdram.Core/` | `net8.0` | библиотека | — | `SixLabors.ImageSharp` 4.1.2 (только декодер) |
+| `Image2Gdram.Core` | `src/Image2Gdram.Core/` | `net8.0` | библиотека | — | — |
 | `Image2Gdram.Reference` | `tests/Image2Gdram.Reference/` | `net8.0` | библиотека | — (Core не используется, N-28) | — |
 | `Image2Gdram.Core.Tests` | `tests/Image2Gdram.Core.Tests/` | `net8.0` | xUnit | Core, Reference | xUnit, `Microsoft.NET.Test.Sdk` |
 | `Image2Gdram.App.Tests` | `tests/Image2Gdram.App.Tests/` | `net8.0-windows` | xUnit | приложение, Core | xUnit, `Microsoft.NET.Test.Sdk` |
-| `TestAssetsGenerator` | `tools/TestAssetsGenerator/` | `net8.0` | консоль | Reference | `SixLabors.ImageSharp` (запись PNG) |
+| `TestAssetsGenerator` | `tools/TestAssetsGenerator/` | `net8.0` | консоль | Reference | — (PNG — собственный кодировщик, N-39) |
 
-Проекты `Image2Gdram.Reference` и `Image2Gdram.App.Tests` дополняют структуру раздела 4 `agents.md` (решение N-32). Пакет ImageSharp переносится из приложения в Core (декодер живёт в Core за интерфейсом `IImageDecoder`). Версии тестовых пакетов выбираются на этапе 1 из совместимых с .NET 8 и лицензиями MIT/Apache-2.0/BSD.
+Проекты `Image2Gdram.Reference` и `Image2Gdram.App.Tests` дополняют структуру раздела 4 `agents.md` (решение N-32). ImageSharp не используется (N-39). `WicImageDecoder` живёт в проекте `net8.0-windows` (приложение или отдельная сборка, на которую приложение ссылается); интерфейс `IImageDecoder` — в Core. Версии тестовых пакетов — N-38 (MIT и Apache-2.0).
 
 ```mermaid
 flowchart LR
@@ -51,7 +51,7 @@ flowchart LR
 ### Правила зависимостей
 
 - Core не ссылается на WPF и не содержит строк интерфейса: предупреждения и ошибки Core возвращает кодами с параметрами (`Diagnostic`), текст для пользователя берётся из словаря приложения. Тексты внутри генерируемых файлов (заголовок-комментарий на русском) — часть формата вывода и живут в Core.
-- ImageSharp используется только в `ImageSharpDecoder` (Core) и в `TestAssetsGenerator` (запись PNG). Поворот, масштабирование, серое и дизеринг — собственный код над `RgbaImage`.
+- ImageSharp нет (N-39, K-05). WIC (`System.Windows.Media.Imaging`) только в `WicImageDecoder` в проекте `net8.0-windows`. Core остаётся `net8.0` без WPF. `TestAssetsGenerator` пишет PNG собственным кодировщиком, без NuGet. Поворот, масштабирование, серое и дизеринг — собственный код над `RgbaImage`.
 - `Image2Gdram.Reference` не ссылается на Core и не делит с ним исходники.
 - Приложение: MVVM на CommunityToolkit.Mvvm; в code-behind только визуальная логика (мышь в сетке, прокрутка).
 - Общие свойства сборки — `Directory.Build.props`: `Nullable=enable`, `ImplicitUsings=enable`, `TreatWarningsAsErrors=true`, `Deterministic=true`; версия 1.0.0, Product «Image2GDRAM Converter».
@@ -87,8 +87,8 @@ flowchart LR
 - `RgbaImage` — `int Width`, `int Height`, `byte[] Pixels` (RGBA, 8 бит на канал, строки сверху вниз).
 - `DecodedImage` — `IReadOnlyList<RgbaImage> Frames`, исходный формат, признак анимации.
 - `IImageDecoder` — `ImageInfo Identify(string path)`, `DecodedImage Decode(string path, CancellationToken ct)`.
-- `ImageSharpDecoder : IImageDecoder` — проверка размера через `Image.Identify` до декодирования (больше 8192×8192 — ошибка), EXIF-ориентация, компоновка кадров GIF с учётом disposal, лимит памяти кадров 512 МБ (N-19, N-20).
 - `ImageLoadException` — код причины (`TooLarge`, `Unsupported`, `Corrupted`, `IoError`) и детали.
+- `WicImageDecoder : IImageDecoder` — не в Core, а в проекте `net8.0-windows` (N-39). Размер читается до копирования пикселей (сторона больше 8192 — `TooLarge`). Ориентация EXIF — своим кодом, цветовой профиль не применяется, в `RgbaImage` прямой RGBA (N-19). Кадры GIF WIC отдаёт нескомпонованными; полный холст с учётом disposal собирает собственный код; лимит памяти кадров 512 МБ (N-20). Файл после декодирования не остаётся заблокированным.
 
 ### 3.2. `Image2Gdram.Core.Processing` — обработка, шаги 1–6 п. 4.1.2 (этап 2)
 
@@ -104,17 +104,21 @@ flowchart LR
 
 ### 3.3. `Image2Gdram.Core.Packing` — упаковка, шаг 7 (этап 1)
 
-- `MonoBitmap` — `Width`, `Height`, `bool this[x, y]` (хранение — `bool[]` или битовый массив), `Clone`, равенство по содержимому.
+**Фактически (этап 1).** Сигнатуры ниже совпадают с кодом `src/Image2Gdram.Core/Packing/`.
+
+- `MonoBitmap` (sealed class) — конструктор `(int width, int height)` (обе стороны ≥ 1), `Width`, `Height`, `bool this[int x, int y]` (хранение — `bool[]`, выход за границы — `ArgumentOutOfRangeException`), `ReadOnlySpan<bool> GetRow(int y)`, `Clone()`, `bool ContentEquals(MonoBitmap? other)`.
 - Перечисления: `PixelFormat` (`Mono1bpp`; зарезервировано `Rgb565`), `ByteOrder` (`BigEndian`, `LittleEndian`), `PackDirection` (`Horizontal`, `Vertical`), `BitOrder` (`LsbFirst`, `MsbFirst`), `PageTraversal` (`ByPages`, `ByColumns`).
-- `PackingOptions` (record) — `PixelFormat`, `PackDirection`, `BitOrder`, `int BitsPerByte` (8 или 6), `PageTraversal`, `bool Invert`, `ByteOrder` (для будущего RGB565).
-- `BitLocation` — `int ByteIndex`, `int Bit`.
+- `PackingOptions` (sealed record, `init`-свойства, `static Default`) — `PixelFormat`, `Direction`, `BitOrder`, `int BitsPerByte` (8 или 6), `PageTraversal`, `bool Invert`, `ByteOrder` (для будущего RGB565). Значения по умолчанию — N-35.
+- `BitLocation` — `readonly record struct (int ByteIndex, int Bit)`.
 - `IPacker`:
-  - `byte[] Pack(MonoBitmap bitmap, PackingOptions o)`;
-  - `MonoBitmap Unpack(ReadOnlySpan<byte> bytes, int width, int height, PackingOptions o)` — с учётом инверсии, биты дополнения игнорируются;
-  - `BitLocation Locate(int x, int y, int width, int height, PackingOptions o)`;
-  - `int GetSize(int width, int height, PackingOptions o)`.
-- `Mono1bppPacker : IPacker` — F-01…F-04.
-- `PackerRegistry` — `IPacker Get(PixelFormat)`, `Register(PixelFormat, IPacker)`; незарегистрированный формат — понятная ошибка.
+  - `PixelFormat Format { get; }`;
+  - `int GetSize(int width, int height, PackingOptions options)`;
+  - `byte[] Pack(MonoBitmap bitmap, PackingOptions options)`;
+  - `void Pack(MonoBitmap bitmap, PackingOptions options, Span<byte> destination)` — буфер длиной ровно `GetSize` (символ в таблице шрифта);
+  - `MonoBitmap Unpack(ReadOnlySpan<byte> data, int width, int height, PackingOptions options)` — длина ровно `GetSize`, с учётом инверсии, биты дополнения игнорируются;
+  - `BitLocation Locate(int x, int y, int width, int height, PackingOptions options)`.
+- `Mono1bppPacker : IPacker` — F-01…F-04; контракт по неприменимым параметрам и ошибкам — N-36.
+- `PackerRegistry` — `static CreateDefault()` (регистрирует `Mono1bppPacker`), `Register(IPacker packer)` (формат берётся из `packer.Format`; повторная регистрация — `InvalidOperationException`), `TryGet(PixelFormat, out IPacker?)`, `Get(PixelFormat)`, `Get(PackingOptions)`, `Formats` (по возрастанию значения перечисления). Незарегистрированный формат — `PackerNotRegisteredException : NotSupportedException` со свойством `Format`.
 
 ### 3.4. `Image2Gdram.Core.Output` — генерация вывода (этап 3)
 
@@ -208,16 +212,16 @@ sequenceDiagram
 
 ## 7. Расширяемость
 
-- **Новый режим упаковки:** класс `IPacker` + `PackerRegistry.Register(PixelFormat.X, …)`. Для RGB565 в `PackingOptions` уже есть `PixelFormat` и `ByteOrder`; монохромный упаковщик их игнорирует (п. 4.6). В интерфейсе 1.0 цветные режимы не показываются.
+- **Новый режим упаковки:** класс `IPacker` со своим `Format` + `PackerRegistry.Register(packer)` (проверено тестом `ValidationAndRegistryTests.New_packer_is_added_by_registration_only`). Для RGB565 в `PackingOptions` уже есть `PixelFormat` и `ByteOrder`; монохромный упаковщик их игнорирует (п. 4.6). В интерфейсе 1.0 цветные режимы не показываются.
 - **Новый формат вывода:** класс `IOutputGenerator` + регистрация в `OutputGeneratorRegistry`; конвейер и упаковщик не меняются.
 - **Новый язык интерфейса:** файл словаря в папке `Languages\` рядом с exe и параметр языка в `settings.json`, без пересборки.
-- **Другой декодер изображений** (например, WIC вместо ImageSharp, Q-09): новая реализация `IImageDecoder`.
+- **Декодер изображений:** выбранная реализация — `WicImageDecoder` на WIC (N-39), не запасной вариант. Другой декодер добавляется новой реализацией `IImageDecoder` без правки конвейера.
 
 ---
 
 ## 8. Тесты и инструменты
 
-- `Image2Gdram.Core.Tests`: упаковщик (16 комбинаций, контрольные примеры F-05, `Locate`, `Unpack(Pack(b))`, сравнение с Reference), конвейер, генераторы (золотые тесты по приложению В), шрифты, импорт, настройки и проекты, валидатор имён, склонение.
+- `Image2Gdram.Core.Tests`: упаковщик (16 комбинаций, контрольные примеры F-05, `Locate`, `Unpack(Pack(b))`, сравнение с Reference), конвейер, генераторы (золотые тесты по приложению В), шрифты, импорт, настройки и проекты, валидатор имён, склонение. Тесты `WicImageDecoder` сюда не входят: они в тестовом проекте `net8.0-windows` (N-39).
 - `Image2Gdram.App.Tests`: смена пресета → «Пользовательский (на основе …)», сброс правок с подтверждением и откатом, undo/redo, валидация, запрос при закрытии; сервисы подменяются заглушками.
 - `Image2Gdram.Reference`: наивная упаковка «по определению» (F-01…F-04) — источник эталонов.
 - `TestAssetsGenerator`: `testdata/test_pattern_240x128.png`, `testdata/test_pattern_128x64.png`, `testdata/test_sprite_13x11.png` (этап 2), листы шрифтов 6×8, 8×8, 12×16 и `testdata/reference/` с `index.md` (этап 9); встроенный растровый шрифт 5×7 для надписей.
@@ -234,13 +238,19 @@ sequenceDiagram
 
 ## 10. Состояние реализации
 
+Состояние после этапа 1 (проверено 2026-10-04: `dotnet build` Debug и Release — 0 ошибок, 0 предупреждений; `dotnet test` — 1441 из 1441).
+
 | Модуль | Состояние |
 |---|---|
-| Структура решения (`.sln`, `src/`, `tests/`, `tools/`) | не создана; заготовка WPF лежит в корне |
-| Core: Packing | не начато (этап 1) |
-| Core: Imaging, Processing | не начато (этап 2) |
+| Структура решения | **сделано (этап 1):** `image2gdram_converter.sln` (папки решения `src`, `tests`), `Directory.Build.props`; приложение перенесено в `src/image2gdram_converter/`. Ещё нет (целевое): `tools/`, `testdata/`, `README.md`, `build.ps1`, `publish.ps1` — этапы 2 и 9 |
+| Core: Packing | **сделано (этап 1):** раздел 3.3 |
+| Core: Text | **частично (этап 1):** `ProductInfo` (D-02); `RussianPlural` — этап 3 |
+| Core: Imaging, Processing | не начато (этап 2; декодер — `WicImageDecoder`, N-39) |
 | Core: Output | не начато (этап 3) |
 | Core: Fonts | не начато (этап 4) |
-| Core: Presets, Settings, Projects | не начато (этап 5) |
-| Приложение WPF | только пустая заготовка (`MainWindow.xaml` без содержимого) |
-| Тесты и инструменты | не начато |
+| Core: Editing, Presets, Settings, Projects, Diagnostics | не начато (этапы 2–5) |
+| Приложение WPF | пустая заготовка (`MainWindow.xaml` без содержимого), ссылается на Core; пакеты — только `CommunityToolkit.Mvvm` 8.4.2 (ImageSharp удалён, K-05, N-39). Запускается. GUI — этапы 6–8 |
+| `tests/Image2Gdram.Reference` | **сделано (этап 1):** `ReferencePacker`, `RefOptions.AllCombinations` (16 комбинаций), без ссылки на Core (N-28, N-37) |
+| `tests/Image2Gdram.Core.Tests` | **сделано для упаковки (этап 1):** 1441 тест — контрольные примеры, размеры, раскладка, сравнение с эталоном, `Locate`/`Unpack`, валидация и реестр, `MonoBitmap`, `ProductInfo`. Тесты остальных модулей — по этапам |
+| `tests/Image2Gdram.App.Tests` | не создан (этап 6) |
+| `tools/TestAssetsGenerator`, `tools/compile-check.ps1` | не созданы (этапы 2, 3/9) |

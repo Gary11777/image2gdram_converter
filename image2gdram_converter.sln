@@ -1,0 +1,50 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{C51A9B6F-5930-484D-9AE6-11F8D5F097CB}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "image2gdram_converter", "src\image2gdram_converter\image2gdram_converter.csproj", "{41E8EFC0-917B-4B6F-93AD-50F294EA7C1D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Image2Gdram.Core", "src\Image2Gdram.Core\Image2Gdram.Core.csproj", "{749124DE-FCAD-4A4D-A1E8-BE03CAFCD043}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{D9AC7107-AC4B-48A3-9E94-372D6BC7A866}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Image2Gdram.Reference", "tests\Image2Gdram.Reference\Image2Gdram.Reference.csproj", "{DFA80F55-230F-4BD4-99B9-8EA53AD10557}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Image2Gdram.Core.Tests", "tests\Image2Gdram.Core.Tests\Image2Gdram.Core.Tests.csproj", "{A88700CF-EBCA-4DB0-89A4-7D846D1B6F44}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{41E8EFC0-917B-4B6F-93AD-50F294EA7C1D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{41E8EFC0-917B-4B6F-93AD-50F294EA7C1D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{41E8EFC0-917B-4B6F-93AD-50F294EA7C1D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{41E8EFC0-917B-4B6F-93AD-50F294EA7C1D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{749124DE-FCAD-4A4D-A1E8-BE03CAFCD043}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{749124DE-FCAD-4A4D-A1E8-BE03CAFCD043}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{749124DE-FCAD-4A4D-A1E8-BE03CAFCD043}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{749124DE-FCAD-4A4D-A1E8-BE03CAFCD043}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DFA80F55-230F-4BD4-99B9-8EA53AD10557}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DFA80F55-230F-4BD4-99B9-8EA53AD10557}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DFA80F55-230F-4BD4-99B9-8EA53AD10557}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DFA80F55-230F-4BD4-99B9-8EA53AD10557}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A88700CF-EBCA-4DB0-89A4-7D846D1B6F44}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A88700CF-EBCA-4DB0-89A4-7D846D1B6F44}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A88700CF-EBCA-4DB0-89A4-7D846D1B6F44}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A88700CF-EBCA-4DB0-89A4-7D846D1B6F44}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{41E8EFC0-917B-4B6F-93AD-50F294EA7C1D} = {C51A9B6F-5930-484D-9AE6-11F8D5F097CB}
+		{749124DE-FCAD-4A4D-A1E8-BE03CAFCD043} = {C51A9B6F-5930-484D-9AE6-11F8D5F097CB}
+		{DFA80F55-230F-4BD4-99B9-8EA53AD10557} = {D9AC7107-AC4B-48A3-9E94-372D6BC7A866}
+		{A88700CF-EBCA-4DB0-89A4-7D846D1B6F44} = {D9AC7107-AC4B-48A3-9E94-372D6BC7A866}
+	EndGlobalSection
+EndGlobal
