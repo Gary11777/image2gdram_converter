@@ -16,3 +16,6 @@ coverage*.xml
 
 # Publish output
 publish/
+
+# Local script output (tools/compile-check.ps1)
+artifacts/
