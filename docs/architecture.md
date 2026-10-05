@@ -1,6 +1,6 @@
 # Архитектура «Image2GDRAM Converter» 1.0
 
-> **Целевая архитектура плюс отметки о фактическом состоянии.** Документ составлен на этапе 0 по разделам 4 и 5 `agents.md` и п. 4.6 ТЗ. После этапа 1 **фактически существуют** решение, четыре проекта и модуль упаковки (`Image2Gdram.Core.Packing`, `Image2Gdram.Core.Text.ProductInfo`); их описание помечено «**Фактически (этап 1)**» и совпадает с кодом. Остальные разделы — целевые: сигнатуры в них ориентировочные. Сводка — таблица в разделе 10; расхождения с целевой архитектурой фиксируются здесь же.
+> **Целевая архитектура плюс отметки о фактическом состоянии.** Документ составлен на этапе 0 по разделам 4 и 5 `agents.md` и п. 4.6 ТЗ. После этапа 2 **фактически существуют** решение, модуль упаковки, загрузка изображений и конвейер обработки. Описание упаковки помечено «**Фактически (этап 1)**», загрузки и обработки — «**Фактически (этап 2)**». Остальные разделы — целевые: сигнатуры в них ориентировочные. Сводка — таблица в разделе 10.
 
 Связанные файлы: [`implementation-plan.md`](implementation-plan.md) (этапы), [`decisions.md`](decisions.md) (решения D/F/N/K), [`requirements_checklist.md`](requirements_checklist.md) (трассировка требований).
 
@@ -16,9 +16,11 @@ build.ps1, publish.ps1
 src/
   image2gdram_converter/        WPF-приложение
   Image2Gdram.Core/             ядро без WPF
+  Image2Gdram.Imaging.Wic/      декодер WIC (net8.0-windows)
 tests/
   Image2Gdram.Reference/        независимая наивная упаковка (эталон)
   Image2Gdram.Core.Tests/       xUnit: ядро
+  Image2Gdram.Imaging.Wic.Tests/ xUnit: декодер WIC
   Image2Gdram.App.Tests/        xUnit: сценарии ViewModel
 tools/
   TestAssetsGenerator/          тестовые изображения, листы шрифтов, эталонные массивы
@@ -29,23 +31,29 @@ docs/                           документация и файлы сост�
 
 | Проект | Путь | Платформа | Тип | Ссылки | Пакеты |
 |---|---|---|---|---|---|
-| `image2gdram_converter` | `src/image2gdram_converter/` | `net8.0-windows` | WinExe (WPF) | `Image2Gdram.Core` | `CommunityToolkit.Mvvm` 8.4.2, AvalonEdit (MIT) — этап 6 |
+| `image2gdram_converter` | `src/image2gdram_converter/` | `net8.0-windows` | WinExe (WPF) | `Image2Gdram.Core`, `Image2Gdram.Imaging.Wic` | `CommunityToolkit.Mvvm` 8.4.2, AvalonEdit (MIT) — этап 6 |
 | `Image2Gdram.Core` | `src/Image2Gdram.Core/` | `net8.0` | библиотека | — | — |
+| `Image2Gdram.Imaging.Wic` | `src/Image2Gdram.Imaging.Wic/` | `net8.0-windows` | библиотека | Core | — (WIC из WPF, N-39, N-41) |
 | `Image2Gdram.Reference` | `tests/Image2Gdram.Reference/` | `net8.0` | библиотека | — (Core не используется, N-28) | — |
-| `Image2Gdram.Core.Tests` | `tests/Image2Gdram.Core.Tests/` | `net8.0` | xUnit | Core, Reference | xUnit, `Microsoft.NET.Test.Sdk` |
+| `Image2Gdram.Core.Tests` | `tests/Image2Gdram.Core.Tests/` | `net8.0` | xUnit | Core, Reference, `TestAssetsGenerator` | xUnit, `Microsoft.NET.Test.Sdk` |
+| `Image2Gdram.Imaging.Wic.Tests` | `tests/Image2Gdram.Imaging.Wic.Tests/` | `net8.0-windows` | xUnit | Core, Imaging.Wic, `TestAssetsGenerator` | xUnit, `Microsoft.NET.Test.Sdk` |
 | `Image2Gdram.App.Tests` | `tests/Image2Gdram.App.Tests/` | `net8.0-windows` | xUnit | приложение, Core | xUnit, `Microsoft.NET.Test.Sdk` |
-| `TestAssetsGenerator` | `tools/TestAssetsGenerator/` | `net8.0` | консоль | Reference | — (PNG — собственный кодировщик, N-39) |
+| `TestAssetsGenerator` | `tools/TestAssetsGenerator/` | `net8.0` | консоль | — (Reference — этап 9, когда появятся эталонные массивы) | — (PNG — собственный кодировщик, N-39) |
 
-Проекты `Image2Gdram.Reference` и `Image2Gdram.App.Tests` дополняют структуру раздела 4 `agents.md` (решение N-32). ImageSharp не используется (N-39). `WicImageDecoder` живёт в проекте `net8.0-windows` (приложение или отдельная сборка, на которую приложение ссылается); интерфейс `IImageDecoder` — в Core. Версии тестовых пакетов — N-38 (MIT и Apache-2.0).
+Проекты `Image2Gdram.Reference` и `Image2Gdram.App.Tests` дополняют структуру раздела 4 `agents.md` (решение N-32). ImageSharp не используется (N-39). `WicImageDecoder` — отдельная сборка `Image2Gdram.Imaging.Wic` (N-41); интерфейс `IImageDecoder` — в Core. Тесты декодера — `Image2Gdram.Imaging.Wic.Tests`, не `App.Tests`. Версии тестовых пакетов — N-38 (MIT и Apache-2.0).
 
 ```mermaid
 flowchart LR
     App["image2gdram_converter (net8.0-windows)"] --> Core["Image2Gdram.Core (net8.0)"]
+    App --> Wic["Image2Gdram.Imaging.Wic"]
+    Wic --> Core
     CoreTests["Image2Gdram.Core.Tests"] --> Core
     CoreTests --> Ref["Image2Gdram.Reference"]
+    CoreTests --> Tool["TestAssetsGenerator"]
+    WicTests["Image2Gdram.Imaging.Wic.Tests"] --> Wic
+    WicTests --> Tool
     AppTests["Image2Gdram.App.Tests"] --> App
     AppTests --> Core
-    Tool["TestAssetsGenerator"] --> Ref
 ```
 
 ### Правила зависимостей
@@ -84,23 +92,33 @@ flowchart LR
 
 ### 3.1. `Image2Gdram.Core.Imaging` — загрузка (этап 2)
 
-- `RgbaImage` — `int Width`, `int Height`, `byte[] Pixels` (RGBA, 8 бит на канал, строки сверху вниз).
-- `DecodedImage` — `IReadOnlyList<RgbaImage> Frames`, исходный формат, признак анимации.
-- `IImageDecoder` — `ImageInfo Identify(string path)`, `DecodedImage Decode(string path, CancellationToken ct)`.
-- `ImageLoadException` — код причины (`TooLarge`, `Unsupported`, `Corrupted`, `IoError`) и детали.
-- `WicImageDecoder : IImageDecoder` — не в Core, а в проекте `net8.0-windows` (N-39). Размер читается до копирования пикселей (сторона больше 8192 — `TooLarge`). Ориентация EXIF — своим кодом, цветовой профиль не применяется, в `RgbaImage` прямой RGBA (N-19). Кадры GIF WIC отдаёт нескомпонованными; полный холст с учётом disposal собирает собственный код; лимит памяти кадров 512 МБ (N-20). Файл после декодирования не остаётся заблокированным.
+**Фактически (этап 2).** Сигнатуры ниже совпадают с кодом. Отличия от черновика этапа 0: код `ImageLoadError.MemoryLimit` (суммарный объём кадров больше 512 МБ, N-41); размер читается своим разбором заголовка, затем WIC копирует пиксели.
+
+- `RgbaImage` — `Width`, `Height`, `Pixels` (прямой RGBA, 8 бит на канал, строки сверху вниз). Пиксели можно задать через `SetPixel`; после передачи в `ImagePipeline` буфер не меняют: конвейер кэширует кадр по ссылке.
+- `ImageInfo` — формат, ширина и высота в файле (до EXIF), число кадров.
+- `DecodedImage` — `IReadOnlyList<RgbaImage> Frames` одного размера, формат, признак анимации. Размер кадра — уже после EXIF.
+- `IImageDecoder` — `ImageInfo Identify(string path)`, `DecodedImage Decode(string path, CancellationToken cancellationToken = default)`.
+- `ImageLoadException` — `ImageLoadError` (`TooLarge`, `MemoryLimit`, `Unsupported`, `Corrupted`, `IoError`), путь и необязательные ширина и высота. Текст исключения — причина для пользователя.
+- `ImageLimits` — сторона 8192 включительно, суммарно не больше 512 МБ RGBA.
+- `WicImageDecoder : IImageDecoder` — проект `Image2Gdram.Imaging.Wic` (N-39, N-41). Цветовой профиль не применяется (`IgnoreColorProfile`). Ориентация EXIF — `RotateFlipStep` (N-19, N-41). Кадры GIF собирает собственный код: холст изначально прозрачный, disposal 2 и 3 — N-41; лимит 512 МБ проверяется до выделения холста (N-20). Файл открывается только на чтение и после возврата не занят.
 
 ### 3.2. `Image2Gdram.Core.Processing` — обработка, шаги 1–6 п. 4.1.2 (этап 2)
 
-- `ProcessingOptions` (record) — фон, поворот, отражения, целевой размер или «по исходному», режим вписывания, выравнивание, смещение, алгоритм масштабирования, режим бинаризации, порог.
+**Фактически (этап 2).** Классы шагов совпадают с черновиком. Дополнительно: `Binarizer.Create`, `FramePixelOverrides`, `ImagePipeline.Pack` и `RunAndPack` (шаг 7 через `PackerRegistry`), `PipelineException` с кодом `SourceLargerThan1024` (D-07).
+
+- `ProcessingOptions` (sealed record, `Default`) — фон, поворот, отражения, ручной размер или «по исходному», режим вписывания, выравнивание, смещение, алгоритм масштабирования, режим бинаризации, порог. Значения по умолчанию — N-41.
 - Шаги, каждый — отдельный класс с явными параметрами:
   - `BackgroundCompositor` — F-06;
-  - `RotateFlipStep` — F-07, N-10;
+  - `RotateFlipStep` — F-07, N-10; им же пользуется декодер для EXIF;
   - `ResizeStep` (`FitMode`: `None`/`Fit`/`Stretch`/`Fill`; `Alignment`: 9 позиций; `ResampleMode`: `AreaAverage`/`NearestNeighbor`) — F-08, D-06;
-  - `GrayscaleStep` → `GrayImage` (`byte[]` яркостей) — F-09;
-  - `IBinarizer` → `MonoBitmap`: `ThresholdBinarizer`, `FloydSteinbergDitherer`, `AtkinsonDitherer`, `BayerDitherer(4|8)` — F-09, F-10.
-- `ImagePipeline` — `MonoBitmap Run(RgbaImage frame, ProcessingOptions o, CancellationToken ct)`; поддерживает кэш промежуточных результатов по шагам, чтобы смена порога не пересчитывала масштабирование.
-- `PixelOverrides` — разреженный словарь `(x, y) → active`; `Apply(MonoBitmap)`; для GIF — по кадрам (F-11). Сериализуется в отсортированном порядке (детерминизм).
+  - `GrayscaleStep` → `GrayImage` — F-09;
+  - `IBinarizer` → `MonoBitmap`: `ThresholdBinarizer`, `FloydSteinbergDitherer`, `AtkinsonDitherer`, `BayerDitherer(4|8)` — F-09, F-10. Выбор — `Binarizer.Create`.
+- `ImagePipeline` — `MonoBitmap Run(RgbaImage source, ProcessingOptions options, PixelOverrides? overrides, CancellationToken cancellationToken)`. Кэш промежуточных кадров принадлежит экземпляру и не потокобезопасен: смена порога или режима бинаризации не повторяет масштабирование. `RunAndPack` добавляет шаг 7.
+- `PixelOverrides` — разреженный словарь `(x, y) → active`; `Apply` пропускает координаты вне растра; `Entries` идёт по возрастанию y, затем x. `FramePixelOverrides` хранит отдельный набор на кадр GIF (F-11).
+
+### 3.2.1. `Image2Gdram.Core.Editing` — история правок (этап 2, частично)
+
+**Фактически (этап 2).** `IEditAction`, `EditHistory` (глубина 200, N-14), `PixelStrokeAction` (один штрих — одно действие; пустой штрих не записывается). Действие кладётся в историю уже выполненным. Операции над символом шрифта подключатся к тому же `IEditAction` на этапе 4.
 
 ### 3.3. `Image2Gdram.Core.Packing` — упаковка, шаг 7 (этап 1)
 
@@ -148,7 +166,7 @@ flowchart LR
 
 ### 3.6. Прочие модули Core (этапы 1–5)
 
-- `Image2Gdram.Core.Editing` — `EditHistory` (undo/redo, глубина 200, N-14), действия `IEditAction` (штрих пикселей, операция над символом).
+- `Image2Gdram.Core.Editing` — **сделано для штриха пикселей (этап 2),** см. п. 3.2.1. Операция над символом — этап 4.
 - `Image2Gdram.Core.Presets` — `Preset` (имя, контроллер, размер, упаковка, схема `ColorScheme`: `Lcd`/`Oled`, признак встроенного), `PresetCatalog` (встроенный ресурс `presets.json`, D-01), `UserPresetStore` (N-26).
 - `Image2Gdram.Core.Settings` — `AppSettings` (DTO), `SettingsPathResolver` (`AppContext.BaseDirectory` → `%APPDATA%\ImageIU`, реальная попытка записи), `SettingsService` (атомарная запись, восстановление после повреждения, N-25).
 - `Image2Gdram.Core.Projects` — DTO проекта `.iiu` (`ProjectDto`, `ImageTabDto`, `FontTabDto`, `formatVersion`), `ProjectSerializer` (`System.Text.Json`, перечисления строками, UTF-8, N-16).
@@ -221,10 +239,10 @@ sequenceDiagram
 
 ## 8. Тесты и инструменты
 
-- `Image2Gdram.Core.Tests`: упаковщик (16 комбинаций, контрольные примеры F-05, `Locate`, `Unpack(Pack(b))`, сравнение с Reference), конвейер, генераторы (золотые тесты по приложению В), шрифты, импорт, настройки и проекты, валидатор имён, склонение. Тесты `WicImageDecoder` сюда не входят: они в тестовом проекте `net8.0-windows` (N-39).
+- `Image2Gdram.Core.Tests`: упаковщик (16 комбинаций, контрольные примеры F-05, `Locate`, `Unpack(Pack(b))`, сравнение с Reference), конвейер и тестовые изображения приложения Б. Генераторы, шрифты, импорт, настройки и проекты — по этапам 3–5. Тесты `WicImageDecoder` — в `Image2Gdram.Imaging.Wic.Tests` (N-39).
 - `Image2Gdram.App.Tests`: смена пресета → «Пользовательский (на основе …)», сброс правок с подтверждением и откатом, undo/redo, валидация, запрос при закрытии; сервисы подменяются заглушками.
 - `Image2Gdram.Reference`: наивная упаковка «по определению» (F-01…F-04) — источник эталонов.
-- `TestAssetsGenerator`: `testdata/test_pattern_240x128.png`, `testdata/test_pattern_128x64.png`, `testdata/test_sprite_13x11.png` (этап 2), листы шрифтов 6×8, 8×8, 12×16 и `testdata/reference/` с `index.md` (этап 9); встроенный растровый шрифт 5×7 для надписей.
+- `TestAssetsGenerator`: **сделано (этап 2)** — `testdata/test_pattern_240x128.png`, `testdata/test_pattern_128x64.png`, `testdata/test_sprite_13x11.png` (раскладка N-40), встроенный шрифт 5×7, PNG своим кодировщиком. Листы шрифтов 6×8, 8×8, 12×16 и `testdata/reference/` с `index.md` — этап 9; тогда же появится ссылка на `Image2Gdram.Reference`.
 - `tools/compile-check.ps1`: при наличии `gcc`/`clang`/`arm-none-eabi-gcc` компилирует вывод STM32 с `-std=c99 -Wall -Wextra -pedantic -Werror` и вывод C51 с `-Dcode=`; иначе сообщает и пропускает (на этой машине компиляторов нет).
 
 ---
@@ -238,19 +256,21 @@ sequenceDiagram
 
 ## 10. Состояние реализации
 
-Состояние после этапа 1 (проверено 2026-10-04: `dotnet build` Debug и Release — 0 ошибок, 0 предупреждений; `dotnet test` — 1441 из 1441).
+Состояние после этапа 2 (проверено 2026-10-05: `dotnet build` Debug и Release — 0 ошибок, 0 предупреждений; `dotnet test` — 1534 из 1534, из них 1521 в `Image2Gdram.Core.Tests` и 13 в `Image2Gdram.Imaging.Wic.Tests`).
 
 | Модуль | Состояние |
 |---|---|
-| Структура решения | **сделано (этап 1):** `image2gdram_converter.sln` (папки решения `src`, `tests`), `Directory.Build.props`; приложение перенесено в `src/image2gdram_converter/`. Ещё нет (целевое): `tools/`, `testdata/`, `README.md`, `build.ps1`, `publish.ps1` — этапы 2 и 9 |
+| Структура решения | **сделано (этапы 1–2):** `image2gdram_converter.sln` (папки `src`, `tests`, `tools`), `Directory.Build.props`; приложение в `src/image2gdram_converter/`. Ещё нет (целевое): `README.md`, `build.ps1`, `publish.ps1`, `tools/compile-check.ps1` — этапы 3 и 9 |
 | Core: Packing | **сделано (этап 1):** раздел 3.3 |
 | Core: Text | **частично (этап 1):** `ProductInfo` (D-02); `RussianPlural` — этап 3 |
-| Core: Imaging, Processing | не начато (этап 2; декодер — `WicImageDecoder`, N-39) |
+| Core: Imaging, Processing, Editing | **сделано (этап 2):** разделы 3.1, 3.2 и 3.2.1. Декодер WIC — отдельный проект, не часть Core |
 | Core: Output | не начато (этап 3) |
 | Core: Fonts | не начато (этап 4) |
-| Core: Editing, Presets, Settings, Projects, Diagnostics | не начато (этапы 2–5) |
-| Приложение WPF | пустая заготовка (`MainWindow.xaml` без содержимого), ссылается на Core; пакеты — только `CommunityToolkit.Mvvm` 8.4.2 (ImageSharp удалён, K-05, N-39). Запускается. GUI — этапы 6–8 |
+| Core: Presets, Settings, Projects, Diagnostics | не начато (этап 5; код ошибки конвейера пока свой у `PipelineException`, общий `Diagnostic` не заводился) |
+| Приложение WPF | пустая заготовка (`MainWindow.xaml` без содержимого), ссылается на Core и `Image2Gdram.Imaging.Wic`; пакеты — только `CommunityToolkit.Mvvm` 8.4.2. Запускается. GUI — этапы 6–8 |
+| `src/Image2Gdram.Imaging.Wic` | **сделано (этап 2):** `WicImageDecoder`, разбор заголовка до копирования пикселей, сборка кадров GIF |
 | `tests/Image2Gdram.Reference` | **сделано (этап 1):** `ReferencePacker`, `RefOptions.AllCombinations` (16 комбинаций), без ссылки на Core (N-28, N-37) |
-| `tests/Image2Gdram.Core.Tests` | **сделано для упаковки (этап 1):** 1441 тест — контрольные примеры, размеры, раскладка, сравнение с эталоном, `Locate`/`Unpack`, валидация и реестр, `MonoBitmap`, `ProductInfo`. Тесты остальных модулей — по этапам |
+| `tests/Image2Gdram.Core.Tests` | **упаковка (этап 1) и конвейер (этап 2):** 1521 тест |
+| `tests/Image2Gdram.Imaging.Wic.Tests` | **сделано (этап 2):** 13 тестов декодера |
 | `tests/Image2Gdram.App.Tests` | не создан (этап 6) |
-| `tools/TestAssetsGenerator`, `tools/compile-check.ps1` | не созданы (этапы 2, 3/9) |
+| `tools/TestAssetsGenerator` | **сделано для приложения Б (этап 2):** три PNG в `testdata/`. `compile-check.ps1` — этапы 3/9 |
