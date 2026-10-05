@@ -13,6 +13,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Image2Gdram.Core\Image2Gdram.Core.csproj" />
+    <ProjectReference Include="..\Image2Gdram.Imaging.Wic\Image2Gdram.Imaging.Wic.csproj" />
   </ItemGroup>
 
 </Project>

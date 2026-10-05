@@ -1,8 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
-    <RootNamespace>Image2Gdram.Core.Tests</RootNamespace>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <RootNamespace>Image2Gdram.Imaging.Wic.Tests</RootNamespace>
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
   </PropertyGroup>
@@ -15,7 +16,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Image2Gdram.Core\Image2Gdram.Core.csproj" />
-    <ProjectReference Include="..\Image2Gdram.Reference\Image2Gdram.Reference.csproj" />
+    <ProjectReference Include="..\..\src\Image2Gdram.Imaging.Wic\Image2Gdram.Imaging.Wic.csproj" />
     <ProjectReference Include="..\..\tools\TestAssetsGenerator\TestAssetsGenerator.csproj" />
   </ItemGroup>
 
