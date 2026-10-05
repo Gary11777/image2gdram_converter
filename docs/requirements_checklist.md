@@ -2,7 +2,7 @@
 
 Файл состояния проекта (раздел 3 `agents.md`). Каждый пункт `specification.md` сопоставлен с местом реализации (модуль из [`architecture.md`](architecture.md) и этап из [`implementation-plan.md`](implementation-plan.md)) и способом проверки. Решения по неоднозначностям — в [`decisions.md`](decisions.md) (ссылки вида D-xx, F-xx, N-xx).
 
-**Состояние на 2026-10-05 (после этапа 2):** к ядру упаковки этапа 1 добавлены загрузка изображений и конвейер п. 4.1.2. Реализовано и проверено: 3.2–3.5, 4.1.1.1–4.1.1.3, 4.1.2.1–4.1.2.5, 4.1.2.7, 4.1.3.2–4.1.3.8, 4.1.4.1–4.1.4.5, 4.2.1.3, 4.3.1.1–4.3.3.2, 4.3.4.1, 4.3.6.1, 4.3.7.1 (в ядре), 4.6.3, 4.6.4, 8.1, А.8, Б.1–Б.2. Частично выполнены 1.1, 3.7, 4.1.1.4, 4.1.2.6, 4.1.2.8, 4.1.3.1, 4.1.5.2, 4.2.1.4, 4.2.1.5, 4.2.2.6, 4.3.4.2, 4.3.7.2, 4.6.1, 4.6.2, 5.2.3, 6.1, 6.3, 6.5, 8.3, 9.5, 11.1.1 и 11.1.2: что осталось и на каком этапе — указано в строке. Остальные пункты не реализованы. По мере работы в столбце «Статус» ставится `реализовано` (код есть) и `проверено` (тест зелёный или ручная проверка описана), с указанием теста или записи журнала. Тесты ядра — `Класс.Метод` из `tests/Image2Gdram.Core.Tests`; тесты декодера — из `tests/Image2Gdram.Imaging.Wic.Tests`.
+**Состояние на 2026-10-05 (после этапа 3):** к упаковке (этап 1), загрузке и конвейеру (этап 2) добавлены генераторы вывода C51, STM32, A51 и BIN. Реализовано и проверено: 1.4.1, 1.4.2 (кроме компиляции у заказчика), 3.2–3.5, 4.1.1.1–4.1.1.3, 4.1.2.1–4.1.2.5, 4.1.2.7, 4.1.3.2–4.1.3.8, 4.1.4.1–4.1.4.5, 4.2.1.3, 4.3.1.1–4.3.3.2, 4.3.4.1, 4.3.6.1, 4.3.6.2, 4.3.7.1 (в ядре), 4.4.1.3–4.4.1.5, 4.4.2.2–4.4.2.5, 4.4.3.1–4.4.3.7, 4.4.4.2–4.4.4.6, 4.4.5.1–4.4.5.4, 4.4.6.1–4.4.6.3, 4.4.7.1–4.4.7.3, 4.4.8.2, 4.6.2–4.6.4, 8.1, А.8, Б.1–Б.2, В.1–В.4. Частично выполнены 1.1, 3.1, 3.7, 4.1.1.4, 4.1.1.5, 4.1.2.6, 4.1.2.8, 4.1.3.1, 4.1.5.2, 4.2.1.4, 4.2.1.5, 4.2.2.6, 4.3.4.2, 4.3.7.2, 4.4.1.6, 4.4.2.1, 4.4.4.1, 4.4.6.4, 4.4.8.1, 4.6.1, 5.2.3, 5.2.4, 6.1, 6.3, 6.5, 8.3, 8.4.1–8.4.4, 9.5, 11.1.1, 11.1.2 и 11.2.1–11.2.3: что осталось и на каком этапе — указано в строке. Дымовая компиляция (CC) на этой машине пропускается: компиляторов нет. Остальные пункты не реализованы. По мере работы в столбце «Статус» ставится `реализовано` (код есть) и `проверено` (тест зелёный или ручная проверка описана), с указанием теста или записи журнала. Тесты ядра — `Класс.Метод` из `tests/Image2Gdram.Core.Tests`; тесты декодера — из `tests/Image2Gdram.Imaging.Wic.Tests`.
 
 Способы проверки:
 
@@ -25,11 +25,11 @@
 
 | ID | Требование | Где реализовать (этап) | Чем проверить | Статус |
 |---|---|---|---|---|
-| 1.1 | Наименование «Image2GDRAM Converter», версия 1.0 | `Core.Text.ProductInfo` (D-02), `Directory.Build.props` (Version 1.0.0, Product) (1, 9) | GT заголовок; РП свойства exe | частично: `ProductInfo` и свойства сборки реализованы, проверено UT `ProductInfoTests` (оба метода); GT заголовка — этап 3, свойства опубликованного exe — этап 9 |
+| 1.1 | Наименование «Image2GDRAM Converter», версия 1.0 | `Core.Text.ProductInfo` (D-02), `Directory.Build.props` (Version 1.0.0, Product) (1, 9) | GT заголовок; РП свойства exe | частично: `ProductInfo` и свойства сборки реализованы, проверено UT `ProductInfoTests`; первая строка заголовка «Image2GDRAM Converter 1.0» — GT `CGeneratorGoldenTests.Stm32_image_128x64_matches_appendix_v4`, `A51GeneratorGoldenTests.Module_font_6x8_matches_appendix_v2`; свойства опубликованного exe — этап 9 |
 | 1.2 | Основания для разработки (договор, заказчик, исполнитель) | — (информационно) | — | не применяется |
 | 1.3 | Работа под Windows 10/11 x64 | `publish.ps1` win-x64 (9) | ПМИ: запуск на Windows 10 и 11 | не реализовано |
-| 1.4.1 | Генерируемый код для Keil C51 и A51 (8051: C8051F005, F410, F020, F121) | `Core.Output.C51CGenerator`, `A51ModuleGenerator`, `A51IncludeGenerator` (3) | GT; CC (`-Dcode=`); ПМИ: компиляция в Keil (заказчик) | не реализовано |
-| 1.4.2 | Генерируемый код для STM32L496Z: Keil MDK-ARM, IAR EWARM, GCC STM32CubeIDE | `Core.Output.Stm32CGenerator` (3) | GT; CC; ПМИ: компиляция в трёх средах (заказчик) | не реализовано |
+| 1.4.1 | Генерируемый код для Keil C51 и A51 (8051: C8051F005, F410, F020, F121) | `Core.Output.C51CGenerator`, `A51ModuleGenerator`, `A51IncludeGenerator` (3) | GT; CC (`-Dcode=`); ПМИ: компиляция в Keil (заказчик) | реализовано, проверено GT: `CGeneratorGoldenTests.C51_font_12x16_matches_appendix_v1`, `Small_c51_image_is_byte_exact`, `A51GeneratorGoldenTests.Module_font_6x8_matches_appendix_v2`, `Include_fragment_matches_appendix_v3`; CC пропущен — компиляторов нет на машине; компиляция в Keil C51/A51 — заказчик |
+| 1.4.2 | Генерируемый код для STM32L496Z: Keil MDK-ARM, IAR EWARM, GCC STM32CubeIDE | `Core.Output.Stm32CGenerator` (3) | GT; CC; ПМИ: компиляция в трёх средах (заказчик) | реализовано, проверено GT: `CGeneratorGoldenTests.Stm32_image_128x64_matches_appendix_v4`, `Stm32_unsigned_char_variant_has_no_stdint`; CC пропущен — компиляторов нет на машине; компиляция в MDK-ARM, IAR EWARM, STM32CubeIDE — заказчик |
 
 ## 2. Назначение
 
@@ -47,7 +47,7 @@
 
 | ID | Требование | Где реализовать (этап) | Чем проверить | Статус |
 |---|---|---|---|---|
-| 3.1 | Размеры везде как Ш×В в пикселях | словарь строк App (6), `HeaderCommentBuilder` (3, D-03) | GT; РП интерфейса | не реализовано |
+| 3.1 | Размеры везде как Ш×В в пикселях | словарь строк App (6), `HeaderCommentBuilder` (3, D-03) | GT; РП интерфейса | частично: в генерируемых файлах размеры «ШxВ» (D-03) — `HeaderCommentTests.Image_header_matches_n02`, `Font_header_matches_n02`; интерфейс — этап 6 |
 | 3.2 | Активный пиксель: без инверсии — бит 1, фон — бит 0 | `Core.Packing.Mono1bppPacker` (1), F-01 | UT (F-05) | реализовано, проверено: `ControlExampleTests.Single_pixel_at_origin_gives_expected_first_byte`, `LayoutTests.Empty_bitmap_packs_to_background_bytes` |
 | 3.3 | Страница — полоса 8 строк, страница N = строки 8N…8N+7 | `Mono1bppPacker` (1), F-03 | UT | реализовано, проверено: `ControlExampleTests.Last_pixel_of_vertical_page_is_opposite_bit`, `LayoutTests.Traversal_by_pages_for_12x16_puts_rows_8_to_15_into_bytes_12_to_23` |
 | 3.4 | LSB — бит 0, MSB — старший используемый бит | `Mono1bppPacker` (1), F-02, F-03 | UT | реализовано, проверено: `ControlExampleTests` (8 и 6 бит, LSB и MSB), `ReferenceComparisonTests` |
@@ -63,7 +63,7 @@
 | 4.1.1.2 | Исходник до 8192×8192; больше — сообщение | `WicImageDecoder`: размер из заголовка до копирования пикселей (2) | UT: 8192×1 принимается, 8193×1 — ошибка `TooLarge` | реализовано, проверено: `WicImageDecoderTests.Side_8192_is_accepted_and_8193_is_too_large_before_pixel_copy` |
 | 4.1.1.3 | Прозрачность PNG/GIF: наложение на фон (белый по умолчанию / чёрный), пропорционально альфе | `Core.Processing.BackgroundCompositor` (2), F-06 | UT: a = 0, 128, 255 на обоих фонах | реализовано, проверено: `BackgroundCompositorTests.Channel_mixes_by_alpha`, `Opaque_pixel_keeps_color_and_transparent_pixel_becomes_background`; прямой альфа-канал сохраняет декодер (`Png_keeps_straight_alpha`) |
 | 4.1.1.4 | Анимированный GIF: выбор кадра (по умолчанию первый) | `WicImageDecoder` и собственная компоновка кадров (N-20, N-41), `ImageConverterViewModel` (2, 6) | UT: кадры скомпонованы полностью; VT: кадр по умолчанию 1 | частично: кадры собираются в полный холст с учётом disposal (`WicImageDecoderTests.Animated_gif_composites_disposal`, `Disposal_restore_previous_drops_the_frame_after_display`); выбор кадра в интерфейсе — этап 6 |
-| 4.1.1.5 | Экспорт всех кадров в `[число кадров][размер кадра]` | генераторы Core.Output (3), D-11 | GT: `.c`/`.h`/A51/BIN для 3 кадров | не реализовано |
+| 4.1.1.5 | Экспорт всех кадров в `[число кадров][размер кадра]` | генераторы Core.Output (3), D-11 | GT: `.c`/`.h`/A51/BIN для 3 кадров | частично: в ядре — `CGeneratorGoldenTests.All_gif_frames_form_a_two_dimensional_array` (`[_FRAMES][_FRAME_SIZE]`, `/* кадр N */`), `A51GeneratorGoldenTests.Image_lines_have_no_comments_and_frames_are_marked` (`; кадр N`), `OutputBehaviourTests.Bin_contains_only_the_array_bytes_and_frames_follow_each_other`, `HeaderCommentTests.Gif_frame_and_all_frames_are_described`; выбор «все кадры» в интерфейсе — этап 6 |
 | 4.1.2.1 | Шаг 1: наложение на фон | `BackgroundCompositor` (2) | UT | реализовано, проверено: `BackgroundCompositorTests` |
 | 4.1.2.2 | Шаг 2: поворот 0/90/180/270°, отражение по горизонтали и/или вертикали | `RotateFlipStep` (2), F-07, N-10 | UT по маркерам тестового изображения | реализовано, проверено: `RotateFlipTests.Rotate90_moves_pixels_clockwise`, `Rotation_moves_corner_markers_of_test_pattern` |
 | 4.1.2.3 | Шаг 3: приведение к целевому размеру | `ResizeStep` (2), F-08 | UT | реализовано, проверено: `ResizeStepTests` |
@@ -136,7 +136,7 @@
 | 4.3.5.2 | Произвольный размер 1…1024 по каждой оси | `ImageConverterViewModel` (валидация) (6), N-11 | VT: 0 и 1025 — ошибка, 1 и 1024 — допустимо | не реализовано |
 | 4.3.5.3 | Размер по исходному — только в конвертере изображений | `ImageConverterViewModel` (6), D-07 | VT | не реализовано |
 | 4.3.6.1 | Размеры, не кратные 8, допускаются; изображение от левого верхнего угла; биты дополнения | `Mono1bppPacker` (1), N-09 | UT: 13×11 и случайные размеры; RT спрайта | реализовано, проверено: `SizeTests.Sprite_13x11_sizes_round_up_on_both_axes`, `ReferenceComparisonTests.Core_matches_reference_on_random_bitmaps` (14 размеров, включая 1×1, 13×11, 7×17); RT спрайта по файлам — этап 9 |
-| 4.3.6.2 | Фактические ширина и высота записываются в выходной файл | `HeaderCommentBuilder`, генераторы `.h` (3) | GT | не реализовано |
+| 4.3.6.2 | Фактические ширина и высота записываются в выходной файл | `HeaderCommentBuilder`, генераторы `.h` (3) | GT | реализовано, проверено: `CGeneratorGoldenTests.Sprite_13x11_keeps_its_actual_size_in_header_and_macros` (13x11 в заголовке, `_WIDTH 13`, `_HEIGHT 11`), `Stm32_image_128x64_matches_appendix_v4` |
 | 4.3.7.1 | Переключатель «Инвертировать»: активный — 0, фон — 1 | `Mono1bppPacker` (1), F-01 | UT (F-05) | реализовано, проверено в ядре: `ControlExampleTests.Single_pixel_at_origin_gives_expected_first_byte`, `LayoutTests.Inversion_flips_every_byte`; переключатель в интерфейсе — этап 6 |
 | 4.3.7.2 | Инверсия распространяется на биты дополнения и пустые символы шрифта | `Mono1bppPacker`, `FontTable` (1, 4) | UT | частично: биты дополнения и пустой символ на уровне упаковщика проверены (`LayoutTests` — тесты дополнения и `Font_table_layout_indexes_glyph_by_code`); `FontTable` — этап 4 |
 
@@ -146,41 +146,41 @@
 |---|---|---|---|---|
 | 4.4.1.1 | Окно сгенерированного текста обновляется при каждом изменении параметров | `CodeView`, `RecalcScheduler` (6, 8), N-17 | VT; РП | не реализовано |
 | 4.4.1.2 | Копирование в буфер обмена | `IClipboardService` (6), N-17 | VT: в буфере тот же текст с CRLF | не реализовано |
-| 4.4.1.3 | Сохранение C (C51 и STM32) парой `.c` и `.h` | `OutputWriter` (3), App (6) | UT: оба файла, `.c` подключает свой `.h` | не реализовано |
-| 4.4.1.4 | Сохранение ассемблера в `.a51` или `.asm` по выбору | `OutputWriter` (3), App (6) | UT; VT | не реализовано |
-| 4.4.1.5 | Двоичный `.bin` — только байты массива | `BinGenerator` (3) | UT: длина и содержимое = упакованные байты | не реализовано |
-| 4.4.1.6 | Подтверждение перед перезаписью существующего файла | `OutputWriter` (колбэк подтверждения), App (3, 6) | UT; VT: отказ — файл не изменён | не реализовано |
-| 4.4.2.1 | Имя массива задаётся пользователем; по умолчанию из имени файла/гарнитуры и размера (`logo_128x64`, `font_6x8`) | `DefaultNameBuilder` (3), D-13 | UT | не реализовано |
-| 4.4.2.2 | Только латиница, цифры, `_`; не начинается с цифры | `NameValidator` (3) | UT | не реализовано |
-| 4.4.2.3 | Длина не более 31 символа | `NameValidator` (3), N-05 | UT: 31 — допустимо, 32 — ошибка; 27/28 для модуля A51 | не реализовано |
-| 4.4.2.4 | Не совпадает с ключевыми словами C и Keil C51 и зарезервированными именами A51 | `NameValidator`, `ReservedWords` (3), N-06 | UT: каждый список, A51 без учёта регистра | не реализовано |
-| 4.4.2.5 | Имена макросов `.h` — имя массива в верхнем регистре | `CGeneratorBase` (3) | GT | не реализовано |
-| 4.4.3.1 | Заголовок: название и версия программы | `HeaderCommentBuilder` (3), D-02, N-02 | GT | не реализовано |
-| 4.4.3.2 | Заголовок: дата и время генерации, отключаемо | `HeaderCommentBuilder` (3), N-04 | UT: без даты два запуска дают идентичные байты | не реализовано |
-| 4.4.3.3 | Заголовок: исходный файл или шрифт (гарнитура, размер) | `HeaderCommentBuilder` (3), N-02 | GT | не реализовано |
-| 4.4.3.4 | Заголовок: пресет дисплея | `HeaderCommentBuilder` (3), N-02 | GT | не реализовано |
-| 4.4.3.5 | Заголовок: ширина и высота изображения или ячейки | `HeaderCommentBuilder` (3) | GT | не реализовано |
-| 4.4.3.6 | Заголовок: направление, порядок бит, бит в байте, порядок обхода, инверсия | `HeaderCommentBuilder` (3), N-02 | GT: горизонтальный и вертикальный, H ≤ 8 и H > 8 | не реализовано |
-| 4.4.3.7 | Заголовок: размер массива в байтах | `HeaderCommentBuilder`, `RussianPlural` (3), D-04 | GT; UT склонения | не реализовано |
-| 4.4.4.1 | Байт в строке 1…16 (для изображений по умолчанию 16) | `CGeneratorBase`, `A51GeneratorBase` (3), N-11 | UT: 1, 7, 16; валидация 0 и 17 | не реализовано |
-| 4.4.4.2 | Шрифт: каждый символ с новой строки; больше 16 байт — перенос поровну | генераторы (3), D-08 | GT: 6×8, 12×16 (24 → 2×12), 32 → 2×16 | не реализовано |
-| 4.4.4.3 | C: только шестнадцатеричные числа `0x0F` | `NumberFormatter` (3), D-09 | GT; UT: в выводе нет `0b` | не реализовано |
-| 4.4.4.4 | Ассемблер: `0FFh` (по умолчанию) или `11111111b`; ведущий ноль перед буквой | `NumberFormatter` (3), D-09 | GT; UT | не реализовано |
-| 4.4.4.5 | Комментарий символа: `/* 0xC0 'А' */` в C, `; 0C0h 'А'` в ассемблере; для непечатаемых только код | `GlyphCommentFormatter` (3), D-10, N-31 | GT; UT: 0x00, 0x20, 0x7F, 0x98, 0xA0, 0xAD, 0xC0 | не реализовано |
-| 4.4.4.6 | В C только блочные комментарии `/* */` | `CGeneratorBase` (3) | UT: в выводе нет `//` | не реализовано |
-| 4.4.5.1 | C51: массив в памяти программ (`code`), тип `unsigned char` | `C51CGenerator` (3) | GT (В.1); CC с `-Dcode=` | не реализовано |
-| 4.4.5.2 | A51: данные директивой `DB` | `A51GeneratorBase` (3) | GT (В.2, В.3) | не реализовано |
-| 4.4.5.3 | A51, самостоятельный модуль: `SEGMENT CODE`, `RSEG`, `PUBLIC`, `END` | `A51ModuleGenerator` (3), N-07 | GT (В.2); ПМИ: Keil A51 (заказчик) | не реализовано |
-| 4.4.5.4 | A51, фрагмент `$INCLUDE`: только метка и `DB`, без `END` | `A51IncludeGenerator` (3), N-03 | GT (В.3); ПМИ: Keil A51 (заказчик) | не реализовано |
-| 4.4.6.1 | STM32: массив во Flash через `const` | `Stm32CGenerator` (3) | GT (В.4) | не реализовано |
-| 4.4.6.2 | Тип `uint8_t` из `<stdint.h>` (по умолчанию) или `unsigned char` | `Stm32CGenerator` (3), N-16 | GT: оба варианта | не реализовано |
-| 4.4.6.3 | Без `static`: определение в `.c`, `extern` в `.h` | `Stm32CGenerator` (3) | GT; UT: нет `static` | не реализовано |
-| 4.4.6.4 | Компилируется без ошибок и предупреждений в MDK-ARM (AC5, AC6), IAR EWARM, GCC STM32CubeIDE | `Stm32CGenerator` (3) | CC (`-std=c99 -Wall -Wextra -pedantic -Werror`); ПМИ (заказчик) | не реализовано |
-| 4.4.7.1 | `.h`: защита от повторного включения | `CGeneratorBase` (3) | GT | не реализовано |
-| 4.4.7.2 | `.h`: `#define` ширины, высоты, размера (шрифт — ширина/высота ячейки, байт на символ) | `CGeneratorBase` (3), D-11 | GT (В.1, В.4); GIF — `_FRAMES`, `_FRAME_SIZE` | не реализовано |
-| 4.4.7.3 | `.h`: объявление массива с `extern` | `CGeneratorBase` (3) | GT | не реализовано |
-| 4.4.8.1 | Кодировка CP1251 (по умолчанию) или UTF-8 без BOM | `OutputEncoder` (3), D-03, D-16 | UT: байты CP1251 для кириллицы; у UTF-8 нет BOM | не реализовано |
-| 4.4.8.2 | Переводы строк CRLF | `OutputEncoder` (3) | UT: нет одиночных LF, файл заканчивается CRLF | не реализовано |
+| 4.4.1.3 | Сохранение C (C51 и STM32) парой `.c` и `.h` | `OutputWriter` (3), App (6) | UT: оба файла, `.c` подключает свой `.h` | реализовано, проверено: `OutputWriterTests.C_output_is_saved_as_c_and_h_pair`, `CGeneratorGoldenTests.C_source_includes_its_own_header`; имена файлов — N-43; команда «Сохранить» в интерфейсе — этап 6 |
+| 4.4.1.4 | Сохранение ассемблера в `.a51` или `.asm` по выбору | `OutputWriter` (3), App (6) | UT; VT | реализовано, проверено: `A51GeneratorGoldenTests.Extension_is_chosen_by_the_user`; выбор в интерфейсе — этап 6 |
+| 4.4.1.5 | Двоичный `.bin` — только байты массива | `BinGenerator` (3) | UT: длина и содержимое = упакованные байты | реализовано, проверено: `OutputBehaviourTests.Bin_contains_only_the_array_bytes_and_frames_follow_each_other`, `Packed_test_pattern_reaches_bin_unchanged` |
+| 4.4.1.6 | Подтверждение перед перезаписью существующего файла | `OutputWriter` (колбэк подтверждения), App (3, 6) | UT; VT: отказ — файл не изменён | частично: `OutputWriter.Save` спрашивает подтверждение по списку существующих файлов, отказ ничего не меняет — `OutputWriterTests.Existing_files_require_confirmation_and_refusal_keeps_them`; диалог в интерфейсе — этап 6 |
+| 4.4.2.1 | Имя массива задаётся пользователем; по умолчанию из имени файла/гарнитуры и размера (`logo_128x64`, `font_6x8`) | `DefaultNameBuilder` (3), D-13 | UT | частично: имя по умолчанию в ядре — `NameTests.Default_name_follows_d13`, `Default_name_from_file_drops_folder_and_extension`, `Long_default_name_is_truncated_keeping_the_size_suffix`, `Default_name_always_passes_the_validator`; поле ввода — этап 6 |
+| 4.4.2.2 | Только латиница, цифры, `_`; не начинается с цифры | `NameValidator` (3) | UT | реализовано, проверено: `NameTests.Invalid_names_are_rejected_with_reason`, `Valid_names_pass_for_every_format`; подсветка поля — этапы 6, 8 |
+| 4.4.2.3 | Длина не более 31 символа | `NameValidator` (3), N-05 | UT: 31 — допустимо, 32 — ошибка; 27/28 для модуля A51 | реализовано, проверено: `NameTests.Length_limit_is_31_and_27_for_a51_module`, `OutputBehaviourTests.Name_of_28_characters_is_rejected_only_for_a51_module` |
+| 4.4.2.4 | Не совпадает с ключевыми словами C и Keil C51 и зарезервированными именами A51 | `NameValidator`, `ReservedWords` (3), N-06 | UT: каждый список, A51 без учёта регистра | реализовано, проверено: `NameTests.Every_reserved_word_is_rejected`, `Reserved_lists_contain_n06_entries`, `Invalid_names_are_rejected_with_reason` (A51 без учёта регистра) |
+| 4.4.2.5 | Имена макросов `.h` — имя массива в верхнем регистре | `CGeneratorBase` (3) | GT | реализовано, проверено GT: `CGeneratorGoldenTests.Stm32_image_128x64_matches_appendix_v4`, `C51_font_12x16_matches_appendix_v1` |
+| 4.4.3.1 | Заголовок: название и версия программы | `HeaderCommentBuilder` (3), D-02, N-02 | GT | реализовано, проверено GT: `HeaderCommentTests.Image_header_matches_n02`, `CGeneratorGoldenTests.Stm32_image_128x64_matches_appendix_v4` |
+| 4.4.3.2 | Заголовок: дата и время генерации, отключаемо | `HeaderCommentBuilder` (3), N-04 | UT: без даты два запуска дают идентичные байты | реализовано, проверено: `HeaderCommentTests.Date_line_is_second_and_uses_fixed_format`, `OutputBehaviourTests.Date_appears_in_every_text_file_when_enabled`, `Generation_without_date_is_byte_identical` |
+| 4.4.3.3 | Заголовок: исходный файл или шрифт (гарнитура, размер) | `HeaderCommentBuilder` (3), N-02 | GT | реализовано, проверено: `HeaderCommentTests.Font_source_is_described_by_kind`, `Gif_frame_and_all_frames_are_described`, `Image_header_matches_n02` |
+| 4.4.3.4 | Заголовок: пресет дисплея | `HeaderCommentBuilder` (3), N-02 | GT | реализовано, проверено: `HeaderCommentTests.Preset_variants`; каталог пресетов — этап 5 |
+| 4.4.3.5 | Заголовок: ширина и высота изображения или ячейки | `HeaderCommentBuilder` (3) | GT | реализовано, проверено GT: `HeaderCommentTests.Image_header_matches_n02`, `Font_header_matches_n02` |
+| 4.4.3.6 | Заголовок: направление, порядок бит, бит в байте, порядок обхода, инверсия | `HeaderCommentBuilder` (3), N-02 | GT: горизонтальный и вертикальный, H ≤ 8 и H > 8 | реализовано, проверено: `HeaderCommentTests.Packing_description_shows_only_applicable_parameters` |
+| 4.4.3.7 | Заголовок: размер массива в байтах | `HeaderCommentBuilder`, `RussianPlural` (3), D-04 | GT; UT склонения | реализовано, проверено: `HeaderCommentTests.Image_header_matches_n02`, `Gif_frame_and_all_frames_are_described`, `RussianPluralTests.Bytes_follow_russian_plural_rule` |
+| 4.4.4.1 | Байт в строке 1…16 (для изображений по умолчанию 16) | `CGeneratorBase`, `A51GeneratorBase` (3), N-11 | UT: 1, 7, 16; валидация 0 и 17 | частично: в ядре 1…16, по умолчанию 16 — `CGeneratorGoldenTests.Bytes_per_line_sets_data_line_count`, `FormattingTests.Image_lines_have_bytes_per_line_and_remainder`, `Bytes_per_line_outside_1_to_16_is_rejected`; поле с валидацией — этапы 6, 8 |
+| 4.4.4.2 | Шрифт: каждый символ с новой строки; больше 16 байт — перенос поровну | генераторы (3), D-08 | GT: 6×8, 12×16 (24 → 2×12), 32 → 2×16 | реализовано, проверено: `FormattingTests.Glyph_lines_are_split_evenly`, `CGeneratorGoldenTests.Font_6x8_glyph_fits_one_line`, `C51_font_12x16_matches_appendix_v1` (24 → 2×12), `Font_with_32_bytes_per_char_takes_two_lines_of_16`, `A51GeneratorGoldenTests.Font_with_24_bytes_puts_the_comment_on_the_first_line_only` |
+| 4.4.4.3 | C: только шестнадцатеричные числа `0x0F` | `NumberFormatter` (3), D-09 | GT; UT: в выводе нет `0b` | реализовано, проверено: `FormattingTests.C_literals_are_upper_case_hex`, `CGeneratorGoldenTests.C_output_uses_only_block_comments_hex_literals_and_no_static` |
+| 4.4.4.4 | Ассемблер: `0FFh` (по умолчанию) или `11111111b`; ведущий ноль перед буквой | `NumberFormatter` (3), D-09 | GT; UT | реализовано, проверено: `FormattingTests.Asm_hex_data_always_has_leading_zero_and_two_digits`, `Asm_binary_data_has_eight_digits`, `Asm_code_has_leading_zero_only_before_letter`, `A51GeneratorGoldenTests.Binary_numbers_are_eight_digits_with_b_suffix` |
+| 4.4.4.5 | Комментарий символа: `/* 0xC0 'А' */` в C, `; 0C0h 'А'` в ассемблере; для непечатаемых только код | `GlyphCommentFormatter` (3), D-10, N-31 | GT; UT: 0x00, 0x20, 0x7F, 0x98, 0xA0, 0xAD, 0xC0 | реализовано, проверено: `FormattingTests.Glyph_comments_show_printable_characters_only`, `Glyph_comments_never_open_or_close_a_c_comment_early`, `Cp1251Tests.Printable_codes_follow_d10` |
+| 4.4.4.6 | В C только блочные комментарии `/* */` | `CGeneratorBase` (3) | UT: в выводе нет `//` | реализовано, проверено: `CGeneratorGoldenTests.C_output_uses_only_block_comments_hex_literals_and_no_static` |
+| 4.4.5.1 | C51: массив в памяти программ (`code`), тип `unsigned char` | `C51CGenerator` (3) | GT (В.1); CC с `-Dcode=` | реализовано, проверено GT: `CGeneratorGoldenTests.C51_font_12x16_matches_appendix_v1`, `Small_c51_image_is_byte_exact`; CC пропущен — компиляторов нет |
+| 4.4.5.2 | A51: данные директивой `DB` | `A51GeneratorBase` (3) | GT (В.2, В.3) | реализовано, проверено GT: `A51GeneratorGoldenTests.Module_font_6x8_matches_appendix_v2`, `Image_lines_have_no_comments_and_frames_are_marked`, `Lines_never_end_with_comma_and_stay_below_256_characters` |
+| 4.4.5.3 | A51, самостоятельный модуль: `SEGMENT CODE`, `RSEG`, `PUBLIC`, `END` | `A51ModuleGenerator` (3), N-07 | GT (В.2); ПМИ: Keil A51 (заказчик) | реализовано, проверено GT: `A51GeneratorGoldenTests.Module_font_6x8_matches_appendix_v2`, `Long_segment_name_keeps_a_space_before_segment`; ассемблирование в Keil A51 — заказчик |
+| 4.4.5.4 | A51, фрагмент `$INCLUDE`: только метка и `DB`, без `END` | `A51IncludeGenerator` (3), N-03 | GT (В.3); ПМИ: Keil A51 (заказчик) | реализовано, проверено GT: `A51GeneratorGoldenTests.Include_fragment_matches_appendix_v3`; ассемблирование в Keil A51 — заказчик |
+| 4.4.6.1 | STM32: массив во Flash через `const` | `Stm32CGenerator` (3) | GT (В.4) | реализовано, проверено GT: `CGeneratorGoldenTests.Stm32_image_128x64_matches_appendix_v4` |
+| 4.4.6.2 | Тип `uint8_t` из `<stdint.h>` (по умолчанию) или `unsigned char` | `Stm32CGenerator` (3), N-16 | GT: оба варианта | реализовано, проверено GT: `CGeneratorGoldenTests.Stm32_image_128x64_matches_appendix_v4` (`uint8_t`), `Stm32_unsigned_char_variant_has_no_stdint` |
+| 4.4.6.3 | Без `static`: определение в `.c`, `extern` в `.h` | `Stm32CGenerator` (3) | GT; UT: нет `static` | реализовано, проверено: `CGeneratorGoldenTests.C_output_uses_only_block_comments_hex_literals_and_no_static`, `Stm32_image_128x64_matches_appendix_v4` (`extern` в `.h`) |
+| 4.4.6.4 | Компилируется без ошибок и предупреждений в MDK-ARM (AC5, AC6), IAR EWARM, GCC STM32CubeIDE | `Stm32CGenerator` (3) | CC (`-std=c99 -Wall -Wextra -pedantic -Werror`); ПМИ (заказчик) | частично: код C89 без `static`, без `//`, только hex (GT выше); `tools/compile-check.ps1` готов, но пропущен — компиляторов на машине нет; компиляция в MDK-ARM, IAR EWARM, STM32CubeIDE — заказчик |
+| 4.4.7.1 | `.h`: защита от повторного включения | `CGeneratorBase` (3) | GT | реализовано, проверено GT: `CGeneratorGoldenTests.Stm32_image_128x64_matches_appendix_v4`, `C51_font_12x16_matches_appendix_v1` |
+| 4.4.7.2 | `.h`: `#define` ширины, высоты, размера (шрифт — ширина/высота ячейки, байт на символ) | `CGeneratorBase` (3), D-11 | GT (В.1, В.4); GIF — `_FRAMES`, `_FRAME_SIZE` | реализовано, проверено GT: `CGeneratorGoldenTests.Stm32_image_128x64_matches_appendix_v4`, `C51_font_12x16_matches_appendix_v1`, `All_gif_frames_form_a_two_dimensional_array` (`_FRAMES`, `_FRAME_SIZE`) |
+| 4.4.7.3 | `.h`: объявление массива с `extern` | `CGeneratorBase` (3) | GT | реализовано, проверено GT: `CGeneratorGoldenTests.Stm32_image_128x64_matches_appendix_v4`, `C51_font_12x16_matches_appendix_v1` |
+| 4.4.8.1 | Кодировка CP1251 (по умолчанию) или UTF-8 без BOM | `OutputEncoder` (3), D-03, D-16 | UT: байты CP1251 для кириллицы; у UTF-8 нет BOM | частично: в ядре — `OutputBehaviourTests.Cp1251_and_utf8_without_bom_encode_the_same_text`, `Cp1251Tests.Get_bytes_encodes_cyrillic_and_replaces_missing_characters`, `HeaderCommentTests.Characters_outside_cp1251_are_replaced_with_a_warning` (N-42); выбор кодировки в интерфейсе — этап 6 |
+| 4.4.8.2 | Переводы строк CRLF | `OutputEncoder` (3) | UT: нет одиночных LF, файл заканчивается CRLF | реализовано, проверено: `OutputBehaviourTests.Text_uses_crlf_only_and_ends_with_crlf` |
 
 ## 4.5. Сохранение настроек
 
@@ -195,8 +195,8 @@
 
 | ID | Требование | Где реализовать (этап) | Чем проверить | Статус |
 |---|---|---|---|---|
-| 4.6.1 | Независимые модули: загрузка → обработка (RGBA 8 бит) → упаковка → генерация | структура Core (1–4), `architecture.md` | РП ревью зависимостей; UT по модулям | частично: загрузка (`IImageDecoder` в Core, `WicImageDecoder` в отдельной сборке), обработка (`Core.Processing`) и упаковка готовы, Core по-прежнему без WPF; генерация — этап 3 |
-| 4.6.2 | Новый режим упаковки или формат вывода — без изменения остальных модулей | `PackerRegistry`, `OutputGeneratorRegistry` (1, 3) | UT: регистрация тестового упаковщика и генератора | частично: `PackerRegistry` реализован, проверен `ValidationAndRegistryTests.New_packer_is_added_by_registration_only` и `Duplicate_registration_is_rejected`; `OutputGeneratorRegistry` — этап 3 |
+| 4.6.1 | Независимые модули: загрузка → обработка (RGBA 8 бит) → упаковка → генерация | структура Core (1–4), `architecture.md` | РП ревью зависимостей; UT по модулям | частично: загрузка, обработка, упаковка и генерация — отдельные модули с узкими типами (`RgbaImage`, `MonoBitmap`, `byte[]`, `OutputData` → `OutputDocument`), Core без WPF; шрифты — этап 4 |
+| 4.6.2 | Новый режим упаковки или формат вывода — без изменения остальных модулей | `PackerRegistry`, `OutputGeneratorRegistry` (1, 3) | UT: регистрация тестового упаковщика и генератора | реализовано, проверено: `ValidationAndRegistryTests.New_packer_is_added_by_registration_only`, `Duplicate_registration_is_rejected`, `OutputBehaviourTests.New_format_is_added_by_registration_only` |
 | 4.6.3 | Задел под RGB565 с выбором порядка байтов (big/little-endian) | `PackingOptions.PixelFormat`, `ByteOrder` (1) | UT: незарегистрированный формат — понятная ошибка; РП ревью | реализовано, проверено: `ValidationAndRegistryTests.Unregistered_format_gives_clear_error`, `Color_format_is_rejected_by_monochrome_packer`; в интерфейсе 1.0 не показывается |
 | 4.6.4 | Для монохрома неиспользуемые биты/байты цвета игнорируются | `GrayscaleStep`, `Mono1bppPacker` (1, 2) | UT: результат не зависит от `ByteOrder` | реализовано, проверено: упаковщик игнорирует `ByteOrder` (`LayoutTests.Byte_order_does_not_affect_monochrome_output`); яркость считается только по R, G, B (`GrayscaleAndBinarizerTests.Luminance_ignores_alpha`) |
 
@@ -213,7 +213,7 @@
 | 5.2.1 | Пиксели клетками; масштаб 1:1…32:1 и «по размеру окна» | `PixelGridControl` (6), N-24 | UT расчёта масштаба; РП | не реализовано |
 | 5.2.2 | Линии сетки вкл/выкл; толстые линии на границах байтов и страниц (через 8, при 6 битах — через 6) | `PixelGridControl` (6) | UT расчёта границ; РП | не реализовано |
 | 5.2.3 | Подсказка: X, Y, номер байта (dec/hex), номер бита, значение байта (hex/bin) | `PixelGridControl`, `IPacker.Locate` (1, 6), N-34 | UT `Locate` против `Pack`; VT текста подсказки | частично: `IPacker.Locate` реализован и проверен (`LocateAndUnpackTests.Locate_is_consistent_with_pack`, `Locate_gives_tooltip_values_for_t6963c_6_bit_mode`); подсказка в сетке — этап 6 |
-| 5.2.4 | Подсветка байта в окне кода | `ByteSpanMap`, `CodeView` (3, 6) | UT карты позиций для всех форматов; РП | не реализовано |
+| 5.2.4 | Подсветка байта в окне кода | `ByteSpanMap`, `CodeView` (3, 6) | UT карты позиций для всех форматов; РП | частично: карта «байт → позиция в тексте» для всех форматов — `OutputBehaviourTests.Byte_map_points_at_each_byte_literal`; подсветка в окне кода — этап 6 |
 | 5.2.5 | Схема «ЖКИ» / «OLED»; задаётся пресетом, меняется вручную | `PresetSelectorViewModel`, `PixelGridControl` (5, 6) | VT | не реализовано |
 | 5.2.6 | Изменения упаковки, инверсии и порога сразу видны в сетке | `PixelGridControl` (6), N-08 | VT; РП | не реализовано |
 | 5.3.1 | Исходник и результат рядом | `ImageConverterView` (6), N-29 | РП | не реализовано |
@@ -230,9 +230,9 @@
 |---|---|---|---|---|
 | 6.1 | Повреждённые, неподдерживаемые, слишком большие файлы не вызывают аварию; сообщение с причиной | декодер, парсеры, глобальные обработчики исключений App (2, 4, 8) | UT: обрезанный PNG, текст с расширением .png, 8193×8193, огромный GIF; РП | частично: декодер проверен (`WicImageDecoderTests.Broken_and_foreign_files_do_not_crash`, `Side_8192_is_accepted_and_8193_is_too_large_before_pixel_copy`, `Huge_gif_is_rejected_by_the_memory_limit`); парсеры массивов — этап 4, глобальные обработчики — этап 8 |
 | 6.2 | Недопустимые значения полей (размеры, имя, коды) сразу подсвечиваются; генерация невозможна | `ObservableValidator` во ViewModel (6, 8) | VT: ошибка блокирует сохранение и копирование, причина в окне кода | не реализовано |
-| 6.3 | Исходные файлы изображений и шрифтов не изменяются | открытие только для чтения, `OutputWriter` (2–4), N-18 | UT: хеш исходника до и после; запрет записи в путь источника | частично: декодер открывает файл только на чтение и не оставляет его занятым (`WicImageDecoderTests.Decode_does_not_modify_or_lock_the_file`); запрет перезаписи исходника выводом — этап 3 |
+| 6.3 | Исходные файлы изображений и шрифтов не изменяются | открытие только для чтения, `OutputWriter` (2–4), N-18 | UT: хеш исходника до и после; запрет записи в путь источника | частично: декодер открывает файл только на чтение (`WicImageDecoderTests.Decode_does_not_modify_or_lock_the_file`); вывод не пишется в исходные файлы — `OutputWriterTests.Source_file_is_never_overwritten` (N-18); источники шрифтов — этап 4 |
 | 6.4 | Запрос на сохранение при закрытии с несохранёнными изменениями | `MainViewModel` (6), N-15 | VT: «Сохранить / Не сохранять / Отмена» | не реализовано |
-| 6.5 | Детерминизм: одинаковые входы и параметры — побайтно одинаковый результат | весь Core (1–4) | UT: повторная генерация идентична; RT | частично: упаковка детерминирована (`LayoutTests.Repeated_packing_is_byte_identical`); конвейер, включая дизеринг, повторяем (`ImagePipelineTests.Repeated_run_is_identical_including_dithering`, `GrayscaleAndBinarizerTests.Dithering_is_repeatable`); генераторы — этап 3 |
+| 6.5 | Детерминизм: одинаковые входы и параметры — побайтно одинаковый результат | весь Core (1–4) | UT: повторная генерация идентична; RT | частично: упаковка (`LayoutTests.Repeated_packing_is_byte_identical`), конвейер (`ImagePipelineTests.Repeated_run_is_identical_including_dithering`) и генераторы без даты (`OutputBehaviourTests.Generation_without_date_is_byte_identical`) детерминированы; шрифты — этап 4 |
 
 ## 7. Условия эксплуатации
 
@@ -251,10 +251,10 @@
 | 8.1 | C# + .NET 8 + WPF | все проекты (1) | сборка `dotnet build` | реализовано, проверено: приложение `net8.0-windows` (WPF), Core и тесты `net8.0`; `dotnet build` Debug и Release — 0 ошибок, 0 предупреждений (журнал этапа 1) |
 | 8.2 | Portable-поставка: папка или единый exe со всеми зависимостями, без установки сред выполнения | `publish.ps1` (9) | ПМИ: запуск на машине без .NET | не реализовано |
 | 8.3 | Входные данные: BMP/PNG/JPEG/GIF; TTF/OTF Windows; массивы `.c`, `.h`, `.asm`, `.a51`, `.inc` | декодер, источники шрифтов, импорт (2, 4) | UT; VT | частично: BMP, PNG, JPEG и GIF читает `WicImageDecoder` (`WicImageDecoderTests.Decodes_png_bmp_jpeg_and_static_gif`); шрифты и импорт массивов — этап 4 |
-| 8.4.1 | Совместимость с Keil C51 9.59.0.0 и A51 8.2.7.0 | генераторы C51/A51 (3) | CC (частично); ПМИ (заказчик) | не реализовано |
-| 8.4.2 | Совместимость с Keil MDK-ARM (ARM Compiler 5 и 6), v5.20.0.0 | `Stm32CGenerator` (3) | CC (частично); ПМИ (заказчик) | не реализовано |
-| 8.4.3 | Совместимость с IAR EWARM (версия 2025 г.) | `Stm32CGenerator` (3) | CC (частично); ПМИ (заказчик) | не реализовано |
-| 8.4.4 | Совместимость с STM32CubeIDE (GCC) | `Stm32CGenerator` (3) | CC; ПМИ (заказчик) | не реализовано |
+| 8.4.1 | Совместимость с Keil C51 9.59.0.0 и A51 8.2.7.0 | генераторы C51/A51 (3) | CC (частично); ПМИ (заказчик) | частично: формат по В.1–В.3 (GT `CGeneratorGoldenTests.C51_font_12x16_matches_appendix_v1`, `A51GeneratorGoldenTests`); CC пропущен — компиляторов нет; Keil C51/A51 — заказчик |
+| 8.4.2 | Совместимость с Keil MDK-ARM (ARM Compiler 5 и 6), v5.20.0.0 | `Stm32CGenerator` (3) | CC (частично); ПМИ (заказчик) | частично: формат по В.4 (GT); CC пропущен — компиляторов нет; MDK-ARM — заказчик |
+| 8.4.3 | Совместимость с IAR EWARM (версия 2025 г.) | `Stm32CGenerator` (3) | CC (частично); ПМИ (заказчик) | частично: формат по В.4 (GT); CC пропущен — компиляторов нет; IAR EWARM — заказчик |
+| 8.4.4 | Совместимость с STM32CubeIDE (GCC) | `Stm32CGenerator` (3) | CC; ПМИ (заказчик) | частично: формат по В.4 (GT); `tools/compile-check.ps1` с `-std=c99 -Wall -Wextra -pedantic -Werror` готов, но пропущен — gcc нет; STM32CubeIDE — заказчик |
 | 8.5 | Формат проекта — JSON UTF-8 | `ProjectSerializer` (5) | UT: файл читается как UTF-8 JSON | не реализовано |
 
 ## 9. Программная документация
@@ -279,9 +279,9 @@
 |---|---|---|---|---|
 | 11.1.1 | Для каждого пресета и каждой допустимой комбинации упаковки — побайтное сравнение с эталонами (тестовые изображения и шрифты трёх размеров) | `ReferenceComparisonTests` (Core.Tests), `testdata/reference/` (1, 9) | RT: 16 комбинаций × (240×128, 128×64, 13×11, шрифты 6×8, 8×8, 12×16) | частично: все 16 комбинаций сравниваются с эталонной реализацией в памяти на случайных растрах (включая 240×128, 128×64, 13×11, 6×8, 12×16, 1×1 и 1024×1024) — `ReferenceComparisonTests`; сравнение с файлами эталонов по тестовым изображениям и листам шрифтов — этап 9 |
 | 11.1.2 | Эталоны формируются независимо от программы и согласуются с заказчиком | `tests/Image2Gdram.Reference`, `TestAssetsGenerator` (1, 9), N-28 | РП: нет ссылок на Core; согласование Q-08 | частично: независимость эталона проверена (`ReferenceImplementationTests.Reference_assembly_does_not_reference_core`, N-37); формирование файлов — этап 9, согласование — Q-08 |
-| 11.2.1 | Вывод C для C51 компилируется в Keil C51 без ошибок и предупреждений | генератор C51 (3) | CC (`-Dcode=`, частично); ПМИ (заказчик) | не реализовано |
-| 11.2.2 | Ассемблер компилируется в Keil A51 в обоих вариантах | генераторы A51 (3) | ПМИ (заказчик) | не реализовано |
-| 11.2.3 | Вывод STM32 компилируется в MDK-ARM, IAR EWARM, STM32CubeIDE | генератор STM32 (3) | CC (частично); ПМИ (заказчик) | не реализовано |
+| 11.2.1 | Вывод C для C51 компилируется в Keil C51 без ошибок и предупреждений | генератор C51 (3) | CC (`-Dcode=`, частично); ПМИ (заказчик) | частично: вывод по В.1 (GT); `tools/compile-check.ps1` (`-Dcode=`) готов, пропущен — компиляторов нет; Keil C51 — заказчик |
+| 11.2.2 | Ассемблер компилируется в Keil A51 в обоих вариантах | генераторы A51 (3) | ПМИ (заказчик) | частично: вывод по В.2 и В.3 (GT); Keil A51 — заказчик |
+| 11.2.3 | Вывод STM32 компилируется в MDK-ARM, IAR EWARM, STM32CubeIDE | генератор STM32 (3) | CC (частично); ПМИ (заказчик) | частично: вывод по В.4 (GT); `tools/compile-check.ps1` готов, пропущен — компиляторов нет; MDK-ARM, IAR EWARM, STM32CubeIDE — заказчик |
 | 11.3.1 | «Таблица настройки» и строка «Привет! Hello 123» тремя шрифтами выводятся на физические дисплеи | `docs/pmi.md` (9) | ПМИ (заказчик, тестовая прошивка заказчика) | не реализовано |
 | 11.3.2 | Проверка на SSD1306 и WG240128A обязательна; отсутствующие дисплеи — только эталоном, с отметкой в протоколе | шаблон протокола `docs/pmi.md` (9) | ДОК; ПМИ | не реализовано |
 | 11.4 | Критерий приёмки: изображение на дисплее попиксельно совпадает с предпросмотром; все сравнения и компиляции успешны | предпросмотр (6, N-08), RT, CC | ПМИ | не реализовано |
@@ -320,7 +320,7 @@
 
 | ID | Требование | Где реализовать (этап) | Чем проверить | Статус |
 |---|---|---|---|---|
-| В.1 | Keil C51, C: шрифт 12×16 (`font_12x16.h`, `font_12x16.c`) | `C51CGenerator` (3), D-02, D-03, N-02, N-31 | GT | не реализовано |
-| В.2 | Keil A51: шрифт 6×8, самостоятельный модуль | `A51ModuleGenerator` (3), D-02, D-03, N-02, N-07, K-03 | GT | не реализовано |
-| В.3 | Keil A51: шрифт 6×8, фрагмент `$INCLUDE` | `A51IncludeGenerator` (3), N-03, K-02 | GT | не реализовано |
-| В.4 | STM32: изображение 128×64 (`logo_128x64.h`, `logo_128x64.c`) | `Stm32CGenerator` (3), D-02, D-03, N-02 | GT | не реализовано |
+| В.1 | Keil C51, C: шрифт 12×16 (`font_12x16.h`, `font_12x16.c`) | `C51CGenerator` (3), D-02, D-03, N-02, N-31 | GT | реализовано, проверено GT: `CGeneratorGoldenTests.C51_font_12x16_matches_appendix_v1` (с поправками D-02, D-03, N-02, K-06) |
+| В.2 | Keil A51: шрифт 6×8, самостоятельный модуль | `A51ModuleGenerator` (3), D-02, D-03, N-02, N-07, K-03 | GT | реализовано, проверено GT: `A51GeneratorGoldenTests.Module_font_6x8_matches_appendix_v2` (с поправками D-02, D-03, N-02) |
+| В.3 | Keil A51: шрифт 6×8, фрагмент `$INCLUDE` | `A51IncludeGenerator` (3), N-03, K-02 | GT | реализовано, проверено GT: `A51GeneratorGoldenTests.Include_fragment_matches_appendix_v3` (с заголовком N-03) |
+| В.4 | STM32: изображение 128×64 (`logo_128x64.h`, `logo_128x64.c`) | `Stm32CGenerator` (3), D-02, D-03, N-02 | GT | реализовано, проверено GT: `CGeneratorGoldenTests.Stm32_image_128x64_matches_appendix_v4` (с поправками D-02, D-03, N-02, K-06) |
