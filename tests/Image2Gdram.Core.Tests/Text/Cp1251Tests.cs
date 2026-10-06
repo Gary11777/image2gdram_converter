@@ -72,4 +72,76 @@ public class Cp1251Tests
     {
         Assert.Equal(new byte[] { 0xC0, 0xFF, (byte)'x', (byte)'?', (byte)'?' }, Cp1251.GetBytes("Аяx\u00D7\u65E5"));
     }
+
+    [Fact]
+    public void All_256_codes_have_distinct_characters_except_unassigned_0x98()
+    {
+        var seen = new HashSet<char>();
+        for (int code = 0; code < 256; code++)
+        {
+            char? c = Cp1251.ToUnicode((byte)code);
+            if (code == 0x98)
+            {
+                Assert.Null(c);
+                continue;
+            }
+
+            Assert.NotNull(c);
+            Assert.True(seen.Add(c!.Value), $"0x{code:X2} duplicates another code");
+        }
+
+        Assert.Equal(255, seen.Count);
+    }
+
+    [Fact]
+    public void Control_codes_map_to_themselves()
+    {
+        for (int code = 0; code < 0x20; code++)
+        {
+            Assert.Equal((char)code, Cp1251.ToUnicode((byte)code));
+        }
+
+        Assert.Equal('\u007F', Cp1251.ToUnicode(0x7F));
+        Assert.Equal('\u00AD', Cp1251.ToUnicode(0xAD));
+    }
+
+    [Fact]
+    public void Printability_over_all_codes_matches_d10()
+    {
+        int printable = 0;
+        for (int code = 0; code < 256; code++)
+        {
+            bool expected = (code >= 0x20 && code <= 0x7E) || (code >= 0x80 && code != 0x98 && code != 0xA0 && code != 0xAD);
+            Assert.Equal(expected, Cp1251.IsPrintable((byte)code));
+            printable += expected ? 1 : 0;
+        }
+
+        Assert.Equal(95 + 125, printable);
+    }
+
+    [Fact]
+    public void Get_string_decodes_every_byte_and_round_trips_including_0x98()
+    {
+        byte[] all = Enumerable.Range(0, 256).Select(i => (byte)i).ToArray();
+        string text = Cp1251.GetString(all);
+        Assert.Equal(256, text.Length);
+        Assert.Equal('\u0098', text[0x98]);
+        Assert.Equal('\u0410', text[0xC0]);
+        Assert.Equal('\u00A0', text[0xA0]);
+        for (int code = 0; code < 256; code++)
+        {
+            Assert.True(Cp1251.TryFromDecoded(text[code], out byte back));
+            Assert.Equal(code, back);
+        }
+
+        Assert.Equal(string.Empty, Cp1251.GetString(ReadOnlySpan<byte>.Empty));
+    }
+
+    [Fact]
+    public void Placeholder_for_0x98_is_not_a_cp1251_character_in_ordinary_text()
+    {
+        Assert.False(Cp1251.TryFromUnicode('\u0098', out _));
+        Assert.Equal(new[] { (byte)'?' }, Cp1251.GetBytes("\u0098"));
+        Assert.False(Cp1251.TryFromDecoded('\u00D7', out _));
+    }
 }
