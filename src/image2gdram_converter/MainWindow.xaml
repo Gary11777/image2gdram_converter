@@ -1,12 +1,56 @@
 ﻿<Window x:Class="image2gdram_converter.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:local="clr-namespace:image2gdram_converter"
-        mc:Ignorable="d"
-        Title="MainWindow" Height="450" Width="800">
-    <Grid>
-
-    </Grid>
+        xmlns:views="clr-namespace:image2gdram_converter.Views"
+        Title="{Binding WindowTitle}"
+        MinWidth="1024" MinHeight="680"
+        Width="1200" Height="800"
+        UseLayoutRounding="True"
+        SnapsToDevicePixels="True">
+    <Window.InputBindings>
+        <KeyBinding Key="Z" Modifiers="Control" Command="{Binding Image.UndoCommand}"/>
+        <KeyBinding Key="Y" Modifiers="Control" Command="{Binding Image.RedoCommand}"/>
+    </Window.InputBindings>
+    <DockPanel>
+        <Menu DockPanel.Dock="Top">
+            <MenuItem Header="{DynamicResource Menu.File}">
+                <MenuItem Header="{DynamicResource Menu.OpenImage}" Command="{Binding Image.OpenImageCommand}"/>
+                <Separator/>
+                <MenuItem Header="{DynamicResource Menu.NewProject}" Command="{Binding NewProjectCommand}"/>
+                <MenuItem Header="{DynamicResource Menu.OpenProject}" Command="{Binding OpenProjectCommand}"/>
+                <MenuItem Header="{DynamicResource Menu.SaveProject}" Command="{Binding SaveProjectCommand}"/>
+                <MenuItem Header="{DynamicResource Menu.SaveProjectAs}" Command="{Binding SaveProjectAsCommand}"/>
+                <MenuItem Header="{DynamicResource Menu.Recent}" ItemsSource="{Binding RecentFiles}">
+                    <MenuItem.ItemContainerStyle>
+                        <Style TargetType="MenuItem">
+                            <Setter Property="Header" Value="{Binding}"/>
+                            <Setter Property="Command" Value="{Binding DataContext.OpenRecentCommand, RelativeSource={RelativeSource AncestorType=Window}}"/>
+                            <Setter Property="CommandParameter" Value="{Binding}"/>
+                        </Style>
+                    </MenuItem.ItemContainerStyle>
+                </MenuItem>
+                <Separator/>
+                <MenuItem Header="{DynamicResource Menu.SaveOutput}" Command="{Binding Image.SaveOutputCommand}"/>
+                <Separator/>
+                <MenuItem Header="{DynamicResource Menu.Exit}" Command="{Binding ExitCommand}"/>
+            </MenuItem>
+            <MenuItem Header="{DynamicResource Menu.Edit}">
+                <MenuItem Header="{DynamicResource Menu.Undo}" Command="{Binding Image.UndoCommand}" InputGestureText="Ctrl+Z"/>
+                <MenuItem Header="{DynamicResource Menu.Redo}" Command="{Binding Image.RedoCommand}" InputGestureText="Ctrl+Y"/>
+                <Separator/>
+                <MenuItem Header="{DynamicResource Menu.Copy}" Command="{Binding Image.CopyCommand}"/>
+            </MenuItem>
+        </Menu>
+        <StatusBar DockPanel.Dock="Bottom">
+            <TextBlock Text="{Binding StatusText}" TextWrapping="Wrap"/>
+        </StatusBar>
+        <TabControl SelectedIndex="{Binding SelectedTab}">
+            <TabItem Header="{DynamicResource Tab.Image}">
+                <views:ImageConverterView DataContext="{Binding Image}"/>
+            </TabItem>
+            <TabItem Header="{DynamicResource Tab.Font}">
+                <views:FontGeneratorView/>
+            </TabItem>
+        </TabControl>
+    </DockPanel>
 </Window>
