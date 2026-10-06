@@ -1,0 +1,24 @@
+<UserControl x:Class="image2gdram_converter.Controls.CodeView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <DockPanel>
+        <ListBox DockPanel.Dock="Top"
+                 ItemsSource="{Binding CodeFiles}"
+                 SelectedIndex="{Binding CodeIndex, Mode=TwoWay}"
+                 BorderThickness="0"
+                 Background="Transparent"
+                 Visibility="{Binding ShowCodeTabs, Converter={StaticResource BoolToVis}}">
+            <ListBox.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <StackPanel Orientation="Horizontal"/>
+                </ItemsPanelTemplate>
+            </ListBox.ItemsPanel>
+            <ListBox.ItemTemplate>
+                <DataTemplate>
+                    <TextBlock Text="{Binding Caption}" Margin="8,2"/>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+        <Border x:Name="EditorHost" BorderBrush="#FFB0B0B0" BorderThickness="1"/>
+    </DockPanel>
+</UserControl>

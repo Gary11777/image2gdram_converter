@@ -1,6 +1,6 @@
 # Архитектура «Image2GDRAM Converter» 1.0
 
-> **Целевая архитектура плюс отметки о фактическом состоянии.** Документ составлен на этапе 0 по разделам 4 и 5 `agents.md` и п. 4.6 ТЗ. После этапа 5 **фактически существуют** решение, модуль упаковки, загрузка изображений, конвейер обработки, генераторы вывода, ядро шрифтов и хранение данных (пресеты, настройки, проекты `.iiu`). Описание упаковки помечено «**Фактически (этап 1)**», загрузки и обработки — «**Фактически (этап 2)**», вывода — «**Фактически (этап 3)**», шрифтов — «**Фактически (этап 4)**», пресетов, настроек и проектов — «**Фактически (этап 5)**» в разделе 3.6. Остальные разделы — целевые: сигнатуры в них ориентировочные. Сводка — таблица в разделе 10.
+> **Целевая архитектура плюс отметки о фактическом состоянии.** Документ составлен на этапе 0 по разделам 4 и 5 `agents.md` и п. 4.6 ТЗ. После этапа 6 **фактически существуют** решение, модуль упаковки, загрузка изображений, конвейер обработки, генераторы вывода, ядро шрифтов, хранение данных и оболочка с вкладкой «Конвертер картинок». Описание упаковки помечено «**Фактически (этап 1)**», загрузки и обработки — «**Фактически (этап 2)**», вывода — «**Фактически (этап 3)**», шрифтов — «**Фактически (этап 4)**», пресетов, настроек и проектов — «**Фактически (этап 5)**» в разделе 3.6, оболочки — «**Фактически (этап 6)**» в разделе 4. Вкладка шрифтов, замеры и проверка DPI остаются целевыми (этапы 7–8). Сводка — таблица в разделе 10.
 
 Связанные файлы: [`implementation-plan.md`](implementation-plan.md) (этапы), [`decisions.md`](decisions.md) (решения D/F/N/K), [`requirements_checklist.md`](requirements_checklist.md) (трассировка требований).
 
@@ -34,7 +34,7 @@ docs/                           документация и файлы сост�
 
 | Проект | Путь | Платформа | Тип | Ссылки | Пакеты |
 |---|---|---|---|---|---|
-| `image2gdram_converter` | `src/image2gdram_converter/` | `net8.0-windows` | WinExe (WPF) | `Image2Gdram.Core`, `Image2Gdram.Imaging.Wic`, `Image2Gdram.Fonts.Wpf` | `CommunityToolkit.Mvvm` 8.4.2, AvalonEdit (MIT) — этап 6 |
+| `image2gdram_converter` | `src/image2gdram_converter/` | `net8.0-windows` | WinExe (WPF) | `Image2Gdram.Core`, `Image2Gdram.Imaging.Wic`, `Image2Gdram.Fonts.Wpf` | `CommunityToolkit.Mvvm` 8.4.2, `AvalonEdit` 6.3.1.120 (MIT) |
 | `Image2Gdram.Core` | `src/Image2Gdram.Core/` | `net8.0` | библиотека | — | — |
 | `Image2Gdram.Imaging.Wic` | `src/Image2Gdram.Imaging.Wic/` | `net8.0-windows` | библиотека | Core | — (WIC из WPF, N-39, N-41) |
 | `Image2Gdram.Fonts.Wpf` | `src/Image2Gdram.Fonts.Wpf/` | `net8.0-windows` | библиотека (`UseWPF`) | Core | — (`FormattedText`, `GlyphTypeface` из WPF, D-15, N-48) |
@@ -167,7 +167,7 @@ flowchart LR
 - Генераторы: `GeneratorBase` (проверка имени и `BytesPerLine`, предупреждение D-12 для `CKeilC51`, `A51Module`, `A51Include`) → `CGeneratorBase` → `C51CGenerator`, `Stm32CGenerator`; `A51GeneratorBase` → `A51ModuleGenerator`, `A51IncludeGenerator`; `BinGenerator`.
 - Вспомогательные: `HeaderCommentBuilder` (N-02, N-04, N-42), `NumberFormatter` (D-09), `GlyphCommentFormatter` (D-10), `DataLayout` (D-08; строки изображения), `NameValidator` + `ReservedWords` (п. 4.4.2, N-05, N-06), `DefaultNameBuilder` (D-13), `OutputEncoder` (CP1251 своей таблицей, UTF-8 без BOM), внутренний `TextBuilder` (CRLF, финальный CRLF, позиции для карты).
 - `OutputWriter` — `GetTargetPaths(document, directory)`, `Save(document, directory, confirmOverwrite, protectedPaths)` → `OutputSaveResult` (`Saved`/`Cancelled`); имена файлов — N-43; запрет записи в исходные файлы — N-18; ошибки — `OutputWriteException` с `OutputWriteError` (`WouldOverwriteSource`, `AccessDenied`, `IoError`).
-- Генераторы не подключены к интерфейсу: это этапы 6–7.
+- Генераторы подключены к вкладке картинок (этап 6). Вкладка шрифтов — этап 7.
 
 ### 3.5. `Image2Gdram.Core.Fonts` — шрифты (этап 4)
 
@@ -206,6 +206,19 @@ flowchart LR
 ---
 
 ## 4. Приложение WPF (этапы 6–8)
+
+**Фактически (этап 6).** Оболочка и вкладка «Конвертер картинок» собраны. Отличия от черновика ниже: отдельные `PackingOptionsViewModel` и `OutputOptionsViewModel` не заводились — их поля живут в `ImageConverterViewModel`. Вкладка шрифтов — пустая оболочка (`FontGeneratorView`): таблица, редактор и предпросмотр строки остаются этапом 7. `FontSession` только хранит параметры и таблицу, чтобы проект их не терял.
+
+Сделано:
+
+- `App` регистрирует CP1251, три обработчика необработанных исключений и показывает причину. `app.manifest` — `PerMonitorV2`. Просмотр при 100–200 % и замеры времени — этап 8.
+- Словарь `Resources/Strings.ru-RU.xaml`. Код берёт фразы через `ILocalizationService`. Дополнительный словарь — `Languages\<язык>.xaml` рядом с программой.
+- `MainViewModel`: проект `.iiu`, запрос «Сохранить / Не сохранять / Отмена» (N-15), запись `settings.json` через секунду и при выходе.
+- `ImageConverterViewModel`: шаги 1–5, упаковка, вывод, пресеты, кадр GIF, правки и undo/redo. Пересчёт — `RecalcScheduler` (пауза 40 мс, отмена предыдущего). В тестах — `ImmediateRecalcScheduler`.
+- `PixelGridControl`: один `WriteableBitmap`, масштаб 1…32 и «по размеру окна», линии сетки (N-54), мышь. `CodeView` на AvalonEdit подсвечивает байт по `ByteSpanMap`.
+- Диалоги, файлы и буфер — за интерфейсами, в тестах подменяются.
+
+Черновик этапа 0 (ниже) остаётся ориентиром для вкладки шрифтов и замеров.
 
 ```
 src/image2gdram_converter/
@@ -273,7 +286,7 @@ sequenceDiagram
 - `Image2Gdram.Core.Tests`: упаковщик (16 комбинаций, контрольные примеры F-05, `Locate`, `Unpack(Pack(b))`, сравнение с Reference), конвейер и тестовые изображения приложения Б, генераторы вывода (папки `Output/` и `Text/`: золотые тесты В.1–В.4, карта байтов, кодировки, CRLF, детерминизм, имена, запись файлов), ядро шрифтов (папка `Fonts/`: заливка против независимого числа обхода, суперсэмплинг, источник TTF на поддельном провайдере `FakeOutlineProvider`, таблица против Reference, диапазоны, правка символа, лист `SheetGlyphSourceTests`, импорт `ArrayImportParserTests`, `TextFileReaderTests`, `ImportGlyphSourceTests`, сквозной путь `FontSourceIntegrationTests`), пресеты, настройки и проекты (этап 5: `PresetCatalogTests`, `UserPresetStoreTests`, `SettingsServiceTests`, `ProjectSerializerTests`).
 - `Image2Gdram.Fonts.Wpf.Tests` (**этап 4**): свойства растеризации реальными системными шрифтами (Arial, Consolas, Courier New) — метрики, базовая линия, отсутствующие глифы, повторяемость между потоками, начертания, порог; без побайтных сравнений.
 - `tools/OutputSamples` (**сделано, этап 3**; `net8.0`, ссылки на Core и `TestAssetsGenerator`): `OutputSamples <папка>` пишет вывод всех форматов (`stm32`, `stm32_uchar`, `stm32_utf8`, `c51`, `a51_module`, `a51_include`, `bin`) для тестовых изображений, спрайта, анимации и шрифтов 6×8, 8×8, 12×16, дата отключена. Нужен `compile-check.ps1` и для ручного просмотра. Тесты `WicImageDecoder` — в `Image2Gdram.Imaging.Wic.Tests` (N-39).
-- `Image2Gdram.App.Tests`: смена пресета → «Пользовательский (на основе …)», сброс правок с подтверждением и откатом, undo/redo, валидация, запрос при закрытии; сервисы подменяются заглушками.
+- `Image2Gdram.App.Tests` (**этап 6**): смена пресета → «Пользовательский (на основе …)», сброс правок с подтверждением и откатом, undo/redo, подсказка байта, валидация ширины, запрос при закрытии, автосохранение настроек, ключи словаря; сервисы подменяются заглушками. 25 тестов.
 - `Image2Gdram.Reference`: наивная упаковка «по определению» (F-01…F-04) — источник эталонов.
 - `TestAssetsGenerator`: **сделано (этап 2)** — `testdata/test_pattern_240x128.png`, `testdata/test_pattern_128x64.png`, `testdata/test_sprite_13x11.png` (раскладка N-40), встроенный шрифт 5×7, PNG своим кодировщиком. На этапе 4 у `PngWriter` добавлена перегрузка `Write(stream, width, height, isActive)` — тем же кодировщиком тест листа пишет PNG, который читает `WicImageDecoder`. Листы шрифтов 6×8, 8×8, 12×16 как файлы эталонов и `testdata/reference/` с `index.md` — этап 9; тогда же появится ссылка на `Image2Gdram.Reference`.
 - `tools/compile-check.ps1` (**сделано, этап 3**): запускает `OutputSamples` в `artifacts/compile-check/` (папка в `.gitignore`); при наличии `gcc`/`clang`/`arm-none-eabi-gcc` компилирует вывод STM32 с `-std=c99 -Wall -Wextra -pedantic -Werror -c` и вывод C51 с `-Dcode=`; иначе сообщает и пропускает с кодом 0 (на этой машине компиляторов нет).
@@ -289,7 +302,7 @@ sequenceDiagram
 
 ## 10. Состояние реализации
 
-Состояние после этапа 5 (проверено 2026-10-06: `dotnet build --no-incremental` Debug и Release — 0 ошибок, 0 предупреждений; `dotnet test` Debug и Release — 2374 из 2374, из них 2343 в `Image2Gdram.Core.Tests`, 17 в `Image2Gdram.Fonts.Wpf.Tests` и 14 в `Image2Gdram.Imaging.Wic.Tests`).
+Состояние после этапа 6 (проверено 2026-10-06: `dotnet build --no-incremental` Debug и Release — 0 ошибок, 0 предупреждений; `dotnet test` Debug и Release — 2399 из 2399, из них 2343 в `Image2Gdram.Core.Tests`, 25 в `Image2Gdram.App.Tests`, 17 в `Image2Gdram.Fonts.Wpf.Tests` и 14 в `Image2Gdram.Imaging.Wic.Tests`).
 
 | Модуль | Состояние |
 |---|---|
@@ -301,13 +314,13 @@ sequenceDiagram
 | Core: Diagnostics | **сделано (этап 3):** `Diagnostic` (раздел 3.6). Ошибка конвейера по-прежнему свой код у `PipelineException`. Коды этапа 5: `SettingsFileReset`, `ProjectSourceNotFound` |
 | Core: Fonts | **сделано (этап 4):** раздел 3.5 — таблица 256 символов, диапазоны, источник TTF, заливка, кэш контуров, операции и правка символа, лист символов, импорт массивов C и A51 |
 | `src/Image2Gdram.Fonts.Wpf` | **сделано (этап 4):** `WpfGlyphOutlineProvider` (D-15, N-48) |
-| Core: Presets, Settings, Projects | **сделано (этап 5):** раздел 3.6. К интерфейсу не подключено (этапы 6–7): выбор пресета в окне, автосохранение через 1 с и запрос при закрытии |
-| Приложение WPF | пустая заготовка (`MainWindow.xaml` без содержимого; `App.OnStartup` регистрирует CP1251), ссылается на Core, `Image2Gdram.Imaging.Wic` и `Image2Gdram.Fonts.Wpf`; пакеты — только `CommunityToolkit.Mvvm` 8.4.2. Запускается. GUI — этапы 6–8 |
+| Core: Presets, Settings, Projects | **сделано (этап 5):** раздел 3.6. На вкладке картинок подключено (этап 6): список пресетов, автосохранение и проект. Список пресетов шрифта — этап 7 |
+| Приложение WPF | **оболочка и вкладка картинок (этап 6):** раздел 4. Окно 1024×680, словарь строк, сетка, окно кода, правки, undo/redo, подсветка байта. Запускается. Вкладка шрифтов пустая — этап 7; замеры и проверка DPI — этап 8 |
 | `src/Image2Gdram.Imaging.Wic` | **сделано (этап 2):** `WicImageDecoder`, разбор заголовка до копирования пикселей, сборка кадров GIF |
 | `tests/Image2Gdram.Reference` | **сделано (этап 1):** `ReferencePacker`, `RefOptions.AllCombinations` (16 комбинаций), без ссылки на Core (N-28, N-37) |
 | `tests/Image2Gdram.Core.Tests` | **упаковка (этап 1), конвейер (этап 2), генераторы вывода (этап 3), ядро шрифтов (этап 4), пресеты, настройки и проекты (этап 5):** 2343 теста |
 | `tests/Image2Gdram.Imaging.Wic.Tests` | **сделано (этапы 2 и 4):** 14 тестов — декодер и PNG-лист через `WicImageDecoder` |
 | `tests/Image2Gdram.Fonts.Wpf.Tests` | **сделано (этап 4):** 17 тестов на системных шрифтах |
-| `tests/Image2Gdram.App.Tests` | не создан (этап 6) |
+| `tests/Image2Gdram.App.Tests` | **сделано (этап 6):** 25 тестов сценариев ViewModel |
 | `tools/TestAssetsGenerator` | **сделано для приложения Б (этап 2):** три PNG в `testdata/` |
 | `tools/OutputSamples`, `tools/compile-check.ps1` | **сделано (этап 3):** образцы вывода и дымовая компиляция; на этой машине компиляция пропускается — компиляторов нет |
