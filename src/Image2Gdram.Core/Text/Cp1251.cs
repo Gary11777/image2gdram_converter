@@ -11,6 +11,8 @@ public static class Cp1251
 {
     public const byte Unassigned = 0x98;
 
+    private const char UnassignedPlaceholder = '\u0098';
+
     private static readonly char?[] ToUnicodeTable = BuildTable();
     private static readonly Dictionary<char, byte> FromUnicodeTable = BuildReverse(ToUnicodeTable);
 
@@ -41,6 +43,36 @@ public static class Cp1251
         }
 
         return bytes;
+    }
+
+    /// <summary>
+    /// Декодирует байты CP1251 своей таблицей. Каждый байт даёт ровно один символ; незанятый код 0x98
+    /// декодируется как U+0098, чтобы <see cref="TryFromDecoded"/> восстановил исходный байт (решение N-49).
+    /// </summary>
+    public static string GetString(ReadOnlySpan<byte> bytes)
+    {
+        return string.Create(bytes.Length, bytes.ToArray(), static (span, source) =>
+        {
+            for (int i = 0; i < source.Length; i++)
+            {
+                span[i] = ToUnicodeTable[source[i]] ?? UnassignedPlaceholder;
+            }
+        });
+    }
+
+    /// <summary>
+    /// Код CP1251 для символа текста, полученного через <see cref="GetString"/>: как <see cref="TryFromUnicode"/>,
+    /// плюс U+0098 → 0x98.
+    /// </summary>
+    public static bool TryFromDecoded(char c, out byte code)
+    {
+        if (c == UnassignedPlaceholder)
+        {
+            code = Unassigned;
+            return true;
+        }
+
+        return TryFromUnicode(c, out code);
     }
 
     private static char?[] BuildTable()
