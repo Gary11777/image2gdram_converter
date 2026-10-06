@@ -1,6 +1,6 @@
 # Архитектура «Image2GDRAM Converter» 1.0
 
-> **Целевая архитектура плюс отметки о фактическом состоянии.** Документ составлен на этапе 0 по разделам 4 и 5 `agents.md` и п. 4.6 ТЗ. После этапа 4 **фактически существуют** решение, модуль упаковки, загрузка изображений, конвейер обработки, генераторы вывода и ядро шрифтов (таблица, TTF, лист символов, импорт массивов). Описание упаковки помечено «**Фактически (этап 1)**», загрузки и обработки — «**Фактически (этап 2)**», вывода — «**Фактически (этап 3)**», шрифтов — «**Фактически (этап 4)**». Остальные разделы — целевые: сигнатуры в них ориентировочные. Сводка — таблица в разделе 10.
+> **Целевая архитектура плюс отметки о фактическом состоянии.** Документ составлен на этапе 0 по разделам 4 и 5 `agents.md` и п. 4.6 ТЗ. После этапа 5 **фактически существуют** решение, модуль упаковки, загрузка изображений, конвейер обработки, генераторы вывода, ядро шрифтов и хранение данных (пресеты, настройки, проекты `.iiu`). Описание упаковки помечено «**Фактически (этап 1)**», загрузки и обработки — «**Фактически (этап 2)**», вывода — «**Фактически (этап 3)**», шрифтов — «**Фактически (этап 4)**», пресетов, настроек и проектов — «**Фактически (этап 5)**» в разделе 3.6. Остальные разделы — целевые: сигнатуры в них ориентировочные. Сводка — таблица в разделе 10.
 
 Связанные файлы: [`implementation-plan.md`](implementation-plan.md) (этапы), [`decisions.md`](decisions.md) (решения D/F/N/K), [`requirements_checklist.md`](requirements_checklist.md) (трассировка требований).
 
@@ -160,7 +160,7 @@ flowchart LR
 - `OutputData` (абстрактный: `Packing`, `Preset`, `TotalBytes`, `GetAllBytes()`):
   - `ImageOutputData` — `Width`, `Height`, один кадр или все кадры (`AllFrames`, `FrameCount`, `FrameSize`, `GetFrame(i)`), `ImageSourceInfo` (только имя файла, число кадров исходника, выбранный кадр);
   - `FontOutputData` — `CharCount = 256`, `CellWidth`, `CellHeight`, `BytesPerChar`, `GetGlyph(code)`, `FontSourceInfo` (`TrueType`, `Sheet`, `Import`, `Manual`).
-- `PresetInfo` — `Named(name, controller)`, `CustomBasedOn(name)`, `Custom` (строка «пресет» заголовка, N-02). Каталог пресетов — этап 5.
+- `PresetInfo` — `Named(name, controller)`, `CustomBasedOn(name)`, `Custom` (строка «пресет» заголовка, N-02). Каталог, из которого берутся имя и контроллер, — этап 5 (`PresetCatalog`, `PresetBinding.ToInfo`).
 - `IOutputGenerator` — `OutputFormat Format`, `OutputDocument Generate(OutputData data, OutputOptions options)`.
 - `OutputGeneratorRegistry` — `CreateDefault()` (пять генераторов), `Register` (повтор — `InvalidOperationException`), `TryGet`, `Get` (нет генератора — `NotSupportedException`), `Formats`, `Generate(data, options)`.
 - `OutputDocument` — `Files` (файл данных первым: `.c`, затем `.h`; для A51 и BIN — один файл), `ByteMap`, `Diagnostics`. `OutputFile` — `FileName`, `Kind`, `Text` (для окна кода и буфера обмена; у BIN — hex-дамп), `Content` (байты для записи). `ByteSpanMap` — `FileIndex`, `Length`, `Count`, индексатор `ByteSpan(FileIndex, Start, Length)` — позиция литерала байта в `Text`.
@@ -197,11 +197,11 @@ flowchart LR
 ### 3.6. Прочие модули Core (этапы 1–5)
 
 - `Image2Gdram.Core.Editing` — **сделано для штриха пикселей (этап 2) и символа шрифта (этап 4),** см. п. 3.2.1 и 3.5.
-- `Image2Gdram.Core.Presets` — `Preset` (имя, контроллер, размер, упаковка, схема `ColorScheme`: `Lcd`/`Oled`, признак встроенного), `PresetCatalog` (встроенный ресурс `presets.json`, D-01), `UserPresetStore` (N-26).
-- `Image2Gdram.Core.Settings` — `AppSettings` (DTO), `SettingsPathResolver` (`AppContext.BaseDirectory` → `%APPDATA%\ImageIU`, реальная попытка записи), `SettingsService` (атомарная запись, восстановление после повреждения, N-25).
-- `Image2Gdram.Core.Projects` — DTO проекта `.iiu` (`ProjectDto`, `ImageTabDto`, `FontTabDto`, `formatVersion`), `ProjectSerializer` (`System.Text.Json`, перечисления строками, UTF-8, N-16).
+- `Image2Gdram.Core.Presets` — **сделано (этап 5, N-53).** `ColorScheme` (`Lcd` / `Oled`), `Preset` (имя, контроллер, размер 1…1024, упаковка, схема, `IsBuiltIn`), `PresetCatalog.Shared` (ресурс `presets.json`, шесть пресетов D-01; «Пользовательский» в каталог не входит), `PresetBinding` и `PresetApplication` (картинка: размер, упаковка и схема; шрифт: упаковка и схема; пустой выбор значения не меняет), `UserPresetStore` (добавить, переименовать, удалить; встроенные неизменяемы), `PresetException`.
+- `Image2Gdram.Core.Settings` — **сделано (этап 5, N-25, N-53).** `ImageTabParameters`, `FontTabParameters`, `AppSettings` (язык, обе вкладки, пресеты, недавние файлы, папки), `SettingsPathResolver` (`AppContext.BaseDirectory`, иначе `%APPDATA%\ImageIU`), `SettingsService` (атомарная запись; повреждённый файл — умолчания и `SettingsFileReset`), `SettingsException`.
+- `Image2Gdram.Core.Projects` — **сделано (этап 5, N-16, N-53).** `ProjectDocument` (`formatVersion` 1, `ImageProjectTab`, `FontProjectTab`), `ProjectSerializer`. JSON через DTO, не через ViewModel: перечисления строками, UTF-8 без BOM. Путь исходника — абсолютный и относительный; при открытии сначала относительный. Нет файла — `ProjectSourceNotFound`, параметры и 256 символов всё равно читаются.
 - `Image2Gdram.Core.Text` — **сделано (этапы 1, 3):** `ProductInfo` (константа «Image2GDRAM Converter 1.0», D-02), `RussianPlural` (`Select`, `Format`, `Bytes`, `Symbols`, `Frames`; D-04), `Cp1251` (N-45).
-- `Image2Gdram.Core.Diagnostics` — **сделано (этап 3):** `record Diagnostic(DiagnosticCode Code, DiagnosticSeverity Severity, IReadOnlyList<string> Arguments)`; коды `ArrayExceeds64KForC51`, `NonCp1251CharactersReplaced` (этап 3), `FontNotFound`, `GlyphsMissingInFont` (этап 4, часть 1), `SheetTooSmall`, `ImportValueCountMismatch` (этап 4, часть 2). Следующие этапы добавляют свои коды в конец того же перечисления.
+- `Image2Gdram.Core.Diagnostics` — **сделано (этап 3):** `record Diagnostic(DiagnosticCode Code, DiagnosticSeverity Severity, IReadOnlyList<string> Arguments)`; коды `ArrayExceeds64KForC51`, `NonCp1251CharactersReplaced` (этап 3), `FontNotFound`, `GlyphsMissingInFont` (этап 4, часть 1), `SheetTooSmall`, `ImportValueCountMismatch` (этап 4, часть 2), `SettingsFileReset`, `ProjectSourceNotFound` (этап 5). Следующие этапы добавляют свои коды в конец того же перечисления.
 
 ---
 
@@ -250,10 +250,12 @@ sequenceDiagram
 
 ## 6. Хранение данных
 
-- Встроенные пресеты — ресурс `presets.json` в Core (D-01); пользовательские — в `settings.json`.
-- `settings.json` — рядом с exe или `%APPDATA%\ImageIU\` (N-25).
-- Проект `.iiu` — JSON UTF-8 через DTO (N-16); ViewModel напрямую не сериализуются.
-- Порядок элементов в JSON и выводе детерминирован: сортировка ключей, `InvariantCulture`.
+Сделано на этапе 5 (N-16, N-25, N-53). ViewModel напрямую не сериализуются.
+
+- Встроенные пресеты — ресурс `Presets/presets.json` в Core (D-01). Пользовательские — массив в `settings.json`.
+- `settings.json` — рядом с программой (`AppContext.BaseDirectory`) или, если туда нельзя записать файл, в `%APPDATA%\ImageIU\settings.json`.
+- Проект `.iiu` — JSON UTF-8 без BOM, `formatVersion` 1. В нём обе вкладки, параметры, правки пикселей и все 256 символов.
+- Порядок полей в JSON — порядок свойств DTO. Списки, у которых есть естественный порядок (коды, кадры, точки), пишутся в этом порядке. `Dictionary` для файла не используется.
 
 ---
 
@@ -268,7 +270,7 @@ sequenceDiagram
 
 ## 8. Тесты и инструменты
 
-- `Image2Gdram.Core.Tests`: упаковщик (16 комбинаций, контрольные примеры F-05, `Locate`, `Unpack(Pack(b))`, сравнение с Reference), конвейер и тестовые изображения приложения Б, генераторы вывода (папки `Output/` и `Text/`: золотые тесты В.1–В.4, карта байтов, кодировки, CRLF, детерминизм, имена, запись файлов), ядро шрифтов (папка `Fonts/`: заливка против независимого числа обхода, суперсэмплинг, источник TTF на поддельном провайдере `FakeOutlineProvider`, таблица против Reference, диапазоны, правка символа, лист `SheetGlyphSourceTests`, импорт `ArrayImportParserTests`, `TextFileReaderTests`, `ImportGlyphSourceTests`, сквозной путь `FontSourceIntegrationTests`). Настройки и проекты — этап 5.
+- `Image2Gdram.Core.Tests`: упаковщик (16 комбинаций, контрольные примеры F-05, `Locate`, `Unpack(Pack(b))`, сравнение с Reference), конвейер и тестовые изображения приложения Б, генераторы вывода (папки `Output/` и `Text/`: золотые тесты В.1–В.4, карта байтов, кодировки, CRLF, детерминизм, имена, запись файлов), ядро шрифтов (папка `Fonts/`: заливка против независимого числа обхода, суперсэмплинг, источник TTF на поддельном провайдере `FakeOutlineProvider`, таблица против Reference, диапазоны, правка символа, лист `SheetGlyphSourceTests`, импорт `ArrayImportParserTests`, `TextFileReaderTests`, `ImportGlyphSourceTests`, сквозной путь `FontSourceIntegrationTests`), пресеты, настройки и проекты (этап 5: `PresetCatalogTests`, `UserPresetStoreTests`, `SettingsServiceTests`, `ProjectSerializerTests`).
 - `Image2Gdram.Fonts.Wpf.Tests` (**этап 4**): свойства растеризации реальными системными шрифтами (Arial, Consolas, Courier New) — метрики, базовая линия, отсутствующие глифы, повторяемость между потоками, начертания, порог; без побайтных сравнений.
 - `tools/OutputSamples` (**сделано, этап 3**; `net8.0`, ссылки на Core и `TestAssetsGenerator`): `OutputSamples <папка>` пишет вывод всех форматов (`stm32`, `stm32_uchar`, `stm32_utf8`, `c51`, `a51_module`, `a51_include`, `bin`) для тестовых изображений, спрайта, анимации и шрифтов 6×8, 8×8, 12×16, дата отключена. Нужен `compile-check.ps1` и для ручного просмотра. Тесты `WicImageDecoder` — в `Image2Gdram.Imaging.Wic.Tests` (N-39).
 - `Image2Gdram.App.Tests`: смена пресета → «Пользовательский (на основе …)», сброс правок с подтверждением и откатом, undo/redo, валидация, запрос при закрытии; сервисы подменяются заглушками.
@@ -287,7 +289,7 @@ sequenceDiagram
 
 ## 10. Состояние реализации
 
-Состояние после этапа 4 (проверено 2026-10-06: `dotnet build --no-incremental` Debug и Release — 0 ошибок, 0 предупреждений; `dotnet test` Debug и Release — 2343 из 2343, из них 2312 в `Image2Gdram.Core.Tests`, 17 в `Image2Gdram.Fonts.Wpf.Tests` и 14 в `Image2Gdram.Imaging.Wic.Tests`).
+Состояние после этапа 5 (проверено 2026-10-06: `dotnet build --no-incremental` Debug и Release — 0 ошибок, 0 предупреждений; `dotnet test` Debug и Release — 2374 из 2374, из них 2343 в `Image2Gdram.Core.Tests`, 17 в `Image2Gdram.Fonts.Wpf.Tests` и 14 в `Image2Gdram.Imaging.Wic.Tests`).
 
 | Модуль | Состояние |
 |---|---|
@@ -296,14 +298,14 @@ sequenceDiagram
 | Core: Text | **сделано (этапы 1, 3):** `ProductInfo` (D-02), `RussianPlural` (D-04), `Cp1251` (D-16, N-45) |
 | Core: Imaging, Processing, Editing | **сделано (этап 2):** разделы 3.1, 3.2 и 3.2.1. Декодер WIC — отдельный проект, не часть Core |
 | Core: Output | **сделано (этап 3):** раздел 3.4; к интерфейсу не подключено (этапы 6–7) |
-| Core: Diagnostics | **сделано (этап 3):** `Diagnostic` (раздел 3.6). Ошибка конвейера по-прежнему свой код у `PipelineException` |
+| Core: Diagnostics | **сделано (этап 3):** `Diagnostic` (раздел 3.6). Ошибка конвейера по-прежнему свой код у `PipelineException`. Коды этапа 5: `SettingsFileReset`, `ProjectSourceNotFound` |
 | Core: Fonts | **сделано (этап 4):** раздел 3.5 — таблица 256 символов, диапазоны, источник TTF, заливка, кэш контуров, операции и правка символа, лист символов, импорт массивов C и A51 |
 | `src/Image2Gdram.Fonts.Wpf` | **сделано (этап 4):** `WpfGlyphOutlineProvider` (D-15, N-48) |
-| Core: Presets, Settings, Projects | не начато (этап 5) |
+| Core: Presets, Settings, Projects | **сделано (этап 5):** раздел 3.6. К интерфейсу не подключено (этапы 6–7): выбор пресета в окне, автосохранение через 1 с и запрос при закрытии |
 | Приложение WPF | пустая заготовка (`MainWindow.xaml` без содержимого; `App.OnStartup` регистрирует CP1251), ссылается на Core, `Image2Gdram.Imaging.Wic` и `Image2Gdram.Fonts.Wpf`; пакеты — только `CommunityToolkit.Mvvm` 8.4.2. Запускается. GUI — этапы 6–8 |
 | `src/Image2Gdram.Imaging.Wic` | **сделано (этап 2):** `WicImageDecoder`, разбор заголовка до копирования пикселей, сборка кадров GIF |
 | `tests/Image2Gdram.Reference` | **сделано (этап 1):** `ReferencePacker`, `RefOptions.AllCombinations` (16 комбинаций), без ссылки на Core (N-28, N-37) |
-| `tests/Image2Gdram.Core.Tests` | **упаковка (этап 1), конвейер (этап 2), генераторы вывода (этап 3), ядро шрифтов (этап 4):** 2312 тестов |
+| `tests/Image2Gdram.Core.Tests` | **упаковка (этап 1), конвейер (этап 2), генераторы вывода (этап 3), ядро шрифтов (этап 4), пресеты, настройки и проекты (этап 5):** 2343 теста |
 | `tests/Image2Gdram.Imaging.Wic.Tests` | **сделано (этапы 2 и 4):** 14 тестов — декодер и PNG-лист через `WicImageDecoder` |
 | `tests/Image2Gdram.Fonts.Wpf.Tests` | **сделано (этап 4):** 17 тестов на системных шрифтах |
 | `tests/Image2Gdram.App.Tests` | не создан (этап 6) |

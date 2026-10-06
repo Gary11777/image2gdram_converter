@@ -1,0 +1,101 @@
+{
+  "formatVersion": 1,
+  "presets": [
+    {
+      "name": "WG240128A",
+      "controller": "RA6963 / T6963C",
+      "width": 240,
+      "height": 128,
+      "colorScheme": "Lcd",
+      "packing": {
+        "pixelFormat": "Mono1bpp",
+        "direction": "Horizontal",
+        "bitOrder": "MsbFirst",
+        "bitsPerByte": 8,
+        "pageTraversal": "ByPages",
+        "invert": false,
+        "byteOrder": "BigEndian"
+      }
+    },
+    {
+      "name": "W0240128",
+      "controller": "UC1608",
+      "width": 240,
+      "height": 128,
+      "colorScheme": "Lcd",
+      "packing": {
+        "pixelFormat": "Mono1bpp",
+        "direction": "Vertical",
+        "bitOrder": "LsbFirst",
+        "bitsPerByte": 8,
+        "pageTraversal": "ByPages",
+        "invert": false,
+        "byteOrder": "BigEndian"
+      }
+    },
+    {
+      "name": "RG12864F",
+      "controller": "NT7108 (совместим с KS0108)",
+      "width": 128,
+      "height": 64,
+      "colorScheme": "Lcd",
+      "packing": {
+        "pixelFormat": "Mono1bpp",
+        "direction": "Vertical",
+        "bitOrder": "LsbFirst",
+        "bitsPerByte": 8,
+        "pageTraversal": "ByPages",
+        "invert": false,
+        "byteOrder": "BigEndian"
+      }
+    },
+    {
+      "name": "RET012864DGPP3N",
+      "controller": "SSD1305",
+      "width": 128,
+      "height": 64,
+      "colorScheme": "Oled",
+      "packing": {
+        "pixelFormat": "Mono1bpp",
+        "direction": "Vertical",
+        "bitOrder": "LsbFirst",
+        "bitsPerByte": 8,
+        "pageTraversal": "ByPages",
+        "invert": false,
+        "byteOrder": "BigEndian"
+      }
+    },
+    {
+      "name": "OLED128X64-0.96",
+      "controller": "SSD1306",
+      "width": 128,
+      "height": 64,
+      "colorScheme": "Oled",
+      "packing": {
+        "pixelFormat": "Mono1bpp",
+        "direction": "Vertical",
+        "bitOrder": "LsbFirst",
+        "bitsPerByte": 8,
+        "pageTraversal": "ByPages",
+        "invert": false,
+        "byteOrder": "BigEndian"
+      }
+    },
+    {
+      "name": "HT1.3-OLED-BW / HR0161",
+      "controller": "SH1106",
+      "width": 128,
+      "height": 64,
+      "colorScheme": "Oled",
+      "packing": {
+        "pixelFormat": "Mono1bpp",
+        "direction": "Vertical",
+        "bitOrder": "LsbFirst",
+        "bitsPerByte": 8,
+        "pageTraversal": "ByPages",
+        "invert": false,
+        "byteOrder": "BigEndian"
+      }
+    }
+  ]
+}

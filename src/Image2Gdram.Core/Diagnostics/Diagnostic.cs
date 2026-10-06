@@ -39,6 +39,18 @@ public enum DiagnosticCode
     /// Аргументы: ожидаемое и фактическое число значений.
     /// </summary>
     ImportValueCountMismatch,
+
+    /// <summary>
+    /// Файл <c>settings.json</c> повреждён или записан неизвестной версией: взяты значения по умолчанию
+    /// (п. 4.5 ТЗ, решение N-25). Аргумент: путь к файлу.
+    /// </summary>
+    SettingsFileReset,
+
+    /// <summary>
+    /// Исходный файл, указанный в проекте, не найден; параметры и правки всё равно загружены
+    /// (п. 4.5 ТЗ, решение N-16). Аргументы: роль (<c>image</c>, <c>sheet</c> или <c>import</c>) и путь.
+    /// </summary>
+    ProjectSourceNotFound,
 }
 
 /// <summary>Неблокирующее сообщение ядра. Аргументы — строки в <see cref="System.Globalization.CultureInfo.InvariantCulture"/>.</summary>
