@@ -21,9 +21,21 @@ public static class PngWriter
     {
         ArgumentNullException.ThrowIfNull(stream);
         ArgumentNullException.ThrowIfNull(image);
+        Write(stream, image.Width, image.Height, image.IsActive);
+    }
+
+    /// <summary>
+    /// Тот же кодировщик, что пишет изображения приложения Б: активный пиксель — чёрный (0), фон — белый (255).
+    /// </summary>
+    public static void Write(Stream stream, int width, int height, Func<int, int, bool> isActive)
+    {
+        ArgumentNullException.ThrowIfNull(stream);
+        ArgumentNullException.ThrowIfNull(isActive);
+        ArgumentOutOfRangeException.ThrowIfLessThan(width, 1);
+        ArgumentOutOfRangeException.ThrowIfLessThan(height, 1);
         stream.Write(Signature);
-        WriteChunk(stream, "IHDR", Header(image.Width, image.Height));
-        WriteChunk(stream, "IDAT", Compress(Pixels(image)));
+        WriteChunk(stream, "IHDR", Header(width, height));
+        WriteChunk(stream, "IDAT", Compress(Pixels(width, height, isActive)));
         WriteChunk(stream, "IEND", ReadOnlySpan<byte>.Empty);
     }
 
@@ -36,17 +48,17 @@ public static class PngWriter
         return data;
     }
 
-    private static byte[] Pixels(PatternBitmap image)
+    private static byte[] Pixels(int width, int height, Func<int, int, bool> isActive)
     {
-        int stride = image.Width + 1;
-        var raw = new byte[stride * image.Height];
-        for (int y = 0; y < image.Height; y++)
+        int stride = width + 1;
+        var raw = new byte[stride * height];
+        for (int y = 0; y < height; y++)
         {
             int row = y * stride;
             raw[row] = 0;
-            for (int x = 0; x < image.Width; x++)
+            for (int x = 0; x < width; x++)
             {
-                raw[row + 1 + x] = image.IsActive(x, y) ? (byte)0 : (byte)255;
+                raw[row + 1 + x] = isActive(x, y) ? (byte)0 : (byte)255;
             }
         }
 

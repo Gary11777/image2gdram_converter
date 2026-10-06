@@ -1,6 +1,6 @@
 # Архитектура «Image2GDRAM Converter» 1.0
 
-> **Целевая архитектура плюс отметки о фактическом состоянии.** Документ составлен на этапе 0 по разделам 4 и 5 `agents.md` и п. 4.6 ТЗ. После этапа 3 и первой части этапа 4 **фактически существуют** решение, модуль упаковки, загрузка изображений, конвейер обработки, генераторы вывода и ядро шрифтов без листа символов и импорта массивов. Описание упаковки помечено «**Фактически (этап 1)**», загрузки и обработки — «**Фактически (этап 2)**», вывода — «**Фактически (этап 3)**», шрифтов — «**Фактически (этап 4, часть 1)**» и «**Целевое (этап 4, часть 2)**». Остальные разделы — целевые: сигнатуры в них ориентировочные. Сводка — таблица в разделе 10.
+> **Целевая архитектура плюс отметки о фактическом состоянии.** Документ составлен на этапе 0 по разделам 4 и 5 `agents.md` и п. 4.6 ТЗ. После этапа 4 **фактически существуют** решение, модуль упаковки, загрузка изображений, конвейер обработки, генераторы вывода и ядро шрифтов (таблица, TTF, лист символов, импорт массивов). Описание упаковки помечено «**Фактически (этап 1)**», загрузки и обработки — «**Фактически (этап 2)**», вывода — «**Фактически (этап 3)**», шрифтов — «**Фактически (этап 4)**». Остальные разделы — целевые: сигнатуры в них ориентировочные. Сводка — таблица в разделе 10.
 
 Связанные файлы: [`implementation-plan.md`](implementation-plan.md) (этапы), [`decisions.md`](decisions.md) (решения D/F/N/K), [`requirements_checklist.md`](requirements_checklist.md) (трассировка требований).
 
@@ -186,11 +186,13 @@ flowchart LR
 - `GlyphOps` (`Clear`, `Invert`, `Toggle`, `Shift` с `ShiftDirection`, `Fit` — вставка другого размера в левый верхний угол, N-22) и `Core.Editing.GlyphEditAction : IEditAction` (замена ручного слоя одного символа или возврат к источнику; пустое изменение не записывается) — для редактора этапа 7.
 - `Image2Gdram.Fonts.Wpf.WpfGlyphOutlineProvider : IGlyphOutlineProvider` — `FormattedText` (`pixelsPerDip = 1.0`, `TextFormattingMode.Ideal`) → `BuildGeometry` → `GetFlattenedPathGeometry(0.01)` → полигоны; глиф проверяется по `GlyphTypeface.CharacterToGlyphMap`; вызовы под блокировкой, работает из любого потока (N-47, N-48).
 
-**Целевое (этап 4, часть 2).** Ещё не реализовано; контракты и требования к тестам — в разделе передачи [`implementation-plan.md`](implementation-plan.md):
+**Фактически (этап 4, часть 2).** Сигнатуры совпадают с контрактом передачи. Пространство имён листа — `Image2Gdram.Core.Fonts`, импорта — `Image2Gdram.Core.Fonts.Import`. Отдельного класса `FontImporter` нет: раскладку делает `ImportGlyphSource`.
 
-- `SheetGlyphSource : IGlyphSource` — растровый лист (`RgbaImage`) и параметры N-12, `FontSourceInfo.Sheet`.
-- `ArrayImportParser` (D-17, N-21) — разбор текста на массивы C и серии `DB` с номерами строк; `TextFileReader` — строгий UTF-8, иначе CP1251 через `Cp1251.GetString`.
-- `ImportGlyphSource : IGlyphSource` / `FontImporter` — раскладка значений по символам через `IPacker.Unpack`, диагностика «меньше/больше значений», `FontSourceInfo.Import`.
+- `SheetOptions` — ячейка листа 1…64, отступы 0…1024, интервалы 0…256, символов в строке 1…256, первый код 0x00…0xFF, порог 0…255.
+- `SheetGlyphSource : IGlyphSource` — `RgbaImage` и `SheetOptions`; `FontSourceInfo.Sheet`. Пиксель: белый фон (F-06) и яркость (F-09), активен при `Y < Threshold`. Растр ячейки переносится в левый верхний угол ячейки шрифта (`GlyphOps.Fit`). Коды вне `CharRangeSet` и с началом ячейки за листом не заполняются. Предупреждение `SheetTooSmall` (N-51).
+- `TextFileReader` — `GetSyntax`, `Read`, `Decode`; лимит 16 МБ до чтения содержимого; строгий UTF-8 (BOM отбрасывается), иначе `Cp1251.GetString`; файл только на чтение, `FileShare.ReadWrite`.
+- `ArrayImportParser.Parse` — массивы C (`{ … }` после `=`) и серии `DB` в порядке файла. Ошибка значения — `ImportedArray.Error` и пустые `Values`; незакрытый комментарий, строка или скобки — `ArrayImportException` (N-52).
+- `ImportGlyphSource : IGlyphSource` — `IPacker.Unpack`, символ `c` занимает `c·N … c·N+N−1`. Меньше значений — неполный символ дополняется фоном, коды без байтов не заполняются; больше — лишние отбрасываются. Предупреждение `ImportValueCountMismatch`. Диапазоны не применяются. Массив с ошибкой в конструктор не принимается.
 
 ### 3.6. Прочие модули Core (этапы 1–5)
 
@@ -199,7 +201,7 @@ flowchart LR
 - `Image2Gdram.Core.Settings` — `AppSettings` (DTO), `SettingsPathResolver` (`AppContext.BaseDirectory` → `%APPDATA%\ImageIU`, реальная попытка записи), `SettingsService` (атомарная запись, восстановление после повреждения, N-25).
 - `Image2Gdram.Core.Projects` — DTO проекта `.iiu` (`ProjectDto`, `ImageTabDto`, `FontTabDto`, `formatVersion`), `ProjectSerializer` (`System.Text.Json`, перечисления строками, UTF-8, N-16).
 - `Image2Gdram.Core.Text` — **сделано (этапы 1, 3):** `ProductInfo` (константа «Image2GDRAM Converter 1.0», D-02), `RussianPlural` (`Select`, `Format`, `Bytes`, `Symbols`, `Frames`; D-04), `Cp1251` (N-45).
-- `Image2Gdram.Core.Diagnostics` — **сделано (этап 3):** `record Diagnostic(DiagnosticCode Code, DiagnosticSeverity Severity, IReadOnlyList<string> Arguments)`; коды `ArrayExceeds64KForC51`, `NonCp1251CharactersReplaced` (этап 3), `FontNotFound`, `GlyphsMissingInFont` (этап 4). Следующие части и этапы добавляют свои коды в конец того же перечисления.
+- `Image2Gdram.Core.Diagnostics` — **сделано (этап 3):** `record Diagnostic(DiagnosticCode Code, DiagnosticSeverity Severity, IReadOnlyList<string> Arguments)`; коды `ArrayExceeds64KForC51`, `NonCp1251CharactersReplaced` (этап 3), `FontNotFound`, `GlyphsMissingInFont` (этап 4, часть 1), `SheetTooSmall`, `ImportValueCountMismatch` (этап 4, часть 2). Следующие этапы добавляют свои коды в конец того же перечисления.
 
 ---
 
@@ -266,12 +268,12 @@ sequenceDiagram
 
 ## 8. Тесты и инструменты
 
-- `Image2Gdram.Core.Tests`: упаковщик (16 комбинаций, контрольные примеры F-05, `Locate`, `Unpack(Pack(b))`, сравнение с Reference), конвейер и тестовые изображения приложения Б, генераторы вывода (папки `Output/` и `Text/`: золотые тесты В.1–В.4, карта байтов, кодировки, CRLF, детерминизм, имена, запись файлов), ядро шрифтов (папка `Fonts/`: заливка против независимого числа обхода, суперсэмплинг, источник TTF на поддельном провайдере `FakeOutlineProvider`, таблица против Reference, диапазоны, правка символа). Лист и импорт — этап 4, часть 2; настройки и проекты — этап 5.
+- `Image2Gdram.Core.Tests`: упаковщик (16 комбинаций, контрольные примеры F-05, `Locate`, `Unpack(Pack(b))`, сравнение с Reference), конвейер и тестовые изображения приложения Б, генераторы вывода (папки `Output/` и `Text/`: золотые тесты В.1–В.4, карта байтов, кодировки, CRLF, детерминизм, имена, запись файлов), ядро шрифтов (папка `Fonts/`: заливка против независимого числа обхода, суперсэмплинг, источник TTF на поддельном провайдере `FakeOutlineProvider`, таблица против Reference, диапазоны, правка символа, лист `SheetGlyphSourceTests`, импорт `ArrayImportParserTests`, `TextFileReaderTests`, `ImportGlyphSourceTests`, сквозной путь `FontSourceIntegrationTests`). Настройки и проекты — этап 5.
 - `Image2Gdram.Fonts.Wpf.Tests` (**этап 4**): свойства растеризации реальными системными шрифтами (Arial, Consolas, Courier New) — метрики, базовая линия, отсутствующие глифы, повторяемость между потоками, начертания, порог; без побайтных сравнений.
 - `tools/OutputSamples` (**сделано, этап 3**; `net8.0`, ссылки на Core и `TestAssetsGenerator`): `OutputSamples <папка>` пишет вывод всех форматов (`stm32`, `stm32_uchar`, `stm32_utf8`, `c51`, `a51_module`, `a51_include`, `bin`) для тестовых изображений, спрайта, анимации и шрифтов 6×8, 8×8, 12×16, дата отключена. Нужен `compile-check.ps1` и для ручного просмотра. Тесты `WicImageDecoder` — в `Image2Gdram.Imaging.Wic.Tests` (N-39).
 - `Image2Gdram.App.Tests`: смена пресета → «Пользовательский (на основе …)», сброс правок с подтверждением и откатом, undo/redo, валидация, запрос при закрытии; сервисы подменяются заглушками.
 - `Image2Gdram.Reference`: наивная упаковка «по определению» (F-01…F-04) — источник эталонов.
-- `TestAssetsGenerator`: **сделано (этап 2)** — `testdata/test_pattern_240x128.png`, `testdata/test_pattern_128x64.png`, `testdata/test_sprite_13x11.png` (раскладка N-40), встроенный шрифт 5×7, PNG своим кодировщиком. Листы шрифтов 6×8, 8×8, 12×16 и `testdata/reference/` с `index.md` — этап 9; тогда же появится ссылка на `Image2Gdram.Reference`.
+- `TestAssetsGenerator`: **сделано (этап 2)** — `testdata/test_pattern_240x128.png`, `testdata/test_pattern_128x64.png`, `testdata/test_sprite_13x11.png` (раскладка N-40), встроенный шрифт 5×7, PNG своим кодировщиком. На этапе 4 у `PngWriter` добавлена перегрузка `Write(stream, width, height, isActive)` — тем же кодировщиком тест листа пишет PNG, который читает `WicImageDecoder`. Листы шрифтов 6×8, 8×8, 12×16 как файлы эталонов и `testdata/reference/` с `index.md` — этап 9; тогда же появится ссылка на `Image2Gdram.Reference`.
 - `tools/compile-check.ps1` (**сделано, этап 3**): запускает `OutputSamples` в `artifacts/compile-check/` (папка в `.gitignore`); при наличии `gcc`/`clang`/`arm-none-eabi-gcc` компилирует вывод STM32 с `-std=c99 -Wall -Wextra -pedantic -Werror -c` и вывод C51 с `-Dcode=`; иначе сообщает и пропускает с кодом 0 (на этой машине компиляторов нет).
 
 ---
@@ -285,7 +287,7 @@ sequenceDiagram
 
 ## 10. Состояние реализации
 
-Состояние после первой части этапа 4 (проверено 2026-10-06: `dotnet build` Debug и Release — 0 ошибок, 0 предупреждений; `dotnet test` — 2102 из 2102, из них 2072 в `Image2Gdram.Core.Tests`, 17 в `Image2Gdram.Fonts.Wpf.Tests` и 13 в `Image2Gdram.Imaging.Wic.Tests`).
+Состояние после этапа 4 (проверено 2026-10-06: `dotnet build --no-incremental` Debug и Release — 0 ошибок, 0 предупреждений; `dotnet test` Debug и Release — 2343 из 2343, из них 2312 в `Image2Gdram.Core.Tests`, 17 в `Image2Gdram.Fonts.Wpf.Tests` и 14 в `Image2Gdram.Imaging.Wic.Tests`).
 
 | Модуль | Состояние |
 |---|---|
@@ -295,14 +297,14 @@ sequenceDiagram
 | Core: Imaging, Processing, Editing | **сделано (этап 2):** разделы 3.1, 3.2 и 3.2.1. Декодер WIC — отдельный проект, не часть Core |
 | Core: Output | **сделано (этап 3):** раздел 3.4; к интерфейсу не подключено (этапы 6–7) |
 | Core: Diagnostics | **сделано (этап 3):** `Diagnostic` (раздел 3.6). Ошибка конвейера по-прежнему свой код у `PipelineException` |
-| Core: Fonts | **часть 1 сделана (этап 4):** раздел 3.5 «Фактически» — таблица 256 символов, диапазоны, источник TTF, заливка, кэш контуров, операции и правка символа. **Не сделано (этап 4, часть 2):** лист символов, импорт массивов C и A51 |
+| Core: Fonts | **сделано (этап 4):** раздел 3.5 — таблица 256 символов, диапазоны, источник TTF, заливка, кэш контуров, операции и правка символа, лист символов, импорт массивов C и A51 |
 | `src/Image2Gdram.Fonts.Wpf` | **сделано (этап 4):** `WpfGlyphOutlineProvider` (D-15, N-48) |
 | Core: Presets, Settings, Projects | не начато (этап 5) |
 | Приложение WPF | пустая заготовка (`MainWindow.xaml` без содержимого; `App.OnStartup` регистрирует CP1251), ссылается на Core, `Image2Gdram.Imaging.Wic` и `Image2Gdram.Fonts.Wpf`; пакеты — только `CommunityToolkit.Mvvm` 8.4.2. Запускается. GUI — этапы 6–8 |
 | `src/Image2Gdram.Imaging.Wic` | **сделано (этап 2):** `WicImageDecoder`, разбор заголовка до копирования пикселей, сборка кадров GIF |
 | `tests/Image2Gdram.Reference` | **сделано (этап 1):** `ReferencePacker`, `RefOptions.AllCombinations` (16 комбинаций), без ссылки на Core (N-28, N-37) |
-| `tests/Image2Gdram.Core.Tests` | **упаковка (этап 1), конвейер (этап 2), генераторы вывода (этап 3), ядро шрифтов (этап 4, часть 1):** 2072 теста |
-| `tests/Image2Gdram.Imaging.Wic.Tests` | **сделано (этап 2):** 13 тестов декодера |
+| `tests/Image2Gdram.Core.Tests` | **упаковка (этап 1), конвейер (этап 2), генераторы вывода (этап 3), ядро шрифтов (этап 4):** 2312 тестов |
+| `tests/Image2Gdram.Imaging.Wic.Tests` | **сделано (этапы 2 и 4):** 14 тестов — декодер и PNG-лист через `WicImageDecoder` |
 | `tests/Image2Gdram.Fonts.Wpf.Tests` | **сделано (этап 4):** 17 тестов на системных шрифтах |
 | `tests/Image2Gdram.App.Tests` | не создан (этап 6) |
 | `tools/TestAssetsGenerator` | **сделано для приложения Б (этап 2):** три PNG в `testdata/` |

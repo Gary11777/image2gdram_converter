@@ -27,6 +27,18 @@ public enum DiagnosticCode
     /// Аргументы: коды по возрастанию в виде <c>0xC0</c>.
     /// </summary>
     GlyphsMissingInFont,
+
+    /// <summary>
+    /// На листе не хватило ячеек для выбранных кодов (п. 4.2.2 ТЗ, источник 2).
+    /// Аргументы: сколько ячеек поместилось; первый незаполненный код в виде <c>0xC0</c>.
+    /// </summary>
+    SheetTooSmall,
+
+    /// <summary>
+    /// В импортированном массиве не 256·N значений (п. 4.2.2 ТЗ, источник 4).
+    /// Аргументы: ожидаемое и фактическое число значений.
+    /// </summary>
+    ImportValueCountMismatch,
 }
 
 /// <summary>Неблокирующее сообщение ядра. Аргументы — строки в <see cref="System.Globalization.CultureInfo.InvariantCulture"/>.</summary>
