@@ -1,3 +1,4 @@
+using Image2Gdram.Core.Fonts;
 using Image2Gdram.Core.Output;
 using Image2Gdram.Core.Packing;
 using Image2Gdram.Core.Presets;
@@ -127,6 +128,38 @@ public static class OptionLists
         new Labeled<Stm32ElementType>(Stm32ElementType.Uint8T, text.Get("Opt.Stm.Uint8")),
         new Labeled<Stm32ElementType>(Stm32ElementType.UnsignedChar, text.Get("Opt.Stm.UChar")),
     };
+
+    public static IReadOnlyList<Labeled<FontSourceKind>> FontSources(ILocalizationService text) => new[]
+    {
+        new Labeled<FontSourceKind>(FontSourceKind.TrueType, text.Get("Opt.Source.TrueType")),
+        new Labeled<FontSourceKind>(FontSourceKind.Sheet, text.Get("Opt.Source.Sheet")),
+        new Labeled<FontSourceKind>(FontSourceKind.Import, text.Get("Opt.Source.Import")),
+        new Labeled<FontSourceKind>(FontSourceKind.Manual, text.Get("Opt.Source.Manual")),
+    };
+
+    public static IReadOnlyList<Labeled<GlyphRenderMode>> RenderModes(ILocalizationService text) => new[]
+    {
+        new Labeled<GlyphRenderMode>(GlyphRenderMode.Antialiased, text.Get("Opt.Render.Smooth")),
+        new Labeled<GlyphRenderMode>(GlyphRenderMode.Aliased, text.Get("Opt.Render.Aliased")),
+    };
+
+    public static IReadOnlyList<Labeled<FontCellSize>> Cells(ILocalizationService text) => new[]
+    {
+        new Labeled<FontCellSize>(FontCellSize.Cell6x8, text.Get("Opt.Cell.6x8")),
+        new Labeled<FontCellSize>(FontCellSize.Cell8x8, text.Get("Opt.Cell.8x8")),
+        new Labeled<FontCellSize>(FontCellSize.Cell12x16, text.Get("Opt.Cell.12x16")),
+    };
+
+    public static IReadOnlyList<Labeled<int>> PreviewScales(ILocalizationService text)
+    {
+        var items = new List<Labeled<int>>();
+        for (int scale = 1; scale <= 8; scale++)
+        {
+            items.Add(new Labeled<int>(scale, text.Format("Opt.Zoom.Scale", scale)));
+        }
+
+        return items;
+    }
 
     public static IReadOnlyList<ZoomChoice> Zooms(ILocalizationService text)
     {

@@ -55,6 +55,18 @@ public class MainViewModelTests : IDisposable
     }
 
     [Fact]
+    public void Closing_with_a_drawn_glyph_asks_and_cancel_keeps_the_window()
+    {
+        var dialogs = new FakeDialogs { SaveAnswer = SaveChoice.Cancel };
+        MainViewModel main = Create(dialogs);
+        main.Font.Editor.ApplyStroke(new[] { (0, 0) }, StrokePaint.Toggle);
+
+        Assert.False(main.TryClose());
+        Assert.Equal(1, dialogs.SaveCount);
+        Assert.True(main.Font.Table.IsManual(0));
+    }
+
+    [Fact]
     public void Parameter_change_is_saved_on_the_autosave_callback()
     {
         var dialogs = new FakeDialogs();
@@ -93,6 +105,7 @@ public class MainViewModelTests : IDisposable
             new FakeClipboard(),
             new ImmediateRecalcScheduler(),
             autosave ?? new ManualSettingsAutosave(),
-            new UnusedDecoder());
+            new UnusedDecoder(),
+            new StubOutlines());
     }
 }

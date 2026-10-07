@@ -3,6 +3,7 @@ using System.Windows.Threading;
 using Image2Gdram.Core.Imaging;
 using Image2Gdram.Core.Settings;
 using Image2Gdram.Core.Text;
+using Image2Gdram.Fonts.Wpf;
 using Image2Gdram.Imaging.Wic;
 using image2gdram_converter.Services;
 using image2gdram_converter.ViewModels;
@@ -41,7 +42,8 @@ public partial class App : Application
                 new ClipboardService(),
                 new RecalcScheduler(Dispatcher),
                 new SettingsAutosave(Dispatcher),
-                new WicImageDecoder()),
+                new WicImageDecoder(),
+                new WpfGlyphOutlineProvider()),
         };
         MainWindow = window;
         window.Show();

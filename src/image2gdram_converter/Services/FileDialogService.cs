@@ -22,6 +22,26 @@ public sealed class FileDialogService : IFileDialogService
         return dialog.ShowDialog() == true ? dialog.FileName : null;
     }
 
+    public string? PickOpenSheet(string? folder)
+    {
+        var dialog = new OpenFileDialog
+        {
+            Filter = _text.Get("File.SheetFilter"),
+            InitialDirectory = folder ?? string.Empty,
+        };
+        return dialog.ShowDialog() == true ? dialog.FileName : null;
+    }
+
+    public string? PickOpenImport(string? folder)
+    {
+        var dialog = new OpenFileDialog
+        {
+            Filter = _text.Get("File.ImportFilter"),
+            InitialDirectory = folder ?? string.Empty,
+        };
+        return dialog.ShowDialog() == true ? dialog.FileName : null;
+    }
+
     public string? PickOpenProject(string? folder)
     {
         var dialog = new OpenFileDialog

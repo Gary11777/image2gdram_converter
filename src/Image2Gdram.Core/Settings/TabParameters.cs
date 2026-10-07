@@ -65,6 +65,9 @@ public sealed record FontTabParameters
 
     public string PreviewText { get; init; } = DefaultPreviewText;
 
+    /// <summary>Масштаб предпросмотра строки, целый 1…8 (решение N-30). По умолчанию 2.</summary>
+    public int PreviewScale { get; init; } = 2;
+
     public PackingOptions Packing { get; init; } = PackingOptions.Default;
 
     public OutputOptions Output { get; init; } = OutputOptions.Default with { ArrayName = "font" };

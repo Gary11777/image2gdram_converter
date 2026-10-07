@@ -1,5 +1,9 @@
 using System.Xml.Linq;
+using Image2Gdram.Core.Fonts;
+using Image2Gdram.Core.Fonts.Import;
 using Image2Gdram.Core.Imaging;
+using Image2Gdram.Core.Packing;
+using image2gdram_converter;
 using image2gdram_converter.Services;
 
 namespace Image2Gdram.App.Tests;
@@ -48,11 +52,29 @@ internal sealed class FakeDialogs : IDialogService
     public string? AskText(string message, string initial) => TextAnswer;
 
     public void Alert(string message) => Alerts.Add(message);
+
+    public ImportPick? ImportAnswer { get; set; }
+
+    public int ImportAsks { get; set; }
+
+    public ImportPick? AskImport(IReadOnlyList<ImportedArray> arrays, FontCellSize cell, PackingOptions packing)
+    {
+        ImportAsks++;
+        return ImportAnswer;
+    }
 }
 
 internal sealed class FakeFiles : IFileDialogService
 {
     public string? PickOpenImage(string? folder) => null;
+
+    public string? NextSheet { get; set; }
+
+    public string? NextImport { get; set; }
+
+    public string? PickOpenSheet(string? folder) => NextSheet;
+
+    public string? PickOpenImport(string? folder) => NextImport;
 
     public string? PickOpenProject(string? folder) => null;
 
@@ -65,7 +87,53 @@ internal sealed class FakeClipboard : IClipboardService
 {
     public string? Text { get; private set; }
 
+    public string? Payload { get; private set; }
+
     public void SetText(string text) => Text = text;
+
+    public void SetGlyph(MonoBitmap glyph, bool invert)
+    {
+        Payload = GlyphClipboard.ToPayload(glyph);
+        Text = GlyphClipboard.ToText(glyph, invert);
+    }
+
+    public bool TryGetGlyph(bool invert, out MonoBitmap? glyph)
+    {
+        if (Payload is not null && GlyphClipboard.TryParsePayload(Payload, out glyph))
+        {
+            return true;
+        }
+
+        return GlyphClipboard.TryParseText(Text, invert, out glyph);
+    }
+}
+
+internal sealed class StubOutlines : IGlyphOutlineProvider
+{
+    public IReadOnlyList<string> GetInstalledFamilies() => new[] { "Stub" };
+
+    public bool TryGetMetrics(FontFaceSpec face, out FontMetrics metrics)
+    {
+        metrics = new FontMetrics(6, 2);
+        return string.Equals(face.Family, "Stub", StringComparison.OrdinalIgnoreCase);
+    }
+
+    public GlyphOutline? GetOutline(FontFaceSpec face, char character)
+    {
+        if (!string.Equals(face.Family, "Stub", StringComparison.OrdinalIgnoreCase) || character != 'A')
+        {
+            return null;
+        }
+
+        OutlinePoint[] rectangle =
+        {
+            new(-2, -20),
+            new(20, -20),
+            new(20, 20),
+            new(-2, 20),
+        };
+        return new GlyphOutline(new[] { rectangle });
+    }
 }
 
 internal sealed class UnusedDecoder : IImageDecoder

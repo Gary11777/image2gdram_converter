@@ -3,6 +3,7 @@ using System.IO;
 using System.Windows;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Image2Gdram.Core.Fonts;
 using Image2Gdram.Core.Imaging;
 using Image2Gdram.Core.Presets;
 using Image2Gdram.Core.Projects;
@@ -38,7 +39,8 @@ public sealed partial class MainViewModel : ObservableObject
         IClipboardService clipboard,
         IRecalcScheduler scheduler,
         ISettingsAutosave autosave,
-        IImageDecoder decoder)
+        IImageDecoder decoder,
+        IGlyphOutlineProvider outlines)
     {
         ArgumentNullException.ThrowIfNull(settingsService);
         ArgumentNullException.ThrowIfNull(loaded);
@@ -49,6 +51,7 @@ public sealed partial class MainViewModel : ObservableObject
         ArgumentNullException.ThrowIfNull(scheduler);
         ArgumentNullException.ThrowIfNull(autosave);
         ArgumentNullException.ThrowIfNull(decoder);
+        ArgumentNullException.ThrowIfNull(outlines);
         _settingsService = settingsService;
         _settings = loaded.Settings;
         _loc = localization;
@@ -71,7 +74,27 @@ public sealed partial class MainViewModel : ObservableObject
         Image.ParametersChanged = OnParametersChanged;
         Image.EditsChanged = OnEditsChanged;
         Image.FileUsed = Remember;
-        Font = FontSession.From(_settings.Font);
+        Image.CommandsChanged += RefreshShell;
+        Font = new FontGeneratorViewModel(
+            localization,
+            dialogs,
+            files,
+            clipboard,
+            scheduler,
+            decoder,
+            outlines,
+            PresetCatalog.Shared,
+            _settings.UserPresets,
+            _settings.Font);
+        Image.PresetsChanged = () => Font.RefreshPresets();
+        Font.SetFolders(_folders.OpenFont, _folders.SaveOutput);
+        Font.ParametersChanged = OnParametersChanged;
+        Font.EditsChanged = OnEditsChanged;
+        Font.FileUsed = Remember;
+        Font.PresetsChanged = () => Image.RefreshPresets();
+        Font.Activated = () => SelectedTab = 1;
+        Font.CommandsChanged += RefreshShell;
+        RefreshShell();
         RecentFiles = new ObservableCollection<string>(_settings.RecentFiles);
         if (loaded.Diagnostic is not null)
         {
@@ -84,7 +107,7 @@ public sealed partial class MainViewModel : ObservableObject
 
     public ImageConverterViewModel Image { get; }
 
-    public FontSession Font { get; }
+    public FontGeneratorViewModel Font { get; }
 
     public ObservableCollection<string> RecentFiles { get; }
 
@@ -103,8 +126,34 @@ public sealed partial class MainViewModel : ObservableObject
     public int SelectedTab
     {
         get => _selectedTab;
-        set => SetProperty(ref _selectedTab, value);
+        set
+        {
+            if (SetProperty(ref _selectedTab, value))
+            {
+                RefreshShell();
+            }
+        }
     }
+
+    public bool CanUndoActive => SelectedTab == 1 ? Font.CanUndo : Image.CanUndo;
+
+    public bool CanRedoActive => SelectedTab == 1 ? Font.CanRedo : Image.CanRedo;
+
+    public bool CanCopyActive => SelectedTab == 1 ? Font.CanCopy : Image.CanCopy;
+
+    public bool CanSaveActive => SelectedTab == 1 ? Font.CanSaveOutput : Image.CanSaveOutput;
+
+    [RelayCommand(CanExecute = nameof(CanUndoActive))]
+    private void UndoActive() => Run(Font.UndoCommand, Image.UndoCommand);
+
+    [RelayCommand(CanExecute = nameof(CanRedoActive))]
+    private void RedoActive() => Run(Font.RedoCommand, Image.RedoCommand);
+
+    [RelayCommand(CanExecute = nameof(CanCopyActive))]
+    private void CopyActive() => Run(Font.CopyCommand, Image.CopyCommand);
+
+    [RelayCommand(CanExecute = nameof(CanSaveActive))]
+    private void SaveActive() => Run(Font.SaveOutputCommand, Image.SaveOutputCommand);
 
     public bool TryClose()
     {
@@ -128,7 +177,7 @@ public sealed partial class MainViewModel : ObservableObject
 
         _loading = true;
         Image.ResetSession();
-        Font.ResetTable();
+        Font.ResetSession();
         _projectPath = null;
         _dirty = false;
         _loading = false;
@@ -285,7 +334,7 @@ public sealed partial class MainViewModel : ObservableObject
     }
 
     private bool NeedsPrompt() =>
-        _dirty && (_projectPath is not null || Image.HasEdits || Font.HasCustomTable());
+        _dirty && (_projectPath is not null || Image.HasEdits || Font.HasUnsavedWork());
 
     private void OnParametersChanged()
     {
@@ -324,9 +373,11 @@ public sealed partial class MainViewModel : ObservableObject
             SessionFolder.OpenImage => _folders with { OpenImage = directory },
             SessionFolder.SaveOutput => _folders with { SaveOutput = directory },
             SessionFolder.OpenProject => _folders with { OpenProject = directory },
+            SessionFolder.OpenFont => _folders with { OpenFont = directory },
             _ => _folders with { SaveProject = directory },
         };
         Image.SetFolders(_folders.OpenImage, _folders.SaveOutput);
+        Font.SetFolders(_folders.OpenFont, _folders.SaveOutput);
         if (!_loading)
         {
             _autosave.Schedule(SaveSettings);
@@ -349,6 +400,27 @@ public sealed partial class MainViewModel : ObservableObject
         catch (SettingsException ex)
         {
             _dialogs.Alert(UserText.Settings(_loc, ex));
+        }
+    }
+
+    private void RefreshShell()
+    {
+        OnPropertyChanged(nameof(CanUndoActive));
+        OnPropertyChanged(nameof(CanRedoActive));
+        OnPropertyChanged(nameof(CanCopyActive));
+        OnPropertyChanged(nameof(CanSaveActive));
+        UndoActiveCommand.NotifyCanExecuteChanged();
+        RedoActiveCommand.NotifyCanExecuteChanged();
+        CopyActiveCommand.NotifyCanExecuteChanged();
+        SaveActiveCommand.NotifyCanExecuteChanged();
+    }
+
+    private void Run(IRelayCommand fontCommand, IRelayCommand imageCommand)
+    {
+        IRelayCommand command = SelectedTab == 1 ? fontCommand : imageCommand;
+        if (command.CanExecute(null))
+        {
+            command.Execute(null);
         }
     }
 
