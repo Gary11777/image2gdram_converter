@@ -8,13 +8,15 @@
         UseLayoutRounding="True"
         SnapsToDevicePixels="True">
     <Window.InputBindings>
-        <KeyBinding Key="Z" Modifiers="Control" Command="{Binding Image.UndoCommand}"/>
-        <KeyBinding Key="Y" Modifiers="Control" Command="{Binding Image.RedoCommand}"/>
+        <KeyBinding Key="Z" Modifiers="Control" Command="{Binding UndoActiveCommand}"/>
+        <KeyBinding Key="Y" Modifiers="Control" Command="{Binding RedoActiveCommand}"/>
     </Window.InputBindings>
     <DockPanel>
         <Menu DockPanel.Dock="Top">
             <MenuItem Header="{DynamicResource Menu.File}">
                 <MenuItem Header="{DynamicResource Menu.OpenImage}" Command="{Binding Image.OpenImageCommand}"/>
+                <MenuItem Header="{DynamicResource Menu.OpenSheet}" Command="{Binding Font.OpenSheetCommand}"/>
+                <MenuItem Header="{DynamicResource Menu.OpenImport}" Command="{Binding Font.OpenImportCommand}"/>
                 <Separator/>
                 <MenuItem Header="{DynamicResource Menu.NewProject}" Command="{Binding NewProjectCommand}"/>
                 <MenuItem Header="{DynamicResource Menu.OpenProject}" Command="{Binding OpenProjectCommand}"/>
@@ -30,15 +32,15 @@
                     </MenuItem.ItemContainerStyle>
                 </MenuItem>
                 <Separator/>
-                <MenuItem Header="{DynamicResource Menu.SaveOutput}" Command="{Binding Image.SaveOutputCommand}"/>
+                <MenuItem Header="{DynamicResource Menu.SaveOutput}" Command="{Binding SaveActiveCommand}"/>
                 <Separator/>
                 <MenuItem Header="{DynamicResource Menu.Exit}" Command="{Binding ExitCommand}"/>
             </MenuItem>
             <MenuItem Header="{DynamicResource Menu.Edit}">
-                <MenuItem Header="{DynamicResource Menu.Undo}" Command="{Binding Image.UndoCommand}" InputGestureText="Ctrl+Z"/>
-                <MenuItem Header="{DynamicResource Menu.Redo}" Command="{Binding Image.RedoCommand}" InputGestureText="Ctrl+Y"/>
+                <MenuItem Header="{DynamicResource Menu.Undo}" Command="{Binding UndoActiveCommand}" InputGestureText="Ctrl+Z"/>
+                <MenuItem Header="{DynamicResource Menu.Redo}" Command="{Binding RedoActiveCommand}" InputGestureText="Ctrl+Y"/>
                 <Separator/>
-                <MenuItem Header="{DynamicResource Menu.Copy}" Command="{Binding Image.CopyCommand}"/>
+                <MenuItem Header="{DynamicResource Menu.Copy}" Command="{Binding CopyActiveCommand}"/>
             </MenuItem>
         </Menu>
         <StatusBar DockPanel.Dock="Bottom">
@@ -49,7 +51,7 @@
                 <views:ImageConverterView DataContext="{Binding Image}"/>
             </TabItem>
             <TabItem Header="{DynamicResource Tab.Font}">
-                <views:FontGeneratorView/>
+                <views:FontGeneratorView DataContext="{Binding Font}"/>
             </TabItem>
         </TabControl>
     </DockPanel>

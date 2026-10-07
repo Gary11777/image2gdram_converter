@@ -1,5 +1,474 @@
 <UserControl x:Class="image2gdram_converter.Views.FontGeneratorView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-    <Grid/>
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:image2gdram_converter.Controls">
+    <UserControl.Resources>
+        <Style x:Key="Section" TargetType="TextBlock">
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Margin" Value="0,12,0,4"/>
+        </Style>
+        <Style x:Key="Field" TargetType="TextBlock">
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+            <Setter Property="Margin" Value="0,0,8,0"/>
+        </Style>
+    </UserControl.Resources>
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="320" MinWidth="260"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+        <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <StackPanel Margin="8">
+                <TextBlock Style="{StaticResource Section}" Margin="0,0,0,4" Text="{DynamicResource Section.Font}"/>
+                <Grid Margin="0,2">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="140"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Style="{StaticResource Field}" Text="{DynamicResource Label.SourceKind}"/>
+                    <ComboBox Grid.Column="1" ItemsSource="{Binding SourceKinds}" DisplayMemberPath="Caption"
+                              SelectedValuePath="Value" SelectedValue="{Binding SourceKind}"/>
+                </Grid>
+                <StackPanel Orientation="Horizontal" Margin="0,6,0,4">
+                    <Button Content="{DynamicResource Button.OpenSheet}" Command="{Binding OpenSheetCommand}" Margin="0,0,6,0"/>
+                    <Button Content="{DynamicResource Button.OpenImport}" Command="{Binding OpenImportCommand}"/>
+                </StackPanel>
+                <TextBlock Text="{Binding SheetCaption}" TextWrapping="Wrap" Visibility="{Binding IsSheet, Converter={StaticResource BoolToVis}}"/>
+                <TextBlock Text="{Binding ImportCaption}" TextWrapping="Wrap" Visibility="{Binding IsImport, Converter={StaticResource BoolToVis}}"/>
+
+                <StackPanel Visibility="{Binding IsTrueType, Converter={StaticResource BoolToVis}}">
+                    <Grid Margin="0,2">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="140"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Style="{StaticResource Field}" Text="{DynamicResource Label.Family}"/>
+                        <ComboBox Grid.Column="1" ItemsSource="{Binding Families}" SelectedItem="{Binding Family}" IsEditable="False"/>
+                    </Grid>
+                    <Grid Margin="0,2">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="140"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Style="{StaticResource Field}" Text="{DynamicResource Label.FontSize}"/>
+                        <TextBox Grid.Column="1">
+                            <TextBox.Text>
+                                <Binding Path="FontSizeText" UpdateSourceTrigger="PropertyChanged" Delay="400"/>
+                            </TextBox.Text>
+                        </TextBox>
+                    </Grid>
+                    <CheckBox Content="{DynamicResource Check.Bold}" IsChecked="{Binding Bold}" Margin="0,4,0,0"/>
+                    <CheckBox Content="{DynamicResource Check.Italic}" IsChecked="{Binding Italic}" Margin="0,4,0,0"/>
+                    <Grid Margin="0,2">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="140"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Style="{StaticResource Field}" Text="{DynamicResource Label.OffsetX}"/>
+                        <TextBox Grid.Column="1">
+                            <TextBox.Text>
+                                <Binding Path="OffsetXText" UpdateSourceTrigger="PropertyChanged" Delay="400"/>
+                            </TextBox.Text>
+                        </TextBox>
+                    </Grid>
+                    <Grid Margin="0,2">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="140"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Style="{StaticResource Field}" Text="{DynamicResource Label.OffsetY}"/>
+                        <TextBox Grid.Column="1">
+                            <TextBox.Text>
+                                <Binding Path="OffsetYText" UpdateSourceTrigger="PropertyChanged" Delay="400"/>
+                            </TextBox.Text>
+                        </TextBox>
+                    </Grid>
+                    <Grid Margin="0,2">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="140"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Style="{StaticResource Field}" Text="{DynamicResource Label.Render}"/>
+                        <ComboBox Grid.Column="1" ItemsSource="{Binding RenderModes}" DisplayMemberPath="Caption"
+                                  SelectedValuePath="Value" SelectedValue="{Binding RenderMode}"/>
+                    </Grid>
+                    <Grid Margin="0,2" Visibility="{Binding ShowGlyphThreshold, Converter={StaticResource BoolToVis}}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="140"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Style="{StaticResource Field}" Text="{DynamicResource Label.Threshold}"/>
+                        <DockPanel Grid.Column="1">
+                            <TextBox Width="64" DockPanel.Dock="Right" Margin="6,0,0,0">
+                                <TextBox.Text>
+                                    <Binding Path="GlyphThresholdText" UpdateSourceTrigger="PropertyChanged" Delay="400"/>
+                                </TextBox.Text>
+                            </TextBox>
+                            <Slider Minimum="0" Maximum="255" TickFrequency="1" IsSnapToTickEnabled="True"
+                                    Value="{Binding GlyphThreshold}" VerticalAlignment="Center"/>
+                        </DockPanel>
+                    </Grid>
+                </StackPanel>
+
+                <StackPanel Visibility="{Binding IsSheet, Converter={StaticResource BoolToVis}}">
+                    <Grid Margin="0,2">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="140"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Style="{StaticResource Field}" Text="{DynamicResource Label.SheetWidth}"/>
+                        <TextBox Grid.Column="1">
+                            <TextBox.Text>
+                                <Binding Path="SheetWidthText" UpdateSourceTrigger="PropertyChanged" Delay="400"/>
+                            </TextBox.Text>
+                        </TextBox>
+                    </Grid>
+                    <Grid Margin="0,2">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="140"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Style="{StaticResource Field}" Text="{DynamicResource Label.SheetHeight}"/>
+                        <TextBox Grid.Column="1">
+                            <TextBox.Text>
+                                <Binding Path="SheetHeightText" UpdateSourceTrigger="PropertyChanged" Delay="400"/>
+                            </TextBox.Text>
+                        </TextBox>
+                    </Grid>
+                    <Grid Margin="0,2">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="140"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Style="{StaticResource Field}" Text="{DynamicResource Label.MarginX}"/>
+                        <TextBox Grid.Column="1">
+                            <TextBox.Text>
+                                <Binding Path="MarginXText" UpdateSourceTrigger="PropertyChanged" Delay="400"/>
+                            </TextBox.Text>
+                        </TextBox>
+                    </Grid>
+                    <Grid Margin="0,2">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="140"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Style="{StaticResource Field}" Text="{DynamicResource Label.MarginY}"/>
+                        <TextBox Grid.Column="1">
+                            <TextBox.Text>
+                                <Binding Path="MarginYText" UpdateSourceTrigger="PropertyChanged" Delay="400"/>
+                            </TextBox.Text>
+                        </TextBox>
+                    </Grid>
+                    <Grid Margin="0,2">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="140"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Style="{StaticResource Field}" Text="{DynamicResource Label.SpacingX}"/>
+                        <TextBox Grid.Column="1">
+                            <TextBox.Text>
+                                <Binding Path="SpacingXText" UpdateSourceTrigger="PropertyChanged" Delay="400"/>
+                            </TextBox.Text>
+                        </TextBox>
+                    </Grid>
+                    <Grid Margin="0,2">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="140"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Style="{StaticResource Field}" Text="{DynamicResource Label.SpacingY}"/>
+                        <TextBox Grid.Column="1">
+                            <TextBox.Text>
+                                <Binding Path="SpacingYText" UpdateSourceTrigger="PropertyChanged" Delay="400"/>
+                            </TextBox.Text>
+                        </TextBox>
+                    </Grid>
+                    <Grid Margin="0,2">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="140"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Style="{StaticResource Field}" Text="{DynamicResource Label.PerRow}"/>
+                        <TextBox Grid.Column="1">
+                            <TextBox.Text>
+                                <Binding Path="CharsPerRowText" UpdateSourceTrigger="PropertyChanged" Delay="400"/>
+                            </TextBox.Text>
+                        </TextBox>
+                    </Grid>
+                    <Grid Margin="0,2">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="140"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Style="{StaticResource Field}" Text="{DynamicResource Label.FirstCode}"/>
+                        <TextBox Grid.Column="1">
+                            <TextBox.Text>
+                                <Binding Path="FirstCodeText" UpdateSourceTrigger="PropertyChanged" Delay="400"/>
+                            </TextBox.Text>
+                        </TextBox>
+                    </Grid>
+                    <Grid Margin="0,2">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="140"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Style="{StaticResource Field}" Text="{DynamicResource Label.Threshold}"/>
+                        <DockPanel Grid.Column="1">
+                            <TextBox Width="64" DockPanel.Dock="Right" Margin="6,0,0,0">
+                                <TextBox.Text>
+                                    <Binding Path="SheetThresholdText" UpdateSourceTrigger="PropertyChanged" Delay="400"/>
+                                </TextBox.Text>
+                            </TextBox>
+                            <Slider Minimum="0" Maximum="255" TickFrequency="1" IsSnapToTickEnabled="True"
+                                    Value="{Binding SheetThreshold}" VerticalAlignment="Center"/>
+                        </DockPanel>
+                    </Grid>
+                </StackPanel>
+
+                <TextBlock Style="{StaticResource Section}" Text="{DynamicResource Section.Ranges}"
+                           Visibility="{Binding ShowRanges, Converter={StaticResource BoolToVis}}"/>
+                <StackPanel Visibility="{Binding ShowRanges, Converter={StaticResource BoolToVis}}">
+                    <CheckBox Content="{DynamicResource Check.Latin}" IsChecked="{Binding Latin}" Margin="0,2,0,0"/>
+                    <CheckBox Content="{DynamicResource Check.Cyrillic}" IsChecked="{Binding Cyrillic}" Margin="0,4,0,0"/>
+                    <CheckBox Content="{DynamicResource Check.Other}" IsChecked="{Binding OtherRange}" Margin="0,4,0,0"/>
+                    <Grid Margin="0,4,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="140"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Style="{StaticResource Field}" Text="{DynamicResource Label.CustomRange}"/>
+                        <TextBox Grid.Column="1">
+                            <TextBox.Text>
+                                <Binding Path="CustomRangeText" UpdateSourceTrigger="PropertyChanged" Delay="400"/>
+                            </TextBox.Text>
+                        </TextBox>
+                    </Grid>
+                </StackPanel>
+
+                <TextBlock Style="{StaticResource Section}" Text="{DynamicResource Section.Size}"/>
+                <Grid Margin="0,2">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="140"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Style="{StaticResource Field}" Text="{DynamicResource Label.Preset}"/>
+                    <ComboBox Grid.Column="1" ItemsSource="{Binding Presets.Items}" DisplayMemberPath="Caption"
+                              SelectedItem="{Binding Presets.Selected}"/>
+                </Grid>
+                <StackPanel Orientation="Horizontal" Margin="0,4,0,4">
+                    <Button Content="{DynamicResource Button.SavePreset}" Command="{Binding SavePresetCommand}" Margin="0,0,6,0"/>
+                    <Button Content="{DynamicResource Button.RenamePreset}" Command="{Binding RenamePresetCommand}" Margin="0,0,6,0"/>
+                    <Button Content="{DynamicResource Button.DeletePreset}" Command="{Binding DeletePresetCommand}"/>
+                </StackPanel>
+                <Grid Margin="0,2">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="140"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Style="{StaticResource Field}" Text="{DynamicResource Label.Cell}"/>
+                    <ComboBox Grid.Column="1" ItemsSource="{Binding Cells}" DisplayMemberPath="Caption"
+                              SelectedValuePath="Value" SelectedValue="{Binding Cell}"/>
+                </Grid>
+
+                <TextBlock Style="{StaticResource Section}" Text="{DynamicResource Section.Packing}"/>
+                <Grid Margin="0,2">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="140"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Style="{StaticResource Field}" Text="{DynamicResource Label.Direction}"/>
+                    <ComboBox Grid.Column="1" ItemsSource="{Binding Directions}" DisplayMemberPath="Caption"
+                              SelectedValuePath="Value" SelectedValue="{Binding Direction}"/>
+                </Grid>
+                <Grid Margin="0,2">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="140"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Style="{StaticResource Field}" Text="{DynamicResource Label.BitOrder}"/>
+                    <ComboBox Grid.Column="1" ItemsSource="{Binding BitOrders}" DisplayMemberPath="Caption"
+                              SelectedValuePath="Value" SelectedValue="{Binding BitOrder}"/>
+                </Grid>
+                <Grid Margin="0,2">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="140"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Style="{StaticResource Field}" Text="{DynamicResource Label.Bits}"/>
+                    <ComboBox Grid.Column="1" ItemsSource="{Binding BitCounts}" DisplayMemberPath="Caption"
+                              SelectedValuePath="Value" SelectedValue="{Binding BitsPerByte}" IsEnabled="{Binding BitsEnabled}"/>
+                </Grid>
+                <Grid Margin="0,2">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="140"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Style="{StaticResource Field}" Text="{DynamicResource Label.Traversal}"/>
+                    <ComboBox Grid.Column="1" ItemsSource="{Binding Traversals}" DisplayMemberPath="Caption"
+                              SelectedValuePath="Value" SelectedValue="{Binding Traversal}" IsEnabled="{Binding TraversalEnabled}"/>
+                </Grid>
+                <CheckBox Content="{DynamicResource Check.Invert}" IsChecked="{Binding Invert}" Margin="0,4,0,0"/>
+                <Grid Margin="0,2">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="140"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Style="{StaticResource Field}" Text="{DynamicResource Label.Scheme}"/>
+                    <ComboBox Grid.Column="1" ItemsSource="{Binding Schemes}" DisplayMemberPath="Caption"
+                              SelectedValuePath="Value" SelectedValue="{Binding Scheme}"/>
+                </Grid>
+
+                <TextBlock Style="{StaticResource Section}" Text="{DynamicResource Section.Output}"/>
+                <Grid Margin="0,2">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="140"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Style="{StaticResource Field}" Text="{DynamicResource Label.Format}"/>
+                    <ComboBox Grid.Column="1" ItemsSource="{Binding Formats}" DisplayMemberPath="Caption"
+                              SelectedValuePath="Value" SelectedValue="{Binding Format}"/>
+                </Grid>
+                <Grid Margin="0,2">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="140"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Style="{StaticResource Field}" Text="{DynamicResource Label.ArrayName}"/>
+                    <TextBox Grid.Column="1">
+                        <TextBox.Text>
+                            <Binding Path="ArrayName" UpdateSourceTrigger="PropertyChanged" Delay="400"/>
+                        </TextBox.Text>
+                    </TextBox>
+                </Grid>
+                <Grid Margin="0,2">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="140"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Style="{StaticResource Field}" Text="{DynamicResource Label.Encoding}"/>
+                    <ComboBox Grid.Column="1" ItemsSource="{Binding Encodings}" DisplayMemberPath="Caption"
+                              SelectedValuePath="Value" SelectedValue="{Binding Encoding}"/>
+                </Grid>
+                <Grid Margin="0,2">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="140"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Style="{StaticResource Field}" Text="{DynamicResource Label.BytesPerLine}"/>
+                    <TextBox Grid.Column="1">
+                        <TextBox.Text>
+                            <Binding Path="BytesPerLineText" UpdateSourceTrigger="PropertyChanged" Delay="400"/>
+                        </TextBox.Text>
+                    </TextBox>
+                </Grid>
+                <Grid Margin="0,2">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="140"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Style="{StaticResource Field}" Text="{DynamicResource Label.AsmNumber}"/>
+                    <ComboBox Grid.Column="1" ItemsSource="{Binding AsmNumberFormats}" DisplayMemberPath="Caption"
+                              SelectedValuePath="Value" SelectedValue="{Binding AsmNumbers}" IsEnabled="{Binding AsmEnabled}"/>
+                </Grid>
+                <Grid Margin="0,2">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="140"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Style="{StaticResource Field}" Text="{DynamicResource Label.AsmExtension}"/>
+                    <ComboBox Grid.Column="1" ItemsSource="{Binding AsmExtensions}" DisplayMemberPath="Caption"
+                              SelectedValuePath="Value" SelectedValue="{Binding AsmExtension}" IsEnabled="{Binding AsmEnabled}"/>
+                </Grid>
+                <Grid Margin="0,2">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="140"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Style="{StaticResource Field}" Text="{DynamicResource Label.Stm32Type}"/>
+                    <ComboBox Grid.Column="1" ItemsSource="{Binding Stm32Types}" DisplayMemberPath="Caption"
+                              SelectedValuePath="Value" SelectedValue="{Binding Stm32Type}" IsEnabled="{Binding Stm32Enabled}"/>
+                </Grid>
+                <CheckBox Content="{DynamicResource Check.IncludeDate}" IsChecked="{Binding IncludeDate}" Margin="0,4,0,0"/>
+                <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                    <Button Content="{DynamicResource Button.Copy}" Command="{Binding CopyCommand}" Margin="0,0,6,0"/>
+                    <Button Content="{DynamicResource Button.SaveOutput}" Command="{Binding SaveOutputCommand}"/>
+                </StackPanel>
+            </StackPanel>
+        </ScrollViewer>
+
+        <Grid Grid.Column="1" Margin="8,8,8,4">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="2*"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*" MinHeight="120"/>
+            </Grid.RowDefinitions>
+            <DockPanel Grid.Row="0" Margin="0,0,0,4">
+                <TextBlock DockPanel.Dock="Left" Style="{StaticResource Field}" Text="{DynamicResource Label.PreviewText}"/>
+                <ComboBox DockPanel.Dock="Right" Width="90" ItemsSource="{Binding PreviewScales}" DisplayMemberPath="Caption"
+                          SelectedValuePath="Value" SelectedValue="{Binding PreviewScale}" Margin="8,0,0,0"/>
+                <TextBox>
+                    <TextBox.Text>
+                        <Binding Path="PreviewText" UpdateSourceTrigger="PropertyChanged"/>
+                    </TextBox.Text>
+                </TextBox>
+            </DockPanel>
+            <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" MaxHeight="160" Margin="0,0,0,6">
+                <controls:StringPreviewControl Text="{Binding PreviewText}" Table="{Binding Table}" Revision="{Binding TableRevision}"
+                                               Scale="{Binding PreviewScale}" Invert="{Binding Invert}" Scheme="{Binding Scheme}"/>
+            </ScrollViewer>
+            <Grid Grid.Row="2">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <ScrollViewer Grid.Column="0" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" Margin="0,0,8,0">
+                    <controls:GlyphTableControl Table="{Binding Table}" Revision="{Binding TableRevision}"
+                                                SelectedCode="{Binding Editor.SelectedCode}" Invert="{Binding Invert}" Scheme="{Binding Scheme}"/>
+                </ScrollViewer>
+                <DockPanel Grid.Column="1">
+                    <TextBlock DockPanel.Dock="Top" Text="{Binding Editor.Caption}" Margin="0,0,0,4"/>
+                    <WrapPanel DockPanel.Dock="Top" Margin="0,0,0,4">
+                        <Button Content="{DynamicResource Button.ClearGlyph}" Command="{Binding Editor.ClearGlyphCommand}" Margin="0,0,4,4"/>
+                        <Button Content="{DynamicResource Button.InvertGlyph}" Command="{Binding Editor.InvertGlyphCommand}" Margin="0,0,4,4"/>
+                        <Button Content="{DynamicResource Button.ShiftLeft}" Command="{Binding Editor.ShiftLeftCommand}" Margin="0,0,4,4"/>
+                        <Button Content="{DynamicResource Button.ShiftRight}" Command="{Binding Editor.ShiftRightCommand}" Margin="0,0,4,4"/>
+                        <Button Content="{DynamicResource Button.ShiftUp}" Command="{Binding Editor.ShiftUpCommand}" Margin="0,0,4,4"/>
+                        <Button Content="{DynamicResource Button.ShiftDown}" Command="{Binding Editor.ShiftDownCommand}" Margin="0,0,4,4"/>
+                        <Button Content="{DynamicResource Button.CopyGlyph}" Command="{Binding Editor.CopyGlyphCommand}" Margin="0,0,4,4"/>
+                        <Button Content="{DynamicResource Button.PasteGlyph}" Command="{Binding Editor.PasteGlyphCommand}" Margin="0,0,4,4"/>
+                        <Button Content="{DynamicResource Button.RevertGlyph}" Command="{Binding Editor.RevertGlyphCommand}" Margin="0,0,4,4"/>
+                        <Button Content="{DynamicResource Button.ResetManual}" Command="{Binding ResetManualCommand}" Margin="0,0,4,4"/>
+                    </WrapPanel>
+                    <DockPanel DockPanel.Dock="Top" Margin="0,0,0,4">
+                        <ComboBox DockPanel.Dock="Left" Width="140" ItemsSource="{Binding Zooms}" DisplayMemberPath="Caption"
+                                  SelectedItem="{Binding Zoom}" Margin="0,0,8,0"/>
+                        <CheckBox Content="{DynamicResource Check.Grid}" IsChecked="{Binding ShowGrid}" VerticalAlignment="Center"/>
+                    </DockPanel>
+                    <controls:PixelGridControl x:Name="EditorGrid"
+                                               Pixels="{Binding Editor.Glyph}"
+                                               Invert="{Binding Invert}"
+                                               Scheme="{Binding Scheme}"
+                                               Scale="{Binding Scale}"
+                                               FitToWindow="{Binding FitToWindow}"
+                                               ShowGrid="{Binding ShowGrid}"
+                                               Direction="{Binding Direction}"
+                                               BitsPerByte="{Binding BitsPerByte}"/>
+                </DockPanel>
+            </Grid>
+            <TextBlock Grid.Row="3" Margin="0,4,0,2" Text="{Binding HoverText}" TextWrapping="Wrap" MinHeight="18"/>
+            <StackPanel Grid.Row="4">
+                <TextBlock Text="{DynamicResource Label.Missing}" FontWeight="SemiBold"
+                           Visibility="{Binding HasMissing, Converter={StaticResource BoolToVis}}"/>
+                <TextBlock Text="{Binding MissingText}" TextWrapping="Wrap"
+                           Visibility="{Binding HasMissing, Converter={StaticResource BoolToVis}}" Margin="0,0,0,4"/>
+                <TextBlock Text="{Binding WarningText}" TextWrapping="Wrap" Foreground="#FF8A4B00" Margin="0,0,0,4"/>
+                <TextBlock Text="{Binding SizeLine}" Margin="0,0,0,4"/>
+            </StackPanel>
+            <controls:CodeView Grid.Row="5"/>
+        </Grid>
+    </Grid>
 </UserControl>

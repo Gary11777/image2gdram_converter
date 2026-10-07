@@ -17,7 +17,7 @@ using image2gdram_converter.Services;
 namespace image2gdram_converter.ViewModels;
 
 /// <summary>  : , ,    .</summary>
-public sealed partial class ImageConverterViewModel : ObservableValidator
+public sealed partial class ImageConverterViewModel : ObservableValidator, ICodeSurface
 {
     private readonly ILocalizationService _loc;
     private readonly IDialogService _dialogs;
@@ -154,6 +154,19 @@ public sealed partial class ImageConverterViewModel : ObservableValidator
     public Action<string, SessionFolder>? FileUsed { get; set; }
 
     public Action? CommandsChanged { get; set; }
+
+    public Action? PresetsChanged { get; set; }
+
+    public void RefreshPresets()
+    {
+        if (!_binding.IsCustom && _binding.Name is string name && FindPreset(name) is null)
+        {
+            _binding = PresetBinding.Custom;
+        }
+
+        Presets.Show(_binding);
+        OnPropertyChanged(nameof(PresetCaption));
+    }
 
     public ObservableCollection<CodeFileItem> CodeFiles { get; } = new();
 
@@ -608,6 +621,7 @@ public sealed partial class ImageConverterViewModel : ObservableValidator
             Presets.Show(_binding);
             OnPropertyChanged(nameof(PresetCaption));
             ParametersChanged?.Invoke();
+            PresetsChanged?.Invoke();
         }
         catch (PresetException ex)
         {
@@ -640,6 +654,7 @@ public sealed partial class ImageConverterViewModel : ObservableValidator
             Presets.Show(_binding);
             OnPropertyChanged(nameof(PresetCaption));
             ParametersChanged?.Invoke();
+            PresetsChanged?.Invoke();
         }
         catch (PresetException ex)
         {
@@ -672,6 +687,7 @@ public sealed partial class ImageConverterViewModel : ObservableValidator
             Presets.Show(_binding);
             OnPropertyChanged(nameof(PresetCaption));
             ParametersChanged?.Invoke();
+            PresetsChanged?.Invoke();
         }
         catch (PresetException ex)
         {

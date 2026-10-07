@@ -1,5 +1,9 @@
 using System.Windows;
 using System.Windows.Controls;
+using Image2Gdram.Core.Fonts;
+using Image2Gdram.Core.Fonts.Import;
+using Image2Gdram.Core.Packing;
+using image2gdram_converter.Views;
 
 namespace image2gdram_converter.Services;
 
@@ -36,6 +40,12 @@ public sealed class DialogService : IDialogService
     }
 
     public void Alert(string message) => Show(message, null, null, ("Dialog.Ok", true));
+
+    public ImportPick? AskImport(IReadOnlyList<ImportedArray> arrays, FontCellSize cell, PackingOptions packing)
+    {
+        var dialog = new ImportDialog(_text, arrays, cell, packing);
+        return dialog.ShowDialog() == true ? dialog.Pick : null;
+    }
 
     private T? Show<T>(string message, TextBox? box, IInputElement? focus, params (string Key, T Result)[] buttons)
         where T : struct

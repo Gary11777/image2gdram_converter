@@ -1,5 +1,6 @@
 using System.Globalization;
 using Image2Gdram.Core.Diagnostics;
+using Image2Gdram.Core.Fonts.Import;
 using Image2Gdram.Core.Imaging;
 using Image2Gdram.Core.Output;
 using Image2Gdram.Core.Presets;
@@ -77,6 +78,41 @@ public static class UserText
     {
         SettingsError.AccessDenied => text.Format("Error.Settings.Access", error.Path),
         _ => text.Format("Error.Settings.Io", error.Path),
+    };
+
+    public static string Import(ILocalizationService text, ArrayImportException error)
+    {
+        ArgumentNullException.ThrowIfNull(error);
+        return error.Kind switch
+        {
+            ArrayImportErrorKind.FileTooLarge => text.Get("Error.Import.Large"),
+            ArrayImportErrorKind.IoError => text.Format("Error.Import.Io", error.Token ?? string.Empty),
+            ArrayImportErrorKind.UnterminatedComment => text.Format("Error.Import.Comment", error.Line),
+            ArrayImportErrorKind.UnterminatedString => text.Format("Error.Import.String", error.Line),
+            ArrayImportErrorKind.UnbalancedBraces => text.Format("Error.Import.Braces", error.Line),
+            _ => text.Format(IssueKey(error.Kind), error.Line, error.Token ?? string.Empty),
+        };
+    }
+
+    public static string ImportIssue(ILocalizationService text, ArrayImportIssue issue)
+    {
+        ArgumentNullException.ThrowIfNull(issue);
+        return issue.Kind switch
+        {
+            ArrayImportErrorKind.FileTooLarge => text.Get("Error.Import.Large"),
+            ArrayImportErrorKind.IoError => text.Format("Error.Import.Io", issue.Token ?? string.Empty),
+            ArrayImportErrorKind.UnterminatedComment => text.Format("Error.Import.Comment", issue.Line),
+            ArrayImportErrorKind.UnterminatedString => text.Format("Error.Import.String", issue.Line),
+            ArrayImportErrorKind.UnbalancedBraces => text.Format("Error.Import.Braces", issue.Line),
+            _ => text.Format(IssueKey(issue.Kind), issue.Line, issue.Token),
+        };
+    }
+
+    private static string IssueKey(ArrayImportErrorKind kind) => kind switch
+    {
+        ArrayImportErrorKind.CharacterNotInCp1251 => "Error.Import.Char",
+        ArrayImportErrorKind.InvalidNumber => "Error.Import.Number",
+        _ => "Error.Import.Value",
     };
 
     public static string Diagnostic(ILocalizationService text, Diagnostic diagnostic)

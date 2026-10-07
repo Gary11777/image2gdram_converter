@@ -14,7 +14,7 @@ public partial class CodeView : UserControl
 {
     private readonly TextEditor _editor;
     private readonly ByteHighlighter _highlighter = new();
-    private ImageConverterViewModel? _model;
+    private ICodeSurface? _model;
 
     public CodeView()
     {
@@ -32,10 +32,10 @@ public partial class CodeView : UserControl
         _editor.Options.EnableEmailHyperlinks = false;
         _editor.TextArea.TextView.BackgroundRenderers.Add(_highlighter);
         EditorHost.Child = _editor;
-        DataContextChanged += (_, _) => Attach(DataContext as ImageConverterViewModel);
+        DataContextChanged += (_, _) => Attach(DataContext as ICodeSurface);
     }
 
-    private void Attach(ImageConverterViewModel? model)
+    private void Attach(ICodeSurface? model)
     {
         if (_model is not null)
         {
@@ -54,12 +54,12 @@ public partial class CodeView : UserControl
 
     private void OnModelChanged(object? sender, PropertyChangedEventArgs args)
     {
-        if (args.PropertyName is nameof(ImageConverterViewModel.CodeText)
-            or nameof(ImageConverterViewModel.HighlightStart)
-            or nameof(ImageConverterViewModel.HighlightLength)
+        if (args.PropertyName is nameof(ICodeSurface.CodeText)
+            or nameof(ICodeSurface.HighlightStart)
+            or nameof(ICodeSurface.HighlightLength)
             or "")
         {
-            Refresh(scroll: args.PropertyName != nameof(ImageConverterViewModel.CodeText) || _model?.HighlightLength > 0);
+            Refresh(scroll: args.PropertyName != nameof(ICodeSurface.CodeText) || _model?.HighlightLength > 0);
         }
     }
 

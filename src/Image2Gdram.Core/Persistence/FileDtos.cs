@@ -174,6 +174,9 @@ internal sealed class FontParametersDto
 
     public string? PreviewText { get; set; }
 
+    /// <summary>0 в старом файле без поля означает масштаб по умолчанию.</summary>
+    public int PreviewScale { get; set; } = 2;
+
     public ColorScheme ColorScheme { get; set; } = ColorScheme.Oled;
 
     public PresetBindingDto? Preset { get; set; }

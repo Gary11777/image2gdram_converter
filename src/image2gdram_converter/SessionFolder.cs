@@ -7,4 +7,5 @@ public enum SessionFolder
     SaveOutput,
     OpenProject,
     SaveProject,
+    OpenFont,
 }

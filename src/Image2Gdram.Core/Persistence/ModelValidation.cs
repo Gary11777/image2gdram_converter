@@ -37,6 +37,10 @@ internal static class ModelValidation
         ArgumentNullException.ThrowIfNull(parameters.Family);
         ArgumentNullException.ThrowIfNull(parameters.PreviewText);
         ArgumentNullException.ThrowIfNull(parameters.CustomCodes);
+        if (parameters.PreviewScale is < 1 or > 8)
+        {
+            throw new ArgumentOutOfRangeException(nameof(parameters), parameters.PreviewScale, "Preview scale must be in 1..8.");
+        }
         if (!FontCellSize.TryGet(parameters.CellWidth, parameters.CellHeight, out _))
         {
             throw new ArgumentOutOfRangeException(nameof(parameters), $"{parameters.CellWidth}x{parameters.CellHeight}", "Font cell must be 6x8, 8x8 or 12x16.");
