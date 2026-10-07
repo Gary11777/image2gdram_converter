@@ -36,3 +36,29 @@ public static class GridScale
     public static int ThickStep(PackDirection direction, int bitsPerByte) =>
         direction == PackDirection.Horizontal ? bitsPerByte : 8;
 }
+
+/// <summary>
+/// Перевод между единицами WPF (1/96 дюйма) и физическими пикселями экрана при масштабе Windows 100–200 %
+/// (решение N-57). Клетки растров считаются в физических пикселях, чтобы все точки были одинаковыми и чёткими.
+/// </summary>
+public static class DevicePixels
+{
+    /// <summary>Физических пикселей на клетку размером <paramref name="units"/> единиц WPF; не меньше 1.</summary>
+    public static int Cell(int units, double dpiScale) =>
+        Math.Max(1, (int)Math.Round(units * Normalize(dpiScale), MidpointRounding.AwayFromZero));
+
+    public static double ToDip(double pixels, double dpiScale) => pixels / Normalize(dpiScale);
+
+    /// <summary>Ближайшая к <paramref name="dip"/> граница физического пикселя, в единицах WPF.</summary>
+    public static double Snap(double dip, double dpiScale)
+    {
+        double scale = Normalize(dpiScale);
+        return Math.Round(dip * scale, MidpointRounding.AwayFromZero) / scale;
+    }
+
+    /// <summary>Номер клетки под точкой <paramref name="dip"/>, если клетка занимает <paramref name="cellPixels"/> физических пикселей.</summary>
+    public static int CellAt(double dip, double dpiScale, int cellPixels) =>
+        (int)Math.Floor(dip * Normalize(dpiScale) / Math.Max(1, cellPixels));
+
+    private static double Normalize(double dpiScale) => dpiScale > 0 && double.IsFinite(dpiScale) ? dpiScale : 1.0;
+}

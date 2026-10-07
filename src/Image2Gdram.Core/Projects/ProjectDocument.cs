@@ -5,7 +5,7 @@ using Image2Gdram.Core.Settings;
 
 namespace Image2Gdram.Core.Projects;
 
-/// <summary>   <c>.iiu</c> ( N-16).    <see cref="FormatVersion"/>.</summary>
+/// <summary>Содержимое проекта <c>.iiu</c> (решение N-16). Версия формата — <see cref="FormatVersion"/>.</summary>
 public sealed class ProjectDocument
 {
     public const int FormatVersion = 1;
@@ -26,7 +26,7 @@ public sealed class ProjectDocument
         new(ImageProjectTab.CreateDefault(), FontProjectTab.CreateDefault());
 }
 
-/// <summary>   : ,       .</summary>
+/// <summary>Вкладка картинок в проекте: параметры, путь к исходнику и ручные правки по кадрам.</summary>
 public sealed class ImageProjectTab
 {
     public ImageProjectTab(ImageTabParameters parameters, string? sourcePath = null, FramePixelOverrides? edits = null)
@@ -48,7 +48,7 @@ public sealed class ImageProjectTab
     private static string? Clean(string? path) => string.IsNullOrWhiteSpace(path) ? null : path.Trim();
 }
 
-/// <summary>   : ,       256 .</summary>
+/// <summary>Вкладка шрифтов в проекте: параметры, пути к источникам и все 256 символов таблицы.</summary>
 public sealed class FontProjectTab
 {
     public FontProjectTab(FontTabParameters parameters, FontTable table, string? sheetPath = null, string? importPath = null)

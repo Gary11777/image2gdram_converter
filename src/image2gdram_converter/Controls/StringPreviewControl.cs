@@ -9,8 +9,8 @@ using image2gdram_converter;
 namespace image2gdram_converter.Controls;
 
 /// <summary>
-/// ?????? ?????????????: ??????? ????????, ? ???????? 1?8.
-/// ???? ??? CP1251 ? ?????? ?????? ? ??????? ?????? (??????? N-30).
+/// Предпросмотр строки: символы таблицы подряд, в масштабе 1…8.
+/// Знак вне CP1251 — пустая ячейка с рамкой (решение N-30).
 /// </summary>
 public sealed class StringPreviewControl : FrameworkElement
 {
@@ -83,9 +83,21 @@ public sealed class StringPreviewControl : FrameworkElement
             return new Size(0, 0);
         }
 
-        int scale = Math.Clamp(Scale, 1, 8);
+        int scale = Dot;
         int count = Math.Max(1, StringPreviewMap.Map(Text).Count);
-        return new Size(count * table.Cell.Width * scale, table.Cell.Height * scale);
+        return new Size(DevicePixels.ToDip(count * table.Cell.Width * scale, Dpi), DevicePixels.ToDip(table.Cell.Height * scale, Dpi));
+    }
+
+    private double Dpi => VisualTreeHelper.GetDpi(this).DpiScaleX;
+
+    /// <summary>Физических пикселей на точку символа (решение N-57).</summary>
+    private int Dot => DevicePixels.Cell(Math.Clamp(Scale, 1, 8), Dpi);
+
+    protected override void OnDpiChanged(DpiScale oldDpi, DpiScale newDpi)
+    {
+        base.OnDpiChanged(oldDpi, newDpi);
+        InvalidateMeasure();
+        InvalidateVisual();
     }
 
     protected override void OnRender(DrawingContext drawingContext)
@@ -97,7 +109,7 @@ public sealed class StringPreviewControl : FrameworkElement
         }
 
         IReadOnlyList<PreviewGlyph> cells = StringPreviewMap.Map(Text);
-        int scale = Math.Clamp(Scale, 1, 8);
+        int scale = Dot;
         int cellW = table.Cell.Width;
         int cellH = table.Cell.Height;
         int count = Math.Max(1, cells.Count);
@@ -120,7 +132,8 @@ public sealed class StringPreviewControl : FrameworkElement
         }
 
         bitmap.WritePixels(new Int32Rect(0, 0, bitmap.PixelWidth, bitmap.PixelHeight), buffer, bitmap.PixelWidth * 4, 0);
-        drawingContext.DrawImage(bitmap, new Rect(0, 0, bitmap.PixelWidth, bitmap.PixelHeight));
+        double dpi = Dpi;
+        drawingContext.DrawImage(bitmap, new Rect(0, 0, DevicePixels.ToDip(bitmap.PixelWidth, dpi), DevicePixels.ToDip(bitmap.PixelHeight, dpi)));
     }
 
     private static void FillCell(

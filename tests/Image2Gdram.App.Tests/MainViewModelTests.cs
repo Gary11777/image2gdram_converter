@@ -103,7 +103,7 @@ public class MainViewModelTests : IDisposable
             dialogs,
             new FakeFiles(),
             new FakeClipboard(),
-            new ImmediateRecalcScheduler(),
+            () => new ImmediateRecalcScheduler(),
             autosave ?? new ManualSettingsAutosave(),
             new UnusedDecoder(),
             new StubOutlines());

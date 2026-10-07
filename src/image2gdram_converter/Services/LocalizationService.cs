@@ -16,6 +16,11 @@ public sealed class LocalizationService : ILocalizationService
     public void Add(ResourceDictionary dictionary)
     {
         ArgumentNullException.ThrowIfNull(dictionary);
+        foreach (ResourceDictionary merged in dictionary.MergedDictionaries)
+        {
+            Add(merged);
+        }
+
         foreach (object key in dictionary.Keys)
         {
             if (key is string name && dictionary[name] is string value)
