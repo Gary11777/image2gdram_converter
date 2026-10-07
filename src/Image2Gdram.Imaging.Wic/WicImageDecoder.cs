@@ -423,25 +423,25 @@ public sealed class WicImageDecoder : IImageDecoder
     }
 
     private static ImageLoadException TooLarge(string path, int width, int height) =>
-        new(ImageLoadError.TooLarge, $"Изображение {width}x{height} превышает допустимый размер {ImageLimits.MaxSide}x{ImageLimits.MaxSide}.", path)
+        new(ImageLoadError.TooLarge, $"Image {width}x{height} exceeds {ImageLimits.MaxSide}x{ImageLimits.MaxSide}.", path)
         {
             Width = width,
             Height = height,
         };
 
     private static ImageLoadException Memory(string path, int width, int height, int frames) =>
-        new(ImageLoadError.MemoryLimit, $"Суммарный объём {frames} кадров {width}x{height} превышает 512 МБ.", path)
+        new(ImageLoadError.MemoryLimit, $"{frames} frames of {width}x{height} exceed 512 MB.", path)
         {
             Width = width,
             Height = height,
         };
 
     private static ImageLoadException Corrupted(string path, Exception? inner = null) =>
-        new(ImageLoadError.Corrupted, "Файл изображения повреждён или обрезан.", path, inner);
+        new(ImageLoadError.Corrupted, "The image file is corrupted or truncated.", path, inner);
 
     private static ImageLoadException Unsupported(string path, Exception inner) =>
-        new(ImageLoadError.Unsupported, "Файл не является изображением BMP, PNG, JPEG или GIF.", path, inner);
+        new(ImageLoadError.Unsupported, "The file is not a BMP, PNG, JPEG or GIF image.", path, inner);
 
     private static ImageLoadException Io(string path, Exception inner) =>
-        new(ImageLoadError.IoError, $"Не удалось прочитать файл: {inner.Message}", path, inner);
+        new(ImageLoadError.IoError, inner.Message, path, inner);
 }

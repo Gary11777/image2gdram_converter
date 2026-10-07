@@ -1,4 +1,4 @@
-﻿using System.ComponentModel;
+using System.ComponentModel;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Interop;
@@ -14,7 +14,21 @@ public partial class MainWindow : Window
         InitializeComponent();
         Closing += OnClosing;
         SourceInitialized += (_, _) => FitToMonitor();
+        DataContextChanged += (_, args) =>
+        {
+            if (args.OldValue is MainViewModel old)
+            {
+                old.CloseRequested -= OnCloseRequested;
+            }
+
+            if (args.NewValue is MainViewModel model)
+            {
+                model.CloseRequested += OnCloseRequested;
+            }
+        };
     }
+
+    private void OnCloseRequested(object? sender, EventArgs args) => Close();
 
     protected override void OnDpiChanged(DpiScale oldDpi, DpiScale newDpi)
     {

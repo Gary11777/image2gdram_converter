@@ -1,4 +1,4 @@
-﻿using System.Windows;
+using System.Windows;
 using Image2Gdram.Core.Settings;
 using Image2Gdram.Core.Text;
 using Image2Gdram.Fonts.Wpf;
@@ -23,7 +23,7 @@ public partial class App : Application
 
         var settingsService = new SettingsService();
         SettingsLoadResult loaded = settingsService.Load();
-        localization.TryLoadExternal(loaded.Settings.Language, AppContext.BaseDirectory);
+        LanguageLoadResult language = localization.LoadExternal(loaded.Settings.Language, AppContext.BaseDirectory);
 
         var window = new MainWindow
         {
@@ -37,7 +37,8 @@ public partial class App : Application
                 () => new RecalcScheduler(Dispatcher),
                 new SettingsAutosave(Dispatcher),
                 new WicImageDecoder(),
-                new WpfGlyphOutlineProvider()),
+                new WpfGlyphOutlineProvider(),
+                UserText.Language(localization, language, loaded.Settings.Language)),
         };
         MainWindow = window;
         window.Show();

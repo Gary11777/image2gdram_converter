@@ -170,6 +170,54 @@ public class OutputBehaviourTests
         }
     }
 
+    [Theory]
+    [InlineData("ru-RU")]
+    [InlineData("th-TH")]
+    [InlineData("ar-SA")]
+    [InlineData("de-DE")]
+    public void Output_does_not_depend_on_the_current_culture(string cultureName)
+    {
+        var at = new DateTime(2026, 10, 7, 21, 5, 9);
+        var expected = new List<byte[]>();
+        CultureInfo culture = CultureInfo.CurrentCulture;
+        CultureInfo uiCulture = CultureInfo.CurrentUICulture;
+        try
+        {
+            CultureInfo.CurrentCulture = CultureInfo.InvariantCulture;
+            CultureInfo.CurrentUICulture = CultureInfo.InvariantCulture;
+            foreach (OutputFormat format in AllFormats)
+            {
+                foreach (OutputData data in Samples())
+                {
+                    expected.AddRange(Registry.Generate(data, Options(format) with { IncludeDate = true, GeneratedAt = at }).Files.Select(f => f.Content));
+                }
+            }
+
+            CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo(cultureName);
+            CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo(cultureName);
+            int index = 0;
+            foreach (OutputFormat format in AllFormats)
+            {
+                foreach (OutputData data in Samples())
+                {
+                    foreach (OutputFile file in Registry.Generate(data, Options(format) with { IncludeDate = true, GeneratedAt = at }).Files)
+                    {
+                        Assert.Equal(expected[index++], file.Content);
+                    }
+                }
+            }
+
+            Assert.Equal(expected.Count, index);
+            string header = Registry.Generate(Logo128x64(), Options(OutputFormat.CStm32) with { IncludeDate = true, GeneratedAt = at }).Files[0].Text;
+            Assert.Contains("\r\n * Дата: 2026-10-07 21:05:09\r\n", header, StringComparison.Ordinal);
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = culture;
+            CultureInfo.CurrentUICulture = uiCulture;
+        }
+    }
+
     [Fact]
     public void Date_appears_in_every_text_file_when_enabled()
     {

@@ -216,6 +216,12 @@ public sealed partial class ImageConverterViewModel : ObservableValidator, ICode
 
     public string? SourcePath => _sourcePath;
 
+    /// <summary>Исходные файлы вкладки: в них сохранять вывод нельзя (п. 6 ТЗ).</summary>
+    public IReadOnlyList<string> SourceFiles => string.IsNullOrWhiteSpace(_sourcePath) ? Array.Empty<string>() : new[] { _sourcePath };
+
+    /// <summary>Исходные файлы другой вкладки, которые тоже нельзя перезаписать.</summary>
+    public Func<IReadOnlyList<string>>? OtherSourceFiles { get; set; }
+
     public FramePixelOverrides Edits => _edits;
 
     public bool HasEdits => _edits.HasEdits;
@@ -591,7 +597,7 @@ public sealed partial class ImageConverterViewModel : ObservableValidator, ICode
                 Document,
                 directory,
                 existing => _dialogs.Confirm(_loc.Format("Dialog.Overwrite", string.Join(Environment.NewLine, existing))),
-                _sourcePath is null ? null : new[] { _sourcePath });
+                SourceFiles.Concat(OtherSourceFiles?.Invoke() ?? Array.Empty<string>()).ToArray());
             if (result == OutputSaveResult.Saved)
             {
                 _outputFolder = directory;
@@ -751,7 +757,11 @@ public sealed partial class ImageConverterViewModel : ObservableValidator, ICode
             return;
         }
 
-        LoadState(next, schedule: true);
+        bool nameCustomized = _nameCustomized;
+        LoadState(next, schedule: false);
+        _nameCustomized = nameCustomized;
+        UpdateAutomaticName();
+        Schedule();
         ParametersChanged?.Invoke();
         CommandsChanged?.Invoke();
     }

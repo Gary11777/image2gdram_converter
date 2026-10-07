@@ -3,8 +3,11 @@ using System.IO;
 using Image2Gdram.Core.Fonts;
 using Image2Gdram.Core.Fonts.Import;
 using Image2Gdram.Core.Imaging;
+using Image2Gdram.Core.Output;
 using Image2Gdram.Core.Packing;
+using Image2Gdram.Core.Presets;
 using Image2Gdram.Core.Processing;
+using Image2Gdram.Core.Settings;
 using Image2Gdram.Imaging.Wic;
 
 namespace Image2Gdram.Imaging.Wic.Tests;
@@ -68,6 +71,73 @@ public class ReferenceFileTests
         }
 
         Assert.Contains("Q-08", index, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("test_pattern_240x128", "WG240128A")]
+    [InlineData("test_pattern_240x128", "W0240128")]
+    [InlineData("test_pattern_128x64", "OLED128X64-0.96")]
+    [InlineData("test_pattern_128x64", "RG12864F")]
+    [InlineData("test_pattern_128x64", "RET012864DGPP3N")]
+    [InlineData("test_pattern_128x64", "HT1.3-OLED-BW / HR0161")]
+    [InlineData("test_sprite_13x11", null)]
+    public void Image_output_of_the_program_matches_reference_bins(string folder, string? presetName)
+    {
+        var decoder = new WicImageDecoder();
+        OutputGeneratorRegistry generators = OutputGeneratorRegistry.CreateDefault();
+        var packer = new Mono1bppPacker();
+        var pipeline = new ImagePipeline();
+        string path = Path.Combine(Root, "testdata", folder + ".png");
+        RgbaImage frame = decoder.Decode(path).Frames[0];
+        ImageTabParameters parameters = ImageTabParameters.CreateDefault();
+        if (presetName is null)
+        {
+            parameters = parameters with { Processing = parameters.Processing with { SizeMode = TargetSizeMode.MatchSource } };
+        }
+        else
+        {
+            Preset preset = PresetCatalog.Shared.Find(presetName) ?? throw new InvalidOperationException(presetName);
+            parameters = PresetApplication.Apply(parameters, preset);
+        }
+
+        MonoBitmap bitmap = pipeline.Run(frame, parameters.Processing);
+        Assert.Equal((frame.Width, frame.Height), (bitmap.Width, bitmap.Height));
+        string directory = Path.Combine(Root, "testdata", "reference", folder);
+        foreach (string file in Directory.GetFiles(directory, "*.bin").OrderBy(name => name, StringComparer.Ordinal))
+        {
+            PackingOptions options = Parse(Path.GetFileNameWithoutExtension(file));
+            var data = new ImageOutputData(
+                bitmap.Width,
+                bitmap.Height,
+                packer.Pack(bitmap, options),
+                options,
+                new ImageSourceInfo(path),
+                PresetInfo.Custom);
+            OutputDocument document = generators.Generate(data, new OutputOptions { Format = OutputFormat.Bin, ArrayName = folder });
+
+            Assert.Equal(File.ReadAllBytes(file), Assert.Single(document.Files).Content);
+        }
+    }
+
+    [Theory]
+    [InlineData("font_6x8")]
+    [InlineData("font_8x8")]
+    [InlineData("font_12x16")]
+    public void Font_output_of_the_program_matches_reference_bins(string folder)
+    {
+        var decoder = new WicImageDecoder();
+        OutputGeneratorRegistry generators = OutputGeneratorRegistry.CreateDefault();
+        var packer = new Mono1bppPacker();
+        FontTable table = LoadFont(decoder, folder);
+        string directory = Path.Combine(Root, "testdata", "reference", folder);
+        foreach (string file in Directory.GetFiles(directory, "*.bin").OrderBy(name => name, StringComparer.Ordinal))
+        {
+            PackingOptions options = Parse(Path.GetFileNameWithoutExtension(file));
+            FontOutputData data = table.ToOutputData(packer, options, FontSourceInfo.Sheet("font_sheet.png"), PresetInfo.Custom);
+            OutputDocument document = generators.Generate(data, new OutputOptions { Format = OutputFormat.Bin, ArrayName = folder });
+
+            Assert.Equal(File.ReadAllBytes(file), Assert.Single(document.Files).Content);
+        }
     }
 
     private static FontTable LoadFont(WicImageDecoder decoder, string folder)

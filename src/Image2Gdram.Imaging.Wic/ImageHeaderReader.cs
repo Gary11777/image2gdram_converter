@@ -339,8 +339,8 @@ internal static class ImageHeaderReader
     }
 
     private static ImageLoadException Unsupported(string path) =>
-        new(ImageLoadError.Unsupported, "Файл не является изображением BMP, PNG, JPEG или GIF.", path);
+        new(ImageLoadError.Unsupported, "The file is not a BMP, PNG, JPEG or GIF image.", path);
 
     private static ImageLoadException Corrupted(string path) =>
-        new(ImageLoadError.Corrupted, "Файл изображения повреждён или обрезан.", path);
+        new(ImageLoadError.Corrupted, "The image file is corrupted or truncated.", path);
 }

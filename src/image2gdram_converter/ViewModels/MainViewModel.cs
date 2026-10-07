@@ -1,6 +1,5 @@
 using System.Collections.ObjectModel;
 using System.IO;
-using System.Windows;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Image2Gdram.Core.Fonts;
@@ -40,7 +39,8 @@ public sealed partial class MainViewModel : ObservableObject
         Func<IRecalcScheduler> schedulers,
         ISettingsAutosave autosave,
         IImageDecoder decoder,
-        IGlyphOutlineProvider outlines)
+        IGlyphOutlineProvider outlines,
+        string? startupNote = null)
     {
         ArgumentNullException.ThrowIfNull(settingsService);
         ArgumentNullException.ThrowIfNull(loaded);
@@ -87,6 +87,8 @@ public sealed partial class MainViewModel : ObservableObject
             _settings.UserPresets,
             _settings.Font);
         Image.PresetsChanged = () => Font.RefreshPresets();
+        Image.OtherSourceFiles = () => Font.SourceFiles;
+        Font.OtherSourceFiles = () => Image.SourceFiles;
         Font.SetFolders(_folders.OpenFont, _folders.SaveOutput);
         Font.ParametersChanged = OnParametersChanged;
         Font.EditsChanged = OnEditsChanged;
@@ -96,10 +98,12 @@ public sealed partial class MainViewModel : ObservableObject
         Font.CommandsChanged += RefreshShell;
         RefreshShell();
         RecentFiles = new ObservableCollection<string>(_settings.RecentFiles);
-        if (loaded.Diagnostic is not null)
+        string?[] notes =
         {
-            StatusText = UserText.Diagnostic(localization, loaded.Diagnostic);
-        }
+            loaded.Diagnostic is null ? null : UserText.Diagnostic(localization, loaded.Diagnostic),
+            startupNote,
+        };
+        StatusText = string.Join(Environment.NewLine, notes.Where(note => !string.IsNullOrEmpty(note)));
 
         _loading = false;
         UpdateTitle();
@@ -234,8 +238,14 @@ public sealed partial class MainViewModel : ObservableObject
         await Image.OpenPath(path).ConfigureAwait(true);
     }
 
+    /// <summary>
+    /// Окно должно закрыться через <c>Close</c>: при <c>Application.Shutdown</c> WPF игнорирует отмену в <c>Closing</c>,
+    /// и «Отмена» в запросе сохранения не удержала бы программу.
+    /// </summary>
+    public event EventHandler? CloseRequested;
+
     [RelayCommand]
-    private void Exit() => Application.Current?.Shutdown();
+    private void Exit() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
     private void OpenProjectFile(string path)
     {

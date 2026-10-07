@@ -269,6 +269,13 @@ public sealed partial class FontGeneratorViewModel : ObservableValidator, ICodeS
 
     public bool CanResetManual => _table.HasManualEdits;
 
+    /// <summary>Лист и импортированный массив вкладки: в них сохранять вывод нельзя (п. 6 ТЗ).</summary>
+    public IReadOnlyList<string> SourceFiles =>
+        new[] { _sheetPath, _importPath }.Where(path => !string.IsNullOrWhiteSpace(path)).Select(path => path!).ToArray();
+
+    /// <summary>Исходные файлы другой вкладки, которые тоже нельзя перезаписать.</summary>
+    public Func<IReadOnlyList<string>>? OtherSourceFiles { get; set; }
+
     public bool HasUnsavedWork() =>
         _table.HasManualEdits || (_sourceKind == FontSourceKind.Import && HasSourceGlyph());
 
@@ -537,17 +544,8 @@ public sealed partial class FontGeneratorViewModel : ObservableValidator, ICodeS
             return;
         }
 
-        var blocked = new List<string>();
-        if (!string.IsNullOrWhiteSpace(_sheetPath))
-        {
-            blocked.Add(_sheetPath);
-        }
-
-        if (!string.IsNullOrWhiteSpace(_importPath))
-        {
-            blocked.Add(_importPath);
-        }
-
+        var blocked = new List<string>(SourceFiles);
+        blocked.AddRange(OtherSourceFiles?.Invoke() ?? Array.Empty<string>());
         try
         {
             OutputSaveResult result = OutputWriter.Save(

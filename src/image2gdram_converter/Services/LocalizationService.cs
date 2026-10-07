@@ -1,9 +1,20 @@
 using System.Globalization;
 using System.IO;
+using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Markup;
 
 namespace image2gdram_converter.Services;
+
+/// <summary>Чем закончилась загрузка словаря из папки <c>Languages</c>.</summary>
+public enum LanguageLoadResult
+{
+    BuiltIn,
+    Loaded,
+    NotFound,
+    InvalidName,
+    Broken,
+}
 
 /// <summary>
 /// Снимок строк из словарей. Встроенный словарь подключён в <c>App.xaml</c>,
@@ -11,6 +22,8 @@ namespace image2gdram_converter.Services;
 /// </summary>
 public sealed class LocalizationService : ILocalizationService
 {
+    private static readonly Regex LanguageName = new(@"^[A-Za-z]{2,8}(-[A-Za-z0-9]{1,8})*$", RegexOptions.CultureInvariant);
+
     private readonly Dictionary<string, string> _text = new(StringComparer.Ordinal);
 
     public void Add(ResourceDictionary dictionary)
@@ -53,33 +66,48 @@ public sealed class LocalizationService : ILocalizationService
     }
 
     /// <summary>
-    /// Подключает <c>Languages\&lt;язык&gt;.xaml</c>, если файл есть.
-    /// <c>ru-RU</c> уже встроен, отдельный файл для него не нужен.
+    /// Подключает <c>Languages\&lt;язык&gt;.xaml</c>. <c>ru-RU</c> уже встроен, отдельный файл для него не нужен.
+    /// Отсутствующий или испорченный файл не мешает запуску: остаётся встроенный словарь.
     /// </summary>
-    public bool TryLoadExternal(string? language, string baseDirectory)
+    public LanguageLoadResult LoadExternal(string? language, string baseDirectory)
     {
-        if (string.IsNullOrWhiteSpace(language)
-            || language.Equals("ru-RU", StringComparison.OrdinalIgnoreCase)
-            || string.IsNullOrWhiteSpace(baseDirectory))
+        string name = language?.Trim() ?? string.Empty;
+        if (name.Length == 0 || name.Equals("ru-RU", StringComparison.OrdinalIgnoreCase))
         {
-            return false;
+            return LanguageLoadResult.BuiltIn;
         }
 
-        string path = Path.Combine(baseDirectory, "Languages", language.Trim() + ".xaml");
-        if (!File.Exists(path))
+        if (!LanguageName.IsMatch(name))
         {
-            return false;
+            return LanguageLoadResult.InvalidName;
         }
 
-        using FileStream stream = File.OpenRead(path);
-        if (XamlReader.Load(stream) is not ResourceDictionary dictionary)
+        string path = Path.Combine(baseDirectory, "Languages", name + ".xaml");
+        if (string.IsNullOrWhiteSpace(baseDirectory) || !File.Exists(path))
         {
-            return false;
+            return LanguageLoadResult.NotFound;
+        }
+
+        ResourceDictionary? dictionary;
+        try
+        {
+            using FileStream stream = File.OpenRead(path);
+            dictionary = XamlReader.Load(stream) as ResourceDictionary;
+        }
+        catch (Exception ex) when (ex is XamlParseException or System.Xml.XmlException or IOException
+            or UnauthorizedAccessException or InvalidOperationException or NotSupportedException)
+        {
+            return LanguageLoadResult.Broken;
+        }
+
+        if (dictionary is null)
+        {
+            return LanguageLoadResult.Broken;
         }
 
         Application.Current?.Resources.MergedDictionaries.Add(dictionary);
         Add(dictionary);
-        return true;
+        return LanguageLoadResult.Loaded;
     }
 
     public string Get(string key) => _text.TryGetValue(key, out string? value) ? value : key;
