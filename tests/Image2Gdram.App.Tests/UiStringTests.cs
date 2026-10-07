@@ -1,5 +1,8 @@
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
+using Image2Gdram.Core.Imaging;
+using image2gdram_converter;
+using image2gdram_converter.Services;
 
 namespace Image2Gdram.App.Tests;
 
@@ -78,6 +81,66 @@ public class UiStringTests
     {
         var keys = TestFiles.LoadUiStrings();
         Assert.Equal("Пользовательский (на основе {0})", keys["Preset.CustomBasedOn"]);
+    }
+
+    [Fact]
+    public void External_dictionary_replaces_phrases_and_bad_files_do_not_stop_the_start()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "i2g-lang-" + Guid.NewGuid().ToString("N"));
+        string languages = Path.Combine(root, "Languages");
+        Directory.CreateDirectory(languages);
+        File.WriteAllText(
+            Path.Combine(languages, "en-US.xaml"),
+            """
+            <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                                xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                                xmlns:sys="clr-namespace:System;assembly=System.Runtime">
+                <sys:String x:Key="Tab.Image">Image converter</sys:String>
+            </ResourceDictionary>
+            """);
+        File.WriteAllText(Path.Combine(languages, "de-DE.xaml"), "<ResourceDictionary");
+        File.WriteAllText(Path.Combine(languages, "fr-FR.xaml"), "<Button xmlns=\"http://schemas.microsoft.com/winfx/2006/xaml/presentation\"/>");
+        try
+        {
+            using var sta = new StaDispatcher();
+            sta.Dispatcher.Invoke(() =>
+            {
+                var service = new LocalizationService();
+                service.Add(new[] { KeyValuePair.Create("Tab.Image", "Конвертер картинок") });
+
+                Assert.Equal(LanguageLoadResult.BuiltIn, service.LoadExternal("ru-RU", root));
+                Assert.Equal(LanguageLoadResult.BuiltIn, service.LoadExternal(null, root));
+                Assert.Equal("Конвертер картинок", service.Get("Tab.Image"));
+                Assert.Equal(LanguageLoadResult.Loaded, service.LoadExternal("en-US", root));
+                Assert.Equal("Image converter", service.Get("Tab.Image"));
+                Assert.Equal(LanguageLoadResult.Broken, service.LoadExternal("de-DE", root));
+                Assert.Equal(LanguageLoadResult.Broken, service.LoadExternal("fr-FR", root));
+                Assert.Equal(LanguageLoadResult.NotFound, service.LoadExternal("es-ES", root));
+                Assert.Equal(LanguageLoadResult.InvalidName, service.LoadExternal(@"..\..\evil", root));
+                Assert.Equal("Image converter", service.Get("Tab.Image"));
+            });
+
+            var text = new MapText(TestFiles.LoadUiStrings());
+            Assert.Null(UserText.Language(text, LanguageLoadResult.Loaded, "en-US"));
+            Assert.Contains("es-ES", UserText.Language(text, LanguageLoadResult.NotFound, "es-ES"), StringComparison.Ordinal);
+            Assert.Contains("de-DE", UserText.Language(text, LanguageLoadResult.Broken, "de-DE"), StringComparison.Ordinal);
+            Assert.Contains("evil", UserText.Language(text, LanguageLoadResult.InvalidName, @"..\..\evil"), StringComparison.Ordinal);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void Image_read_error_names_the_reason_once()
+    {
+        var text = new MapText(TestFiles.LoadUiStrings());
+        var error = new ImageLoadException(ImageLoadError.IoError, "Cannot read the file.", "x.png", new IOException("Отказано в доступе."));
+
+        string message = UserText.ImageLoad(text, error);
+
+        Assert.Equal("Не удалось прочитать файл: Отказано в доступе.", message);
     }
 
     private static bool HasCyrillic(string text) => text.Any(ch => ch is >= '\u0400' and <= '\u04FF');

@@ -162,6 +162,9 @@
     <sys:String x:Key="Error.Image.Unsupported">Файл не является изображением BMP, PNG, JPEG или GIF.</sys:String>
     <sys:String x:Key="Error.Image.Corrupted">Файл изображения повреждён или обрезан.</sys:String>
     <sys:String x:Key="Error.Image.IoError">Не удалось прочитать файл: {0}</sys:String>
+    <sys:String x:Key="Error.Language.NotFound">Словарь интерфейса Languages\{0}.xaml не найден, используется русский язык.</sys:String>
+    <sys:String x:Key="Error.Language.InvalidName">Недопустимое имя языка в settings.json: {0}. Используется русский язык.</sys:String>
+    <sys:String x:Key="Error.Language.Broken">Словарь интерфейса Languages\{0}.xaml повреждён, используется русский язык.</sys:String>
     <sys:String x:Key="Error.Pipeline.TooLarge">Размер после поворота {0}x{1} больше 1024 по одной из сторон. Задайте размер вручную.</sys:String>
     <sys:String x:Key="Error.Width">Ширина — целое число от 1 до 1024.</sys:String>
     <sys:String x:Key="Error.Height">Высота — целое число от 1 до 1024.</sys:String>

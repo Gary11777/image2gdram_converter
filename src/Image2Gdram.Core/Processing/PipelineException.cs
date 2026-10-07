@@ -10,7 +10,7 @@ public enum PipelineErrorCode
 public sealed class PipelineException : Exception
 {
     public PipelineException(PipelineErrorCode code, int width, int height)
-        : base($"Размер исходного изображения {width}x{height} больше 1024 по одной из сторон. Задайте целевой размер вручную.")
+        : base($"Source image {width}x{height} is larger than 1024 on one side; set the target size manually.")
     {
         Code = code;
         Width = width;

@@ -27,9 +27,18 @@ public static class UserText
             ImageLoadError.MemoryLimit => text.Get("Error.Image.MemoryLimit"),
             ImageLoadError.Unsupported => text.Get("Error.Image.Unsupported"),
             ImageLoadError.Corrupted => text.Get("Error.Image.Corrupted"),
-            _ => text.Format("Error.Image.IoError", error.Message),
+            _ => text.Format("Error.Image.IoError", error.InnerException?.Message ?? error.Message),
         };
     }
+
+    /// <summary>Сообщение о словаре интерфейса для строки состояния; <c>null</c>, если сообщать не о чем.</summary>
+    public static string? Language(ILocalizationService text, LanguageLoadResult result, string? language) => result switch
+    {
+        LanguageLoadResult.NotFound => text.Format("Error.Language.NotFound", language ?? string.Empty),
+        LanguageLoadResult.InvalidName => text.Format("Error.Language.InvalidName", language ?? string.Empty),
+        LanguageLoadResult.Broken => text.Format("Error.Language.Broken", language ?? string.Empty),
+        _ => null,
+    };
 
     public static string Name(ILocalizationService text, NameValidationResult result) => result.Error switch
     {

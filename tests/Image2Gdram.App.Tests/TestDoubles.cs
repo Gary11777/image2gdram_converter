@@ -66,21 +66,48 @@ internal sealed class FakeDialogs : IDialogService
 
 internal sealed class FakeFiles : IFileDialogService
 {
-    public string? PickOpenImage(string? folder) => null;
+    public string? NextImage { get; set; }
 
     public string? NextSheet { get; set; }
 
     public string? NextImport { get; set; }
 
+    public string? NextOpenProject { get; set; }
+
+    public string? NextSaveProject { get; set; }
+
+    public string? NextFolder { get; set; }
+
+    public string? PickOpenImage(string? folder) => NextImage;
+
     public string? PickOpenSheet(string? folder) => NextSheet;
 
     public string? PickOpenImport(string? folder) => NextImport;
 
-    public string? PickOpenProject(string? folder) => null;
+    public string? PickOpenProject(string? folder) => NextOpenProject;
 
-    public string? PickSaveProject(string? folder) => null;
+    public string? PickSaveProject(string? folder) => NextSaveProject;
 
-    public string? PickFolder(string? folder, string title) => null;
+    public string? PickFolder(string? folder, string title) => NextFolder;
+}
+
+/// <summary>Декодер, который отдаёт заранее заданные изображения по пути.</summary>
+internal sealed class MapDecoder : IImageDecoder
+{
+    private readonly Dictionary<string, DecodedImage> _images = new(StringComparer.OrdinalIgnoreCase);
+
+    public void Add(string path, DecodedImage image) => _images[Path.GetFullPath(path)] = image;
+
+    public ImageInfo Identify(string path)
+    {
+        DecodedImage image = Decode(path);
+        return new ImageInfo(image.Format, image.Width, image.Height, image.Frames.Count);
+    }
+
+    public DecodedImage Decode(string path, CancellationToken cancellationToken = default) =>
+        _images.TryGetValue(Path.GetFullPath(path), out DecodedImage? image)
+            ? image
+            : throw new ImageLoadException(ImageLoadError.IoError, "missing", path);
 }
 
 internal sealed class FakeClipboard : IClipboardService

@@ -20,7 +20,8 @@ public enum ImageLoadError
 }
 
 /// <summary>
-/// Ошибка загрузки изображения. Код — для программы, текст — причина для пользователя.
+/// Ошибка загрузки изображения. Пользователь видит фразу словаря по <see cref="Error"/>; текст исключения — для разработчика,
+/// у <see cref="ImageLoadError.IoError"/> причину берут из внутреннего исключения.
 /// </summary>
 public sealed class ImageLoadException : Exception
 {

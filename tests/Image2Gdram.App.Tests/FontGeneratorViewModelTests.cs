@@ -260,6 +260,48 @@ public class FontGeneratorViewModelTests : IDisposable
         Assert.False(text[1, 0]);
     }
 
+    [Fact]
+    public void Copy_save_and_user_preset_work_on_the_font_tab()
+    {
+        using var harness = new Harness(_directory);
+        FontGeneratorViewModel vm = harness.Font;
+        UseStub(vm);
+        vm.IncludeDate = false;
+        vm.ArrayName = "font_a";
+        Assert.True(vm.CopyCommand.CanExecute(null));
+
+        vm.CopyCommand.Execute(null);
+
+        Assert.Equal(vm.Document!.Files[0].Text, harness.Clipboard.Text);
+        vm.CodeIndex = 1;
+        vm.CopyCommand.Execute(null);
+        Assert.Equal(vm.Document.Files[1].Text, harness.Clipboard.Text);
+
+        string output = Path.Combine(_directory, "out");
+        Directory.CreateDirectory(output);
+        harness.Files.NextFolder = output;
+        vm.SaveOutputCommand.Execute(null);
+
+        Assert.Equal(vm.Document.Files[0].Content, File.ReadAllBytes(Path.Combine(output, "font_a.c")));
+        Assert.Equal(vm.Document.Files[1].Content, File.ReadAllBytes(Path.Combine(output, "font_a.h")));
+        File.WriteAllText(Path.Combine(output, "font_a.h"), "old");
+        harness.Dialogs.ConfirmAnswer = false;
+        vm.SaveOutputCommand.Execute(null);
+        Assert.Equal("old", File.ReadAllText(Path.Combine(output, "font_a.h")));
+
+        vm.Direction = PackDirection.Horizontal;
+        harness.Dialogs.TextAnswer = "Шрифт T6963C";
+        vm.SavePresetCommand.Execute(null);
+
+        Preset saved = Assert.Single(harness.Users.Presets);
+        Assert.Equal(PackDirection.Horizontal, saved.Packing.Direction);
+        Assert.Equal("Шрифт T6963C", vm.PresetCaption);
+        harness.Dialogs.ConfirmAnswer = true;
+        vm.DeletePresetCommand.Execute(null);
+        Assert.Empty(harness.Users.Presets);
+        Assert.Empty(harness.Dialogs.Alerts);
+    }
+
     public void Dispose()
     {
         try
@@ -286,10 +328,12 @@ public class FontGeneratorViewModelTests : IDisposable
             var settings = new SettingsService(directory, directory).Load().Settings;
             Dialogs = new FakeDialogs();
             Clipboard = new FakeClipboard();
+            Files = new FakeFiles();
+            Users = settings.UserPresets;
             Font = new FontGeneratorViewModel(
                 new MapText(TestFiles.LoadUiStrings()),
                 Dialogs,
-                new FakeFiles(),
+                Files,
                 Clipboard,
                 new ImmediateRecalcScheduler(),
                 new UnusedDecoder(),
@@ -302,6 +346,10 @@ public class FontGeneratorViewModelTests : IDisposable
         public FakeDialogs Dialogs { get; }
 
         public FakeClipboard Clipboard { get; }
+
+        public FakeFiles Files { get; }
+
+        public UserPresetStore Users { get; }
 
         public FontGeneratorViewModel Font { get; }
 
