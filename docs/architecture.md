@@ -1,6 +1,6 @@
 # Архитектура «Image2GDRAM Converter» 1.0
 
-> **Целевая архитектура плюс отметки о фактическом состоянии.** Документ составлен на этапе 0 по разделам 4 и 5 `agents.md` и п. 4.6 ТЗ. После этапа 7 **фактически существуют** решение, модуль упаковки, загрузка изображений, конвейер обработки, генераторы вывода, ядро шрифтов, хранение данных и обе вкладки окна. Описание упаковки помечено «**Фактически (этап 1)**», загрузки и обработки — «**Фактически (этап 2)**», вывода — «**Фактически (этап 3)**», шрифтов — «**Фактически (этап 4)**», пресетов, настроек и проектов — «**Фактически (этап 5)**» в разделе 3.6, оболочки — «**Фактически (этап 6)**», вкладки шрифтов — «**Фактически (этап 7)**», производительность, надёжность, валидация и DPI — «**Фактически (этап 8)**» в разделах 4 и 5. Целевыми остаются только поставка и документы этапа 9 (раздел 9). Сводка — таблица в разделе 10.
+> **Целевая архитектура плюс отметки о фактическом состоянии.** Документ составлен на этапе 0 по разделам 4 и 5 `agents.md` и п. 4.6 ТЗ. После этапа 9 **фактически существуют** решение, модуль упаковки, загрузка изображений, конвейер обработки, генераторы вывода, ядро шрифтов, хранение данных, обе вкладки окна, тестовые материалы, документация раздела 9 ТЗ и публикация single-file exe. Описание упаковки помечено «**Фактически (этап 1)**», загрузки и обработки — «**Фактически (этап 2)**», вывода — «**Фактически (этап 3)**», шрифтов — «**Фактически (этап 4)**», пресетов, настроек и проектов — «**Фактически (этап 5)**» в разделе 3.6, оболочки — «**Фактически (этап 6)**», вкладки шрифтов — «**Фактически (этап 7)**», производительность, надёжность, валидация и DPI — «**Фактически (этап 8)**» в разделах 4 и 5, поставка и документы — «**Фактически (этап 9)**» в разделе 9. Сводка — таблица в разделе 10.
 
 Связанные файлы: [`implementation-plan.md`](implementation-plan.md) (этапы), [`decisions.md`](decisions.md) (решения D/F/N/K), [`requirements_checklist.md`](requirements_checklist.md) (трассировка требований).
 
@@ -44,7 +44,7 @@ docs/                           документация и файлы сост�
 | `Image2Gdram.Imaging.Wic.Tests` | `tests/Image2Gdram.Imaging.Wic.Tests/` | `net8.0-windows` | xUnit | Core, Imaging.Wic, `TestAssetsGenerator` | xUnit, `Microsoft.NET.Test.Sdk` |
 | `Image2Gdram.Fonts.Wpf.Tests` | `tests/Image2Gdram.Fonts.Wpf.Tests/` | `net8.0-windows` | xUnit | Core, Fonts.Wpf | xUnit, `Microsoft.NET.Test.Sdk` |
 | `Image2Gdram.App.Tests` | `tests/Image2Gdram.App.Tests/` | `net8.0-windows` | xUnit | приложение, Core | xUnit, `Microsoft.NET.Test.Sdk` |
-| `TestAssetsGenerator` | `tools/TestAssetsGenerator/` | `net8.0` | консоль | — (Reference — этап 9, когда появятся эталонные массивы) | — (PNG — собственный кодировщик, N-39) |
+| `TestAssetsGenerator` | `tools/TestAssetsGenerator/` | `net8.0` | консоль | `Image2Gdram.Reference` (эталоны, N-28, N-60) | — (PNG — собственный кодировщик, N-39) |
 | `OutputSamples` | `tools/OutputSamples/` | `net8.0` | консоль | Core, `TestAssetsGenerator` | — |
 | `UiProbe` | `tools/UiProbe/` | `net8.0-windows` | консоль (WPF) | приложение | — |
 
@@ -61,6 +61,7 @@ flowchart LR
     CoreTests["Image2Gdram.Core.Tests"] --> Core
     CoreTests --> Ref["Image2Gdram.Reference"]
     CoreTests --> Tool["TestAssetsGenerator"]
+    Tool --> Ref
     WicTests["Image2Gdram.Imaging.Wic.Tests"] --> Wic
     WicTests --> Tool
     AppTests["Image2Gdram.App.Tests"] --> App
@@ -315,25 +316,31 @@ sequenceDiagram
 - `Image2Gdram.App.Tests` (**этапы 6–7**): смена пресета → «Пользовательский (на основе …)», сброс правок с подтверждением и откатом, undo/redo, подсказка байта, валидация ширины, запрос при закрытии, автосохранение настроек, ключи словаря, вкладка шрифтов; сервисы подменяются заглушками. **Этап 8:** глобальные обработчики и планировщик на отдельном STA-потоке с диспетчером (`StaDispatcher`), валидация всех полей, пиксели экрана и размер окна (`DpiTests`), время расчёта (`PerformanceTests`, без параллельного запуска). 127 тестов.
 - `tools/UiProbe` (**этап 8**; `net8.0-windows`, ссылка на приложение): `UiProbe [all|perf|dpi] [папка]` — замеры п. 5.1 на настоящем окне и снимки окна 1024×680 при 100–200 % с поиском обрезанных элементов. По умолчанию пишет в `artifacts/ui-probe/`.
 - `Image2Gdram.Reference`: наивная упаковка «по определению» (F-01…F-04) — источник эталонов.
-- `TestAssetsGenerator`: **сделано (этап 2)** — `testdata/test_pattern_240x128.png`, `testdata/test_pattern_128x64.png`, `testdata/test_sprite_13x11.png` (раскладка N-40), встроенный шрифт 5×7, PNG своим кодировщиком. На этапе 4 у `PngWriter` добавлена перегрузка `Write(stream, width, height, isActive)` — тем же кодировщиком тест листа пишет PNG, который читает `WicImageDecoder`. Листы шрифтов 6×8, 8×8, 12×16 как файлы эталонов и `testdata/reference/` с `index.md` — этап 9; тогда же появится ссылка на `Image2Gdram.Reference`.
+- `TestAssetsGenerator`: **сделано (этапы 2 и 9)**. Этап 2 — `testdata/test_pattern_240x128.png`, `testdata/test_pattern_128x64.png`, `testdata/test_sprite_13x11.png` (раскладка N-40), встроенный шрифт 5x7, PNG своим кодировщиком. На этапе 4 у `PngWriter` добавлена перегрузка записи монохромного PNG. Этап 9 — листы `font_sheet_6x8.png`, `font_sheet_8x8.png`, `font_sheet_12x16.png` (растр 5x7, N-60) и `testdata/reference/` (`.bin`, `.c`, `index.md`) через `ReferencePacker`. Проект ссылается на `Image2Gdram.Reference` и по-прежнему не ссылается на Core.
 - `tools/compile-check.ps1` (**сделано, этап 3**): запускает `OutputSamples` в `artifacts/compile-check/` (папка в `.gitignore`); при наличии `gcc`/`clang`/`arm-none-eabi-gcc` компилирует вывод STM32 с `-std=c99 -Wall -Wextra -pedantic -Werror -c` и вывод C51 с `-Dcode=`; иначе сообщает и пропускает с кодом 0 (на этой машине компиляторов нет).
 
 ---
 
 ## 9. Сборка и поставка
 
-- `build.ps1` — `dotnet build -c Release` и `dotnet test`.
-- `publish.ps1` — `dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true` в `publish/`.
+**Фактически (этап 9).**
+
+- `README.md` — назначение, сборка, тесты, публикация, лицензии. ImageSharp не используется.
+- `build.ps1` — `dotnet build -c Release` и `dotnet test -c Release --no-build`.
+- `publish.ps1` — `dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true` в `publish/` (папка в `.gitignore`).
+- `app.manifest` запрашивает `asInvoker`: опубликованный exe не требует прав администратора.
+- Документы раздела 9 ТЗ: `docs/user_guide.md`, `docs/output_formats.md`, `docs/pmi.md`.
+- Тестовые материалы: изображения приложения Б, три листа шрифтов, `testdata/reference/` (N-60). Сравнение с ядром — `ReferenceFileTests`.
 
 ---
 
 ## 10. Состояние реализации
 
-Состояние после этапа 8 (проверено 2026-10-07: `dotnet build --no-incremental` Debug и `dotnet build -c Release --no-incremental` — 0 ошибок, 0 предупреждений; `dotnet test` Debug — 2501 из 2501, из них 2343 в `Image2Gdram.Core.Tests`, 127 в `Image2Gdram.App.Tests`, 17 в `Image2Gdram.Fonts.Wpf.Tests` и 14 в `Image2Gdram.Imaging.Wic.Tests`).
+Состояние после этапа 9 (проверено 2026-10-07: `dotnet build --no-incremental` Debug и `dotnet build -c Release --no-incremental` — 0 ошибок, 0 предупреждений; `dotnet test` Debug и Release — 2506 из 2506, из них 2347 в `Image2Gdram.Core.Tests`, 127 в `Image2Gdram.App.Tests`, 17 в `Image2Gdram.Fonts.Wpf.Tests` и 15 в `Image2Gdram.Imaging.Wic.Tests`).
 
 | Модуль | Состояние |
 |---|---|
-| Структура решения | **сделано (этапы 1–3):** `image2gdram_converter.sln` (папки `src`, `tests`, `tools`; 12 проектов, `tools/UiProbe` — этап 8), `Directory.Build.props`; приложение в `src/image2gdram_converter/`; `tools/compile-check.ps1`. Ещё нет (целевое): `README.md`, `build.ps1`, `publish.ps1` — этап 9 |
+| Структура решения | **сделано (этапы 1–9):** `image2gdram_converter.sln` (папки `src`, `tests`, `tools`; 12 проектов), `Directory.Build.props`; приложение в `src/image2gdram_converter/`; `tools/compile-check.ps1`; `README.md`, `build.ps1`, `publish.ps1` |
 | Core: Packing | **сделано (этап 1):** раздел 3.3 |
 | Core: Text | **сделано (этапы 1, 3):** `ProductInfo` (D-02), `RussianPlural` (D-04), `Cp1251` (D-16, N-45) |
 | Core: Imaging, Processing, Editing | **сделано (этап 2):** разделы 3.1, 3.2 и 3.2.1. Декодер WIC — отдельный проект, не часть Core |
@@ -345,10 +352,10 @@ sequenceDiagram
 | Приложение WPF | **обе вкладки (этапы 6–7):** раздел 4. Окно 1024×680, словарь строк, сетка, окно кода, правки, undo/redo, подсветка байта, генератор шрифтов. Запускается. **Этап 8:** обработчики исключений, свой планировщик у вкладки, точки в пикселях экрана, окно в рабочей области монитора, подсказка ошибок полей; замеры п. 5.1 выполнены |
 | `src/Image2Gdram.Imaging.Wic` | **сделано (этап 2):** `WicImageDecoder`, разбор заголовка до копирования пикселей, сборка кадров GIF |
 | `tests/Image2Gdram.Reference` | **сделано (этап 1):** `ReferencePacker`, `RefOptions.AllCombinations` (16 комбинаций), без ссылки на Core (N-28, N-37) |
-| `tests/Image2Gdram.Core.Tests` | **упаковка (этап 1), конвейер (этап 2), генераторы вывода (этап 3), ядро шрифтов (этап 4), пресеты, настройки и проекты (этап 5):** 2343 теста |
-| `tests/Image2Gdram.Imaging.Wic.Tests` | **сделано (этапы 2 и 4):** 14 тестов — декодер и PNG-лист через `WicImageDecoder` |
+| `tests/Image2Gdram.Core.Tests` | **упаковка, конвейер, генераторы, шрифты, пресеты, настройки и проекты; листы шрифтов (этап 9):** 2347 тестов |
+| `tests/Image2Gdram.Imaging.Wic.Tests` | **сделано (этапы 2, 4 и 9):** 15 тестов — декодер, PNG-лист и побайтное сравнение с `testdata/reference` |
 | `tests/Image2Gdram.Fonts.Wpf.Tests` | **сделано (этап 4):** 17 тестов на системных шрифтах |
 | `tests/Image2Gdram.App.Tests` | **сделано (этапы 6–8):** 127 тестов: сценарии ViewModel (40), обработчики исключений (6), планировщик (5), валидация (41), DPI (30), время (5) |
 | `tools/UiProbe` | **сделано (этап 8):** замеры п. 5.1 и снимки при 100–200 % |
-| `tools/TestAssetsGenerator` | **сделано для приложения Б (этап 2):** три PNG в `testdata/` |
+| `tools/TestAssetsGenerator` | **сделано (этапы 2 и 9):** три PNG приложения Б, три листа шрифтов, `testdata/reference/` через `ReferencePacker` |
 | `tools/OutputSamples`, `tools/compile-check.ps1` | **сделано (этап 3):** образцы вывода и дымовая компиляция; на этой машине компиляция пропускается — компиляторов нет |

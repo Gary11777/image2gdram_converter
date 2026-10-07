@@ -1,0 +1,10 @@
+/* Эталон. Независимая упаковка ReferencePacker, не программа Image2GDRAM Converter.
+ * Вход: test_sprite_13x11
+ * Упаковка: горизонтальное, LSB first, 8 бит в байте, обход не применяется, инверсия: да
+ * Размер: 13x11
+ * Байт: 22
+ */
+unsigned char test_sprite_13x11_h_lsb_8_inv[22] = {
+    0xF8, 0xFF, 0xFE, 0xFF, 0xC6, 0xFF, 0xFE, 0xFF, 0x7E, 0xFF, 0x7F, 0xFF, 0x7F, 0xFC, 0xFF, 0xFF,
+    0xFF, 0xF7, 0xFF, 0xF3, 0xFF, 0xF1
+};

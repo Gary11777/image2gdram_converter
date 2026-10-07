@@ -27,6 +27,16 @@ public static class PngWriter
     /// <summary>
     /// Тот же кодировщик, что пишет изображения приложения Б: активный пиксель — чёрный (0), фон — белый (255).
     /// </summary>
+    public static void Write(string path, int width, int height, Func<int, int, bool> isActive)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        using FileStream stream = File.Create(path);
+        Write(stream, width, height, isActive);
+    }
+
+    /// <summary>
+    /// Тот же кодировщик, что пишет изображения приложения Б: активный пиксель — чёрный (0), фон — белый (255).
+    /// </summary>
     public static void Write(Stream stream, int width, int height, Func<int, int, bool> isActive)
     {
         ArgumentNullException.ThrowIfNull(stream);

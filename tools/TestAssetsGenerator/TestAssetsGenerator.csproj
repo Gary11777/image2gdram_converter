@@ -6,4 +6,8 @@
     <RootNamespace>Image2Gdram.TestAssets</RootNamespace>
   </PropertyGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\..\tests\Image2Gdram.Reference\Image2Gdram.Reference.csproj" />
+  </ItemGroup>
+
 </Project>
