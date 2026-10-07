@@ -12,7 +12,7 @@ using image2gdram_converter.Services;
 
 namespace image2gdram_converter.ViewModels;
 
-/// <summary>????: ??????, ????????? ? ??? ???????. ???????? ??????? ???????????? ?? ????? 7.</summary>
+/// <summary>Окно: проект, настройки и две вкладки. Команды меню относятся к открытой вкладке.</summary>
 public sealed partial class MainViewModel : ObservableObject
 {
     private readonly SettingsService _settingsService;
@@ -37,7 +37,7 @@ public sealed partial class MainViewModel : ObservableObject
         IDialogService dialogs,
         IFileDialogService files,
         IClipboardService clipboard,
-        IRecalcScheduler scheduler,
+        Func<IRecalcScheduler> schedulers,
         ISettingsAutosave autosave,
         IImageDecoder decoder,
         IGlyphOutlineProvider outlines)
@@ -48,7 +48,7 @@ public sealed partial class MainViewModel : ObservableObject
         ArgumentNullException.ThrowIfNull(dialogs);
         ArgumentNullException.ThrowIfNull(files);
         ArgumentNullException.ThrowIfNull(clipboard);
-        ArgumentNullException.ThrowIfNull(scheduler);
+        ArgumentNullException.ThrowIfNull(schedulers);
         ArgumentNullException.ThrowIfNull(autosave);
         ArgumentNullException.ThrowIfNull(decoder);
         ArgumentNullException.ThrowIfNull(outlines);
@@ -65,7 +65,7 @@ public sealed partial class MainViewModel : ObservableObject
             dialogs,
             files,
             clipboard,
-            scheduler,
+            schedulers(),
             decoder,
             PresetCatalog.Shared,
             _settings.UserPresets,
@@ -80,7 +80,7 @@ public sealed partial class MainViewModel : ObservableObject
             dialogs,
             files,
             clipboard,
-            scheduler,
+            schedulers(),
             decoder,
             outlines,
             PresetCatalog.Shared,

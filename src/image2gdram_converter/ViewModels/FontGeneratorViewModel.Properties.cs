@@ -229,6 +229,10 @@ public sealed partial class FontGeneratorViewModel
             {
                 GlyphThreshold = parsed;
             }
+            else
+            {
+                Unblock();
+            }
         }
     }
 
@@ -367,6 +371,10 @@ public sealed partial class FontGeneratorViewModel
             if (parsed != _sheetThreshold)
             {
                 SheetThreshold = parsed;
+            }
+            else
+            {
+                Unblock();
             }
         }
     }
@@ -631,7 +639,7 @@ public sealed partial class FontGeneratorViewModel
     public static ValidationResult? ValidateRange(string? text, ValidationContext context)
     {
         var vm = (FontGeneratorViewModel)context.ObjectInstance!;
-        if (CharRangeSet.TryParseCustom(text ?? string.Empty, out _, out CharRangeParseError? error) || error is null)
+        if (!vm.ShowRanges || CharRangeSet.TryParseCustom(text ?? string.Empty, out _, out CharRangeParseError? error) || error is null)
         {
             return null;
         }

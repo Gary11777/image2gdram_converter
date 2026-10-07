@@ -7,7 +7,7 @@ using image2gdram_converter.Views;
 
 namespace image2gdram_converter.Services;
 
-/// <summary> .     .</summary>
+/// <summary>Модальные окна подтверждений и сообщений. Тексты берутся только из словаря.</summary>
 public sealed class DialogService : IDialogService
 {
     private readonly ILocalizationService _text;

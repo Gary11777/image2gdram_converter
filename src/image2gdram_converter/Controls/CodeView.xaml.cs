@@ -15,6 +15,7 @@ public partial class CodeView : UserControl
     private readonly TextEditor _editor;
     private readonly ByteHighlighter _highlighter = new();
     private ICodeSurface? _model;
+    private string? _shown;
 
     public CodeView()
     {
@@ -70,10 +71,13 @@ public partial class CodeView : UserControl
             return;
         }
 
-        if (_editor.Text != _model.CodeText)
+        string text = _model.CodeText;
+        if (!ReferenceEquals(_shown, text) && !string.Equals(_shown, text, StringComparison.Ordinal))
         {
-            _editor.Text = _model.CodeText;
+            _editor.Text = text;
         }
+
+        _shown = text;
 
         _highlighter.Start = _model.HighlightStart;
         _highlighter.Length = _model.HighlightLength;

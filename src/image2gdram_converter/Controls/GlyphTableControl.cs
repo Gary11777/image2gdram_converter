@@ -10,8 +10,8 @@ using image2gdram_converter;
 namespace image2gdram_converter.Controls;
 
 /// <summary>
-/// ???????? ??????? 16?16: ?????? ? ??????? ????????, ??????? ? ???????.
-/// ?????? ?????? ????????, ?????? ?????? ???????? ???????. ???? ????? ?? ??? ???????.
+/// Обзорная таблица 16×16: строки — старший полубайт кода, столбцы — младший, с подписями.
+/// Пустая ячейка обведена, ручная отмечена уголком. Весь растр — одно изображение.
 /// </summary>
 public sealed class GlyphTableControl : FrameworkElement
 {
@@ -40,12 +40,32 @@ public sealed class GlyphTableControl : FrameworkElement
     private bool _dirty = true;
     private int _cellWidth = 6;
     private int _cellHeight = 8;
+    private int _dot;
 
     public GlyphTableControl()
     {
         UseLayoutRounding = true;
         SnapsToDevicePixels = true;
         Focusable = true;
+        RenderOptions.SetBitmapScalingMode(this, BitmapScalingMode.NearestNeighbor);
+    }
+
+    private double Dpi => VisualTreeHelper.GetDpi(this).DpiScaleX;
+
+    /// <summary>Физических пикселей на точку символа (решение N-57).</summary>
+    private int Dot => DevicePixels.Cell(Scale, Dpi);
+
+    /// <summary>Отступ под подписи, выровненный по пикселям экрана.</summary>
+    private double LabelSize => DevicePixels.Snap(Label, Dpi);
+
+    private double CellDip(int dots) => DevicePixels.ToDip(dots * Dot, Dpi);
+
+    protected override void OnDpiChanged(DpiScale oldDpi, DpiScale newDpi)
+    {
+        base.OnDpiChanged(oldDpi, newDpi);
+        _dirty = true;
+        InvalidateMeasure();
+        InvalidateVisual();
     }
 
     public FontTable? Table
@@ -83,7 +103,7 @@ public sealed class GlyphTableControl : FrameworkElement
         FontTable? table = Table;
         int width = table?.Cell.Width ?? 6;
         int height = table?.Cell.Height ?? 8;
-        return new Size(Label + (16 * width * Scale), Label + (16 * height * Scale));
+        return new Size(LabelSize + CellDip(16 * width), LabelSize + CellDip(16 * height));
     }
 
     protected override void OnMouseLeftButtonDown(MouseButtonEventArgs e)
@@ -95,11 +115,10 @@ public sealed class GlyphTableControl : FrameworkElement
         }
 
         Point point = e.GetPosition(this);
-        double cellW = table.Cell.Width * Scale;
-        double cellH = table.Cell.Height * Scale;
-        int column = (int)((point.X - Label) / cellW);
-        int row = (int)((point.Y - Label) / cellH);
-        if ((uint)column < 16 && (uint)row < 16)
+        double label = LabelSize;
+        int column = DevicePixels.CellAt(point.X - label, Dpi, table.Cell.Width * Dot);
+        int row = DevicePixels.CellAt(point.Y - label, Dpi, table.Cell.Height * Dot);
+        if (point.X >= label && point.Y >= label && (uint)column < 16 && (uint)row < 16)
         {
             SelectedCode = (row << 4) | column;
             e.Handled = true;
@@ -117,31 +136,34 @@ public sealed class GlyphTableControl : FrameworkElement
             return;
         }
 
-        if (_dirty || _bitmap is null || _cellWidth != table.Cell.Width || _cellHeight != table.Cell.Height)
+        if (_dirty || _bitmap is null || _cellWidth != table.Cell.Width || _cellHeight != table.Cell.Height || _dot != Dot)
         {
             Rebuild(table);
         }
 
-        DrawHeaders(drawingContext, table);
+        double label = LabelSize;
+        DrawHeaders(drawingContext, table, label);
         if (_bitmap is not null)
         {
-            drawingContext.DrawImage(_bitmap, new Rect(Label, Label, _bitmap.PixelWidth, _bitmap.PixelHeight));
+            drawingContext.DrawImage(_bitmap, new Rect(label, label, CellDip(16 * _cellWidth), CellDip(16 * _cellHeight)));
         }
 
         int code = Math.Clamp(SelectedCode, 0, 255);
-        double left = Label + ((code & 0x0F) * table.Cell.Width * Scale);
-        double top = Label + ((code >> 4) * table.Cell.Height * Scale);
-        var pen = new Pen(new SolidColorBrush(SchemeColors.Selection), 2);
+        double left = label + CellDip((code & 0x0F) * table.Cell.Width);
+        double top = label + CellDip((code >> 4) * table.Cell.Height);
+        var pen = new Pen(new SolidColorBrush(SchemeColors.Selection), DevicePixels.ToDip(2, Dpi));
         pen.Freeze();
-        drawingContext.DrawRectangle(null, pen, new Rect(left, top, table.Cell.Width * Scale, table.Cell.Height * Scale));
+        drawingContext.DrawRectangle(null, pen, new Rect(left, top, CellDip(table.Cell.Width), CellDip(table.Cell.Height)));
     }
 
     private void Rebuild(FontTable table)
     {
         _cellWidth = table.Cell.Width;
         _cellHeight = table.Cell.Height;
-        int width = 16 * _cellWidth * Scale;
-        int height = 16 * _cellHeight * Scale;
+        _dot = Dot;
+        int scale = _dot;
+        int width = 16 * _cellWidth * scale;
+        int height = 16 * _cellHeight * scale;
         _bitmap = new WriteableBitmap(width, height, 96, 96, PixelFormats.Bgra32, null);
         var buffer = new byte[width * height * 4];
         bool invert = Invert;
@@ -150,8 +172,8 @@ public sealed class GlyphTableControl : FrameworkElement
         {
             int column = code & 0x0F;
             int row = code >> 4;
-            int originX = column * _cellWidth * Scale;
-            int originY = row * _cellHeight * Scale;
+            int originX = column * _cellWidth * scale;
+            int originY = row * _cellHeight * scale;
             var glyph = table.GetGlyph(code);
             bool empty = table.IsEmpty(code);
             for (int y = 0; y < _cellHeight; y++)
@@ -159,12 +181,12 @@ public sealed class GlyphTableControl : FrameworkElement
                 for (int x = 0; x < _cellWidth; x++)
                 {
                     bool on = PixelPaint.Displayed(glyph[x, y], invert);
-                    for (int dy = 0; dy < Scale; dy++)
+                    for (int dy = 0; dy < scale; dy++)
                     {
-                        int pixelY = originY + (y * Scale) + dy;
-                        for (int dx = 0; dx < Scale; dx++)
+                        int pixelY = originY + (y * scale) + dy;
+                        for (int dx = 0; dx < scale; dx++)
                         {
-                            int pixelX = originX + (x * Scale) + dx;
+                            int pixelX = originX + (x * scale) + dx;
                             SchemeColors.Write(buffer, ((pixelY * width) + pixelX) * 4, on, scheme);
                         }
                     }
@@ -173,12 +195,12 @@ public sealed class GlyphTableControl : FrameworkElement
 
             if (empty)
             {
-                Frame(buffer, width, originX, originY, _cellWidth * Scale, _cellHeight * Scale, scheme);
+                Frame(buffer, width, originX, originY, _cellWidth * scale, _cellHeight * scale, scheme);
             }
 
             if (table.IsManual(code))
             {
-                Mark(buffer, width, originX, originY, _cellWidth * Scale);
+                Mark(buffer, width, originX, originY, _cellWidth * scale, scale);
             }
         }
 
@@ -204,9 +226,9 @@ public sealed class GlyphTableControl : FrameworkElement
         }
     }
 
-    private static void Mark(byte[] buffer, int stride, int x, int y, int cellWidth)
+    private static void Mark(byte[] buffer, int stride, int x, int y, int cellWidth, int scale)
     {
-        int size = Math.Min(6, cellWidth);
+        int size = Math.Min(3 * scale, cellWidth);
         for (int dy = 0; dy < size; dy++)
         {
             for (int dx = 0; dx < size - dy; dx++)
@@ -227,12 +249,12 @@ public sealed class GlyphTableControl : FrameworkElement
         SchemeColors.WriteRgb(buffer, offset, b, g, r);
     }
 
-    private void DrawHeaders(DrawingContext drawingContext, FontTable table)
+    private void DrawHeaders(DrawingContext drawingContext, FontTable table, double labelSize)
     {
         double dip = VisualTreeHelper.GetDpi(this).PixelsPerDip;
         var brush = Scheme == ColorScheme.Lcd ? Brushes.Black : Brushes.White;
-        double cellW = table.Cell.Width * Scale;
-        double cellH = table.Cell.Height * Scale;
+        double cellW = CellDip(table.Cell.Width);
+        double cellH = CellDip(table.Cell.Height);
         for (int i = 0; i < 16; i++)
         {
             string label = i.ToString("X", CultureInfo.InvariantCulture);
@@ -244,8 +266,8 @@ public sealed class GlyphTableControl : FrameworkElement
                 12,
                 brush,
                 dip);
-            drawingContext.DrawText(text, new Point(Label + (i * cellW) + 2, 2));
-            drawingContext.DrawText(text, new Point(4, Label + (i * cellH) + 2));
+            drawingContext.DrawText(text, new Point(labelSize + (i * cellW) + 2, 2));
+            drawingContext.DrawText(text, new Point(4, labelSize + (i * cellH) + 2));
         }
     }
 

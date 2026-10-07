@@ -16,7 +16,7 @@ using image2gdram_converter.Services;
 
 namespace image2gdram_converter.ViewModels;
 
-/// <summary>  : , ,    .</summary>
+/// <summary>Вкладка «Конвертер картинок»: параметры, сетка, правки и окно кода.</summary>
 public sealed partial class ImageConverterViewModel : ObservableValidator, ICodeSurface
 {
     private readonly ILocalizationService _loc;
@@ -1189,6 +1189,7 @@ public sealed partial class ImageConverterViewModel : ObservableValidator, ICode
 
         if (value == stored)
         {
+            Unblock();
             return;
         }
 
@@ -1228,6 +1229,7 @@ public sealed partial class ImageConverterViewModel : ObservableValidator, ICode
 
         if (value == stored)
         {
+            Unblock();
             return;
         }
 
@@ -1249,6 +1251,13 @@ public sealed partial class ImageConverterViewModel : ObservableValidator, ICode
 
         stored = value;
         CommitUi(preset: false);
+    }
+
+    /// <summary>Поле вернулось к прежнему допустимому значению: снять блокировку, если других ошибок нет.</summary>
+    private void Unblock()
+    {
+        RefreshCommands();
+        Schedule();
     }
 
     private static FramePixelOverrides CloneEdits(FramePixelOverrides source)

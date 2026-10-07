@@ -190,6 +190,10 @@ public sealed partial class ImageConverterViewModel
             {
                 Threshold = parsed;
             }
+            else
+            {
+                Unblock();
+            }
         }
     }
 
@@ -300,6 +304,7 @@ public sealed partial class ImageConverterViewModel
 
             if (parsed == _bytesPerLine)
             {
+                Unblock();
                 return;
             }
 

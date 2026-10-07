@@ -1211,11 +1211,19 @@ public sealed partial class FontGeneratorViewModel : ObservableValidator, ICodeS
 
         if (parsed == stored)
         {
+            Unblock();
             return;
         }
 
         stored = parsed;
         Commit(preset, source);
+    }
+
+    /// <summary>Поле вернулось к прежнему допустимому значению: снять блокировку, если других ошибок нет.</summary>
+    private void Unblock()
+    {
+        RefreshCommands();
+        Schedule();
     }
 
     private void SetFlag(CharRangePreset flag, bool on)

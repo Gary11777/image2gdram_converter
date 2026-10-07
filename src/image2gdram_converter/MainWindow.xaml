@@ -5,6 +5,7 @@
         Title="{Binding WindowTitle}"
         MinWidth="1024" MinHeight="680"
         Width="1200" Height="800"
+        WindowStartupLocation="CenterScreen"
         UseLayoutRounding="True"
         SnapsToDevicePixels="True">
     <Window.InputBindings>

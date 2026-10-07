@@ -35,8 +35,8 @@ public sealed class PixelHoverEventArgs : EventArgs
 }
 
 /// <summary>
-///  :  ,    .
-///   ,     ViewModel.
+/// Сетка предпросмотра: один растр, без элемента на каждый пиксель.
+/// Мышь даёт точки штриха и наведение, правку применяет ViewModel.
 /// </summary>
 public sealed class PixelGridControl : Grid
 {
@@ -88,11 +88,17 @@ public sealed class PixelGridControl : Grid
             VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
             Background = Brushes.Black,
         };
-        _host = new Grid { Background = Brushes.Transparent };
+        _host = new Grid
+        {
+            Background = Brushes.Transparent,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
         _image = new Image { Stretch = Stretch.Fill, SnapsToDevicePixels = true };
         RenderOptions.SetBitmapScalingMode(_image, BitmapScalingMode.NearestNeighbor);
         RenderOptions.SetEdgeMode(_image, EdgeMode.Aliased);
         _overlay = new GridOverlay(this);
+        RenderOptions.SetEdgeMode(_overlay, EdgeMode.Aliased);
         _host.Children.Add(_image);
         _host.Children.Add(_overlay);
         _scroll.Content = _host;
@@ -158,7 +164,16 @@ public sealed class PixelGridControl : Grid
         set => SetValue(BitsPerByteProperty, value);
     }
 
+    /// <summary>Физических пикселей экрана на точку растра (решение N-57).</summary>
     internal int Zoom => _zoom;
+
+    internal double DpiScale => VisualTreeHelper.GetDpi(this).DpiScaleX;
+
+    protected override void OnDpiChanged(DpiScale oldDpi, DpiScale newDpi)
+    {
+        base.OnDpiChanged(oldDpi, newDpi);
+        ApplyZoom();
+    }
 
     private static void Redraw(DependencyObject sender, DependencyPropertyChangedEventArgs args) =>
         ((PixelGridControl)sender).RebuildBitmap();
@@ -179,6 +194,8 @@ public sealed class PixelGridControl : Grid
             return;
         }
 
+        _host.ClearValue(WidthProperty);
+        _host.ClearValue(HeightProperty);
         int width = pixels.Width;
         int height = pixels.Height;
         if (_bitmap is null || _bitmap.PixelWidth != width || _bitmap.PixelHeight != height)
@@ -212,12 +229,13 @@ public sealed class PixelGridControl : Grid
             return;
         }
 
+        double dpi = DpiScale;
         int zoom = FitToWindow
-            ? GridScale.Fit(_scroll.ViewportWidth, _scroll.ViewportHeight, pixels.Width, pixels.Height)
+            ? GridScale.Fit(_scroll.ViewportWidth * dpi, _scroll.ViewportHeight * dpi, pixels.Width, pixels.Height)
             : Math.Clamp(Scale, GridScale.Min, GridScale.Max);
         _zoom = zoom;
-        _image.Width = pixels.Width * zoom;
-        _image.Height = pixels.Height * zoom;
+        _image.Width = DevicePixels.ToDip(pixels.Width * zoom, dpi);
+        _image.Height = DevicePixels.ToDip(pixels.Height * zoom, dpi);
         _overlay.InvalidateVisual();
     }
 
@@ -231,8 +249,9 @@ public sealed class PixelGridControl : Grid
             return false;
         }
 
-        x = (int)Math.Floor(point.X / _zoom);
-        y = (int)Math.Floor(point.Y / _zoom);
+        double dpi = DpiScale;
+        x = DevicePixels.CellAt(point.X, dpi, _zoom);
+        y = DevicePixels.CellAt(point.Y, dpi, _zoom);
         return (uint)x < (uint)pixels.Width && (uint)y < (uint)pixels.Height;
     }
 
@@ -382,8 +401,12 @@ public sealed class PixelGridControl : Grid
                 return;
             }
 
-            Pen thinPen = _owner.Scheme == ColorScheme.Lcd ? _lcdThin : _oledThin;
-            Pen thickPen = _owner.Scheme == ColorScheme.Lcd ? _lcdThick : _oledThick;
+            double dpi = _owner.DpiScale;
+            bool lcd = _owner.Scheme == ColorScheme.Lcd;
+            Pen thinPen = Pen(lcd ? _lcdThin : _oledThin, 1 / dpi);
+            Pen thickPen = Pen(lcd ? _lcdThick : _oledThick, 2 / dpi);
+            double right = DevicePixels.ToDip(pixels.Width * zoom, dpi);
+            double bottom = DevicePixels.ToDip(pixels.Height * zoom, dpi);
             bool horizontalPack = _owner.Direction == PackDirection.Horizontal;
             for (int x = 1; x < pixels.Width; x++)
             {
@@ -394,8 +417,8 @@ public sealed class PixelGridControl : Grid
                     continue;
                 }
 
-                double position = Snap(x * zoom);
-                context.DrawLine(pen, new Point(position, 0), new Point(position, pixels.Height * zoom));
+                double position = Position(x * zoom, boundary, dpi);
+                context.DrawLine(pen, new Point(position, 0), new Point(position, bottom));
             }
 
             for (int y = 1; y < pixels.Height; y++)
@@ -407,27 +430,29 @@ public sealed class PixelGridControl : Grid
                     continue;
                 }
 
-                double position = Snap(y * zoom);
-                context.DrawLine(pen, new Point(0, position), new Point(pixels.Width * zoom, position));
+                double position = Position(y * zoom, boundary, dpi);
+                context.DrawLine(pen, new Point(0, position), new Point(right, position));
             }
         }
 
-        private static double Snap(double value) => Math.Round(value) + 0.5;
+        /// <summary>
+        /// Тонкая линия занимает первый физический пиксель клетки, толстая — по пикселю с обеих сторон границы,
+        /// поэтому обе ложатся точно на сетку пикселей экрана при любом масштабе Windows.
+        /// </summary>
+        private static double Position(int devicePixel, bool thick, double dpi) =>
+            DevicePixels.ToDip(thick ? devicePixel : devicePixel + 0.5, dpi);
 
-        private static readonly Pen _lcdThin = Pen(Color.FromRgb(0x90, 0xA0, 0x90), 1);
-        private static readonly Pen _lcdThick = Pen(Color.FromRgb(0x20, 0x30, 0x20), 2);
-        private static readonly Pen _oledThin = Pen(Color.FromRgb(0x40, 0x40, 0x40), 1);
-        private static readonly Pen _oledThick = Pen(Color.FromRgb(0xA0, 0xA0, 0xA0), 2);
+        private static readonly Color _lcdThin = Color.FromRgb(0x90, 0xA0, 0x90);
+        private static readonly Color _lcdThick = Color.FromRgb(0x20, 0x30, 0x20);
+        private static readonly Color _oledThin = Color.FromRgb(0x40, 0x40, 0x40);
+        private static readonly Color _oledThick = Color.FromRgb(0xA0, 0xA0, 0xA0);
 
         private static Pen Pen(Color color, double thickness)
         {
-            var pen = new Pen(new SolidColorBrush(color), thickness);
+            var brush = new SolidColorBrush(color);
+            brush.Freeze();
+            var pen = new Pen(brush, thickness);
             pen.Freeze();
-            if (pen.Brush.CanFreeze)
-            {
-                pen.Brush.Freeze();
-            }
-
             return pen;
         }
     }
