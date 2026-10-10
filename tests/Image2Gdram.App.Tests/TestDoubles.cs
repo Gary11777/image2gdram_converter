@@ -78,6 +78,12 @@ internal sealed class FakeFiles : IFileDialogService
 
     public string? NextFolder { get; set; }
 
+    public string? LastFolderTitle { get; private set; }
+
+    public string? LastFileNameLabel { get; private set; }
+
+    public string? LastOkButton { get; private set; }
+
     public string? PickOpenImage(string? folder) => NextImage;
 
     public string? PickOpenSheet(string? folder) => NextSheet;
@@ -88,7 +94,13 @@ internal sealed class FakeFiles : IFileDialogService
 
     public string? PickSaveProject(string? folder) => NextSaveProject;
 
-    public string? PickFolder(string? folder, string title) => NextFolder;
+    public string? PickFolder(string? folder, string title, string fileNameLabel, string okButton)
+    {
+        LastFolderTitle = title;
+        LastFileNameLabel = fileNameLabel;
+        LastOkButton = okButton;
+        return NextFolder;
+    }
 }
 
 /// <summary>Декодер, который отдаёт заранее заданные изображения по пути.</summary>
