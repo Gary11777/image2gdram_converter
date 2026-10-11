@@ -13,6 +13,7 @@ using Image2Gdram.Core.Imaging;
 using Image2Gdram.Core.Output;
 using Image2Gdram.Core.Packing;
 using Image2Gdram.Core.Presets;
+using Image2Gdram.Core.Processing;
 using Image2Gdram.Core.Projects;
 using Image2Gdram.Core.Settings;
 using Image2Gdram.Core.Text;
@@ -331,6 +332,8 @@ public sealed partial class FontGeneratorViewModel : ObservableValidator, ICodeS
         if (_table.Cell != _cell)
         {
             _cell = _table.Cell;
+            OnPropertyChanged(nameof(Cell));
+            ClampGlyphOffsets();
         }
 
         _history.Clear();
@@ -576,14 +579,17 @@ public sealed partial class FontGeneratorViewModel : ObservableValidator, ICodeS
     [RelayCommand]
     private void RestoreOffsets()
     {
-        if (!IntText.TryParse(OffsetXText, TrueTypeOptions.MinOffset, TrueTypeOptions.MaxOffset, out _))
+        (int limitX, int limitY) = GlyphOffsetLimits();
+        _offsetX = Math.Clamp(_offsetX, -limitX, limitX);
+        _offsetY = Math.Clamp(_offsetY, -limitY, limitY);
+        if (!IntText.TryParse(OffsetXText, -limitX, limitX, out _))
         {
-            OffsetXText = IntText.Format(Math.Clamp(_offsetX, TrueTypeOptions.MinOffset, TrueTypeOptions.MaxOffset));
+            OffsetXText = IntText.Format(_offsetX);
         }
 
-        if (!IntText.TryParse(OffsetYText, TrueTypeOptions.MinOffset, TrueTypeOptions.MaxOffset, out _))
+        if (!IntText.TryParse(OffsetYText, -limitY, limitY, out _))
         {
-            OffsetYText = IntText.Format(Math.Clamp(_offsetY, TrueTypeOptions.MinOffset, TrueTypeOptions.MaxOffset));
+            OffsetYText = IntText.Format(_offsetY);
         }
     }
 
@@ -744,10 +750,11 @@ public sealed partial class FontGeneratorViewModel : ObservableValidator, ICodeS
         _fontSizeText = IntText.Format(_fontSize);
         _bold = parameters.Bold;
         _italic = parameters.Italic;
-        _offsetX = Math.Clamp(parameters.GlyphOffsetX, TrueTypeOptions.MinOffset, TrueTypeOptions.MaxOffset);
-        _offsetY = Math.Clamp(parameters.GlyphOffsetY, TrueTypeOptions.MinOffset, TrueTypeOptions.MaxOffset);
+        _offsetX = OffsetLimits.Clamp(parameters.GlyphOffsetX, _cell.Width, TrueTypeOptions.MaxOffset);
+        _offsetY = OffsetLimits.Clamp(parameters.GlyphOffsetY, _cell.Height, TrueTypeOptions.MaxOffset);
         _offsetXText = IntText.Format(_offsetX);
         _offsetYText = IntText.Format(_offsetY);
+        ClampGlyphOffsets();
         _renderMode = parameters.RenderMode;
         _glyphThreshold = parameters.GlyphThreshold;
         _glyphThresholdText = IntText.Format(_glyphThreshold);
@@ -862,6 +869,7 @@ public sealed partial class FontGeneratorViewModel : ObservableValidator, ICodeS
             FollowSheetCell(_cell, cell);
             _cell = cell;
             _table = new FontTable(_cell);
+            ClampGlyphOffsets();
         }
         else
         {
@@ -1188,6 +1196,56 @@ public sealed partial class FontGeneratorViewModel : ObservableValidator, ICodeS
         return file
             ? DefaultNameBuilder.FromFile(basis, _cell.Width, _cell.Height, ArrayNameKind.Font)
             : DefaultNameBuilder.Build(basis, _cell.Width, _cell.Height, ArrayNameKind.Font);
+    }
+
+    /// <summary>Модуль смещения глифа не больше 80 % стороны ячейки и абсолютного предела (N-67).</summary>
+    private (int X, int Y) GlyphOffsetLimits() =>
+    (
+        Math.Min(OffsetLimits.For(_cell.Width), TrueTypeOptions.MaxOffset),
+        Math.Min(OffsetLimits.For(_cell.Height), TrueTypeOptions.MaxOffset)
+    );
+
+    /// <summary>
+    /// Ужимает принятые смещения глифа до текущей ячейки. Недопустимый текст, который ещё набирают, не трогает.
+    /// </summary>
+    private void ClampGlyphOffsets()
+    {
+        (int limitX, int limitY) = GlyphOffsetLimits();
+        ClampGlyphOffset(ref _offsetX, _offsetXText, limitX, horizontal: true);
+        ClampGlyphOffset(ref _offsetY, _offsetYText, limitY, horizontal: false);
+        ValidateProperty(_offsetXText, nameof(OffsetXText));
+        ValidateProperty(_offsetYText, nameof(OffsetYText));
+    }
+
+    private void ClampGlyphOffset(ref int stored, string text, int limit, bool horizontal)
+    {
+        int previous = stored;
+        stored = Math.Clamp(stored, -limit, limit);
+        if (stored == previous
+            || !IntText.TryParse(text, TrueTypeOptions.MinOffset, TrueTypeOptions.MaxOffset, out int parsed)
+            || parsed != previous)
+        {
+            return;
+        }
+
+        string formatted = IntText.Format(stored);
+        bool outer = _suppress;
+        _suppress = true;
+        try
+        {
+            if (horizontal)
+            {
+                OffsetXText = formatted;
+            }
+            else
+            {
+                OffsetYText = formatted;
+            }
+        }
+        finally
+        {
+            _suppress = outer;
+        }
     }
 
     private bool BeginChange<T>(ref T field, T value, bool source, bool preset, bool kindChanged = false, Action? before = null, [CallerMemberName] string? propertyName = null)

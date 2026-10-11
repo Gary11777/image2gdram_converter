@@ -17,7 +17,15 @@ public sealed partial class ImageConverterViewModel
     public Rotation Rotation
     {
         get => _rotation;
-        set => BeginChange(ref _rotation, value, step: true, preset: false);
+        set
+        {
+            OffsetSnapshot saved = CaptureOffsets();
+            BeginChange(ref _rotation, value, step: true, preset: false, () =>
+            {
+                RestoreOffsetsIfReverted(saved);
+                ClampOffsetsToSize();
+            });
+        }
     }
 
     public bool FlipHorizontal
@@ -35,11 +43,17 @@ public sealed partial class ImageConverterViewModel
     public TargetSizeMode SizeMode
     {
         get => _sizeMode;
-        set => BeginChange(ref _sizeMode, value, step: true, preset: true, () =>
+        set
         {
-            ValidateProperty(_widthText, nameof(WidthText));
-            ValidateProperty(_heightText, nameof(HeightText));
-        });
+            OffsetSnapshot saved = CaptureOffsets();
+            BeginChange(ref _sizeMode, value, step: true, preset: true, () =>
+            {
+                ValidateProperty(_widthText, nameof(WidthText));
+                ValidateProperty(_heightText, nameof(HeightText));
+                RestoreOffsetsIfReverted(saved);
+                ClampOffsetsToSize();
+            });
+        }
     }
 
     [CustomValidation(typeof(ImageConverterViewModel), nameof(ValidateWidthText))]

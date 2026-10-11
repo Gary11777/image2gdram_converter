@@ -11,6 +11,7 @@ using Image2Gdram.Core.Packing;
 using Image2Gdram.Core.Presets;
 using Image2Gdram.Core.Processing;
 using Image2Gdram.Core.Settings;
+using LimitMath = Image2Gdram.Core.Processing.OffsetLimits;
 using Image2Gdram.Core.Text;
 using image2gdram_converter.Services;
 
@@ -345,8 +346,19 @@ public sealed partial class ImageConverterViewModel : ObservableValidator, ICode
         _heightText = IntText.Format(_height);
         _fit = processing.Fit;
         _alignment = processing.Alignment;
-        _offsetX = Math.Clamp(processing.OffsetX, ProcessingOptions.MinOffset, ProcessingOptions.MaxOffset);
-        _offsetY = Math.Clamp(processing.OffsetY, ProcessingOptions.MinOffset, ProcessingOptions.MaxOffset);
+        if (_sizeMode == TargetSizeMode.MatchSource && _image is not null)
+        {
+            // Картинка может быть от предыдущего проекта: OpenProjectFile вызывает LoadState до LoadDecoded.
+            _offsetX = Math.Clamp(processing.OffsetX, ProcessingOptions.MinOffset, ProcessingOptions.MaxOffset);
+            _offsetY = Math.Clamp(processing.OffsetY, ProcessingOptions.MinOffset, ProcessingOptions.MaxOffset);
+        }
+        else
+        {
+            TryEffectiveSize(out int width, out int height);
+            _offsetX = LimitMath.Clamp(processing.OffsetX, width, ProcessingOptions.MaxOffset);
+            _offsetY = LimitMath.Clamp(processing.OffsetY, height, ProcessingOptions.MaxOffset);
+        }
+
         _offsetXText = IntText.Format(_offsetX);
         _offsetYText = IntText.Format(_offsetY);
         _resample = processing.Resample;
@@ -402,6 +414,11 @@ public sealed partial class ImageConverterViewModel : ObservableValidator, ICode
         RebuildFrames();
         OnPropertyChanged(nameof(SelectedFrame));
         UpdateAutomaticName();
+        if (_sizeMode == TargetSizeMode.MatchSource)
+        {
+            ClampOffsetsToSize();
+        }
+
         if (userAction)
         {
             ParametersChanged?.Invoke();
@@ -415,6 +432,11 @@ public sealed partial class ImageConverterViewModel : ObservableValidator, ICode
     {
         _image = null;
         RebuildFrames();
+        if (_sizeMode == TargetSizeMode.MatchSource)
+        {
+            ClampOffsetsToSize();
+        }
+
         Schedule();
     }
 
@@ -621,14 +643,17 @@ public sealed partial class ImageConverterViewModel : ObservableValidator, ICode
     [RelayCommand]
     private void RestoreOffsets()
     {
-        if (!IntText.TryParse(OffsetXText, ProcessingOptions.MinOffset, ProcessingOptions.MaxOffset, out _))
+        (int limitX, int limitY) = OffsetLimits();
+        _offsetX = Math.Clamp(_offsetX, -limitX, limitX);
+        _offsetY = Math.Clamp(_offsetY, -limitY, limitY);
+        if (!IntText.TryParse(OffsetXText, -limitX, limitX, out _))
         {
-            OffsetXText = IntText.Format(Math.Clamp(_offsetX, ProcessingOptions.MinOffset, ProcessingOptions.MaxOffset));
+            OffsetXText = IntText.Format(_offsetX);
         }
 
-        if (!IntText.TryParse(OffsetYText, ProcessingOptions.MinOffset, ProcessingOptions.MaxOffset, out _))
+        if (!IntText.TryParse(OffsetYText, -limitY, limitY, out _))
         {
-            OffsetYText = IntText.Format(Math.Clamp(_offsetY, ProcessingOptions.MinOffset, ProcessingOptions.MaxOffset));
+            OffsetYText = IntText.Format(_offsetY);
         }
     }
 
@@ -782,6 +807,7 @@ public sealed partial class ImageConverterViewModel : ObservableValidator, ICode
         bool nameCustomized = _nameCustomized;
         LoadState(next, schedule: false);
         _nameCustomized = nameCustomized;
+        ClampOffsetsToSize();
         UpdateAutomaticName();
         Schedule();
         ParametersChanged?.Invoke();
@@ -1175,6 +1201,85 @@ public sealed partial class ImageConverterViewModel : ObservableValidator, ICode
         return null;
     }
 
+    /// <summary>Модуль смещения не больше 80 % уже принятого размера и абсолютного предела (N-67).</summary>
+    private (int X, int Y) OffsetLimits()
+    {
+        TryEffectiveSize(out int width, out int height);
+        return (
+            Math.Min(LimitMath.For(width), ProcessingOptions.MaxOffset),
+            Math.Min(LimitMath.For(height), ProcessingOptions.MaxOffset));
+    }
+
+    private OffsetSnapshot CaptureOffsets() => new(_offsetX, _offsetY, _offsetXText, _offsetYText);
+
+    /// <summary>
+    /// Отказ в <see cref="ConfirmStep"/> повторяет <c>beforeCommit</c> с прежним размером.
+    /// Смещение, ужатое до подтверждения, возвращается и заново ограничивается старым пределом.
+    /// </summary>
+    private void RestoreOffsetsIfReverted(OffsetSnapshot saved)
+    {
+        if (!_suppress)
+        {
+            return;
+        }
+
+        _offsetX = saved.X;
+        _offsetY = saved.Y;
+        if (_offsetXText != saved.XText)
+        {
+            OffsetXText = saved.XText;
+        }
+
+        if (_offsetYText != saved.YText)
+        {
+            OffsetYText = saved.YText;
+        }
+    }
+
+    /// <summary>
+    /// Ужимает принятые смещения до текущего предела. Недопустимый текст, который ещё набирают, не трогает.
+    /// Подтверждение правок и пересчёт делает вызывающий код.
+    /// </summary>
+    private void ClampOffsetsToSize()
+    {
+        (int limitX, int limitY) = OffsetLimits();
+        ClampOffset(ref _offsetX, _offsetXText, limitX, horizontal: true);
+        ClampOffset(ref _offsetY, _offsetYText, limitY, horizontal: false);
+        ValidateProperty(_offsetXText, nameof(OffsetXText));
+        ValidateProperty(_offsetYText, nameof(OffsetYText));
+    }
+
+    private void ClampOffset(ref int stored, string text, int limit, bool horizontal)
+    {
+        int previous = stored;
+        stored = Math.Clamp(stored, -limit, limit);
+        if (stored == previous
+            || !IntText.TryParse(text, ProcessingOptions.MinOffset, ProcessingOptions.MaxOffset, out int parsed)
+            || parsed != previous)
+        {
+            return;
+        }
+
+        string formatted = IntText.Format(stored);
+        bool outer = _suppress;
+        _suppress = true;
+        try
+        {
+            if (horizontal)
+            {
+                OffsetXText = formatted;
+            }
+            else
+            {
+                OffsetYText = formatted;
+            }
+        }
+        finally
+        {
+            _suppress = outer;
+        }
+    }
+
     private bool BeginChange<T>(ref T field, T value, bool step, bool preset, Action? beforeCommit = null, [CallerMemberName] string? propertyName = null)
     {
         if (EqualityComparer<T>.Default.Equals(field, value))
@@ -1242,6 +1347,7 @@ public sealed partial class ImageConverterViewModel : ObservableValidator, ICode
         }
 
         stored = value;
+        ClampOffsetsToSize();
         CommitUi(preset: true);
     }
 
@@ -1252,7 +1358,8 @@ public sealed partial class ImageConverterViewModel : ObservableValidator, ICode
             return;
         }
 
-        if (!IntText.TryParse(text, ProcessingOptions.MinOffset, ProcessingOptions.MaxOffset, out int value))
+        int limit = horizontal ? OffsetLimits().X : OffsetLimits().Y;
+        if (!IntText.TryParse(text, -limit, limit, out int value))
         {
             RefreshCommands();
             Schedule();
@@ -1344,9 +1451,14 @@ public sealed partial class ImageConverterViewModel : ObservableValidator, ICode
     public static ValidationResult? ValidateOffset(string? text, ValidationContext context)
     {
         var vm = (ImageConverterViewModel)context.ObjectInstance!;
-        return IntText.TryParse(text, ProcessingOptions.MinOffset, ProcessingOptions.MaxOffset, out _)
+        bool vertical = context.MemberName == nameof(OffsetYText);
+        (int limitX, int limitY) = vm.OffsetLimits();
+        int limit = vertical ? limitY : limitX;
+        vm.TryEffectiveSize(out int width, out int height);
+        int side = vertical ? height : width;
+        return IntText.TryParse(text, -limit, limit, out _)
             ? null
-            : new ValidationResult(vm._loc.Get("Error.Offset"));
+            : new ValidationResult(vm._loc.Format(vertical ? "Error.OffsetY" : "Error.OffsetX", limit, side));
     }
 
     public static ValidationResult? ValidateThreshold(string? text, ValidationContext context)
@@ -1371,4 +1483,6 @@ public sealed partial class ImageConverterViewModel : ObservableValidator, ICode
         NameValidationResult result = NameValidator.Validate(name, vm._format);
         return result.IsValid ? null : new ValidationResult(UserText.Name(vm._loc, result));
     }
+
+    private readonly record struct OffsetSnapshot(int X, int Y, string XText, string YText);
 }

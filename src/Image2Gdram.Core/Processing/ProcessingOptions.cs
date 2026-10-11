@@ -6,7 +6,10 @@ namespace Image2Gdram.Core.Processing;
 /// </summary>
 public sealed record ProcessingOptions
 {
+    /// <summary>Абсолютная граница смещения. В интерфейсе предел уже: 80 % стороны (N-67, <see cref="OffsetLimits"/>).</summary>
     public const int MinOffset = -1024;
+
+    /// <summary>Абсолютная граница смещения. В интерфейсе предел уже: 80 % стороны (N-67, <see cref="OffsetLimits"/>).</summary>
     public const int MaxOffset = 1024;
     public const int MinTargetSide = 1;
     public const int MaxTargetSide = 1024;

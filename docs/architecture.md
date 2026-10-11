@@ -122,7 +122,8 @@ flowchart LR
 
 **Фактически (этап 2).** Классы шагов совпадают с черновиком. Дополнительно: `Binarizer.Create`, `FramePixelOverrides`, `ImagePipeline.Pack` и `RunAndPack` (шаг 7 через `PackerRegistry`), `PipelineException` с кодом `SourceLargerThan1024` (D-07).
 
-- `ProcessingOptions` (sealed record, `Default`) — фон, поворот, отражения, ручной размер или «по исходному», режим вписывания, выравнивание, смещение, алгоритм масштабирования, режим бинаризации, порог. Значения по умолчанию — N-41.
+- `ProcessingOptions` (sealed record, `Default`) — фон, поворот, отражения, ручной размер или «по исходному», режим вписывания, выравнивание, смещение, алгоритм масштабирования, режим бинаризации, порог. Значения по умолчанию — N-41. `MinOffset`/`MaxOffset` (±1024) — абсолютная граница файла, настроек и `ImagePipeline.Validate`. В интерфейсе предел уже: его считает `OffsetLimits` (N-67).
+- `OffsetLimits` — `Percent = 80`, `For(side)` возвращает `side * 80 / 100` (при `side < 1` — `ArgumentOutOfRangeException`), `Clamp(offset, side, absoluteMax)` ограничивает смещение диапазоном `±min(For(side), absoluteMax)`. Формулу вызывают обе вкладки, в интерфейсе она не дублируется.
 - Шаги, каждый — отдельный класс с явными параметрами:
   - `BackgroundCompositor` — F-06;
   - `RotateFlipStep` — F-07, N-10; им же пользуется декодер для EXIF;
@@ -185,7 +186,7 @@ flowchart LR
 - `GlyphOutline` (контуры из `OutlinePoint`, координаты в пикселях от начала глифа, y вниз, базовая линия y = 0), `FontFaceSpec` (гарнитура, размер 1…64 px, жирный, курсив), `FontMetrics` (подъём и спуск, px), `IGlyphOutlineProvider` (`GetInstalledFamilies`, `TryGetMetrics`, `GetOutline` — `null`, если глифа нет).
 - `GlyphOutlineCache` — потокобезопасный кэш контуров и метрик поверх провайдера, LRU на 8 начертаний (N-48): смена смещения, режима, порога, диапазонов и упаковки не обращается к WPF повторно.
 - `PolygonRasterizer` — собственная заливка строками развёртки, `FillRule` (`NonZero` для глифов, `EvenOdd` для тестов), `GlyphRenderMode` (`Aliased` — центр пикселя, `Antialiased` — 4×4), `ComputeCoverage`, `Rasterize`, `CoverageToLuma` (D-15, N-47).
-- `TrueTypeOptions` (гарнитура, смещение X/Y −32…32, режим, порог 128) и `TrueTypeGlyphSource : IGlyphSource` — код → Unicode по CP1251, базовая линия `ComputeBaseline`, растеризация в ячейку, отсутствующие глифы в `MissingCodes` и `GlyphsMissingInFont`, нет гарнитуры — `FontNotFound` (N-23, N-47).
+- `TrueTypeOptions` (гарнитура, смещение X/Y −32…32 — абсолютная граница API и файла; интерфейс ограничивает смещение 80 % стороны ячейки, N-67, `OffsetLimits`) и `TrueTypeGlyphSource : IGlyphSource` — код → Unicode по CP1251, базовая линия `ComputeBaseline`, растеризация в ячейку, отсутствующие глифы в `MissingCodes` и `GlyphsMissingInFont`, нет гарнитуры — `FontNotFound` (N-23, N-47).
 - `GlyphOps` (`Clear`, `Invert`, `Toggle`, `Shift` с `ShiftDirection`, `Fit` — вставка другого размера в левый верхний угол, N-22) и `Core.Editing.GlyphEditAction : IEditAction` (замена ручного слоя одного символа или возврат к источнику; пустое изменение не записывается) — для редактора этапа 7.
 - `Image2Gdram.Fonts.Wpf.WpfGlyphOutlineProvider : IGlyphOutlineProvider` — `FormattedText` (`pixelsPerDip = 1.0`, `TextFormattingMode.Ideal`) → `BuildGeometry` → `GetFlattenedPathGeometry(0.01)` → полигоны; глиф проверяется по `GlyphTypeface.CharacterToGlyphMap`; вызовы под блокировкой, работает из любого потока (N-47, N-48).
 

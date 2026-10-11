@@ -169,14 +169,22 @@ public sealed partial class FontGeneratorViewModel
     public string OffsetXText
     {
         get => _offsetXText;
-        set => SetNumber(ref _offsetXText, value, ref _offsetX, TrueTypeOptions.MinOffset, TrueTypeOptions.MaxOffset, source: true, preset: false);
+        set
+        {
+            int limit = GlyphOffsetLimits().X;
+            SetNumber(ref _offsetXText, value, ref _offsetX, -limit, limit, source: true, preset: false);
+        }
     }
 
     [CustomValidation(typeof(FontGeneratorViewModel), nameof(ValidateNumber))]
     public string OffsetYText
     {
         get => _offsetYText;
-        set => SetNumber(ref _offsetYText, value, ref _offsetY, TrueTypeOptions.MinOffset, TrueTypeOptions.MaxOffset, source: true, preset: false);
+        set
+        {
+            int limit = GlyphOffsetLimits().Y;
+            SetNumber(ref _offsetYText, value, ref _offsetY, -limit, limit, source: true, preset: false);
+        }
     }
 
     public GlyphRenderMode RenderMode
@@ -250,6 +258,7 @@ public sealed partial class FontGeneratorViewModel
             {
                 _cell = value;
                 OnPropertyChanged();
+                ClampGlyphOffsets();
                 return;
             }
 
@@ -268,6 +277,7 @@ public sealed partial class FontGeneratorViewModel
             EditsChanged?.Invoke();
             OnPropertyChanged();
             TouchTable();
+            ClampGlyphOffsets();
             Commit(preset: false, source: true);
         }
     }
@@ -621,10 +631,20 @@ public sealed partial class FontGeneratorViewModel
             return null;
         }
 
+        if (context.MemberName is nameof(OffsetXText) or nameof(OffsetYText))
+        {
+            bool horizontal = context.MemberName == nameof(OffsetXText);
+            (int limitX, int limitY) = vm.GlyphOffsetLimits();
+            int limit = horizontal ? limitX : limitY;
+            int side = horizontal ? vm._cell.Width : vm._cell.Height;
+            return IntText.TryParse(text, -limit, limit, out _)
+                ? null
+                : new ValidationResult(vm._loc.Format(horizontal ? "Error.GlyphOffsetX" : "Error.GlyphOffsetY", limit, side));
+        }
+
         (int min, int max, string key) = context.MemberName switch
         {
             nameof(FontSizeText) => (FontFaceSpec.MinSizePx, FontFaceSpec.MaxSizePx, "Error.FontSize"),
-            nameof(OffsetXText) or nameof(OffsetYText) => (TrueTypeOptions.MinOffset, TrueTypeOptions.MaxOffset, "Error.GlyphOffset"),
             nameof(SheetWidthText) or nameof(SheetHeightText) => (1, 64, "Error.SheetCell"),
             nameof(MarginXText) or nameof(MarginYText) => (0, 1024, "Error.Margin"),
             nameof(SpacingXText) or nameof(SpacingYText) => (0, 256, "Error.Spacing"),
