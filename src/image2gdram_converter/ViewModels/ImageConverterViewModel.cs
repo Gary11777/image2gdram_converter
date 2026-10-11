@@ -345,8 +345,8 @@ public sealed partial class ImageConverterViewModel : ObservableValidator, ICode
         _heightText = IntText.Format(_height);
         _fit = processing.Fit;
         _alignment = processing.Alignment;
-        _offsetX = processing.OffsetX;
-        _offsetY = processing.OffsetY;
+        _offsetX = Math.Clamp(processing.OffsetX, ProcessingOptions.MinOffset, ProcessingOptions.MaxOffset);
+        _offsetY = Math.Clamp(processing.OffsetY, ProcessingOptions.MinOffset, ProcessingOptions.MaxOffset);
         _offsetXText = IntText.Format(_offsetX);
         _offsetYText = IntText.Format(_offsetY);
         _resample = processing.Resample;
@@ -611,6 +611,24 @@ public sealed partial class ImageConverterViewModel : ObservableValidator, ICode
         catch (OutputWriteException ex)
         {
             _dialogs.Alert(UserText.OutputWrite(_loc, ex));
+        }
+    }
+
+    /// <summary>
+    /// Пустое или недопустимое смещение при выходе из поля и по Enter
+    /// возвращается к последнему разобранному значению (N-65).
+    /// </summary>
+    [RelayCommand]
+    private void RestoreOffsets()
+    {
+        if (!IntText.TryParse(OffsetXText, ProcessingOptions.MinOffset, ProcessingOptions.MaxOffset, out _))
+        {
+            OffsetXText = IntText.Format(Math.Clamp(_offsetX, ProcessingOptions.MinOffset, ProcessingOptions.MaxOffset));
+        }
+
+        if (!IntText.TryParse(OffsetYText, ProcessingOptions.MinOffset, ProcessingOptions.MaxOffset, out _))
+        {
+            OffsetYText = IntText.Format(Math.Clamp(_offsetY, ProcessingOptions.MinOffset, ProcessingOptions.MaxOffset));
         }
     }
 

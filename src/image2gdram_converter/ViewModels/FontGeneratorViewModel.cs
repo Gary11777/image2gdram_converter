@@ -569,6 +569,24 @@ public sealed partial class FontGeneratorViewModel : ObservableValidator, ICodeS
         }
     }
 
+    /// <summary>
+    /// Пустое или недопустимое смещение глифа при выходе из поля и по Enter
+    /// возвращается к последнему разобранному значению (N-65).
+    /// </summary>
+    [RelayCommand]
+    private void RestoreOffsets()
+    {
+        if (!IntText.TryParse(OffsetXText, TrueTypeOptions.MinOffset, TrueTypeOptions.MaxOffset, out _))
+        {
+            OffsetXText = IntText.Format(Math.Clamp(_offsetX, TrueTypeOptions.MinOffset, TrueTypeOptions.MaxOffset));
+        }
+
+        if (!IntText.TryParse(OffsetYText, TrueTypeOptions.MinOffset, TrueTypeOptions.MaxOffset, out _))
+        {
+            OffsetYText = IntText.Format(Math.Clamp(_offsetY, TrueTypeOptions.MinOffset, TrueTypeOptions.MaxOffset));
+        }
+    }
+
     [RelayCommand(CanExecute = nameof(CanResetManual))]
     private void ResetManual()
     {
@@ -726,8 +744,8 @@ public sealed partial class FontGeneratorViewModel : ObservableValidator, ICodeS
         _fontSizeText = IntText.Format(_fontSize);
         _bold = parameters.Bold;
         _italic = parameters.Italic;
-        _offsetX = parameters.GlyphOffsetX;
-        _offsetY = parameters.GlyphOffsetY;
+        _offsetX = Math.Clamp(parameters.GlyphOffsetX, TrueTypeOptions.MinOffset, TrueTypeOptions.MaxOffset);
+        _offsetY = Math.Clamp(parameters.GlyphOffsetY, TrueTypeOptions.MinOffset, TrueTypeOptions.MaxOffset);
         _offsetXText = IntText.Format(_offsetX);
         _offsetYText = IntText.Format(_offsetY);
         _renderMode = parameters.RenderMode;

@@ -66,7 +66,7 @@
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
                         <TextBlock Style="{StaticResource Field}" Text="{DynamicResource Label.OffsetX}"/>
-                        <TextBox Grid.Column="1">
+                        <TextBox Grid.Column="1" controls:TextBoxCommit.Command="{Binding RestoreOffsetsCommand}">
                             <TextBox.Text>
                                 <Binding Path="OffsetXText" UpdateSourceTrigger="PropertyChanged" Delay="400"/>
                             </TextBox.Text>
@@ -78,7 +78,7 @@
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
                         <TextBlock Style="{StaticResource Field}" Text="{DynamicResource Label.OffsetY}"/>
-                        <TextBox Grid.Column="1">
+                        <TextBox Grid.Column="1" controls:TextBoxCommit.Command="{Binding RestoreOffsetsCommand}">
                             <TextBox.Text>
                                 <Binding Path="OffsetYText" UpdateSourceTrigger="PropertyChanged" Delay="400"/>
                             </TextBox.Text>
