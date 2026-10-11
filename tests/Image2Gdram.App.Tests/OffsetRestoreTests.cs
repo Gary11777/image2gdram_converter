@@ -88,7 +88,7 @@ public class OffsetRestoreTests : IDisposable
         Assert.True(vm.CanCopy);
         string name = horizontal ? nameof(vm.OffsetXText) : nameof(vm.OffsetYText);
 
-        SetFontOffset(vm, horizontal, "5");
+        SetFontOffset(vm, horizontal, "4");
         SetFontOffset(vm, horizontal, bad);
 
         Assert.NotEmpty(Errors(vm, name));
@@ -96,7 +96,7 @@ public class OffsetRestoreTests : IDisposable
 
         vm.RestoreOffsetsCommand.Execute(null);
 
-        Assert.Equal("5", FontOffset(vm, horizontal));
+        Assert.Equal("4", FontOffset(vm, horizontal));
         Assert.Empty(Errors(vm, name));
         Assert.True(vm.CanCopy);
         Assert.StartsWith("/*", vm.CodeText, StringComparison.Ordinal);
@@ -199,13 +199,13 @@ public class OffsetRestoreTests : IDisposable
         FontGeneratorViewModel font = CreateFont();
         font.SourceKind = FontSourceKind.TrueType;
         font.OffsetYText = "3";
-        font.OffsetYText = "12";
+        font.OffsetYText = "6";
         font.OffsetYText = "";
 
         font.RestoreOffsetsCommand.Execute(null);
 
-        Assert.Equal("12", font.OffsetYText);
-        Assert.Equal(12, font.ToParameters().GlyphOffsetY);
+        Assert.Equal("6", font.OffsetYText);
+        Assert.Equal(6, font.ToParameters().GlyphOffsetY);
     }
 
     [Fact]
@@ -231,7 +231,7 @@ public class OffsetRestoreTests : IDisposable
         {
             SourceKind = FontSourceKind.TrueType,
             Family = "Stub",
-            GlyphOffsetX = 9,
+            GlyphOffsetX = 4,
             GlyphOffsetY = -4,
         };
         font.Load(new FontProjectTab(fontParameters, new FontTable(font.Cell)));
@@ -239,7 +239,7 @@ public class OffsetRestoreTests : IDisposable
 
         font.RestoreOffsetsCommand.Execute(null);
 
-        Assert.Equal("9", font.OffsetXText);
+        Assert.Equal("4", font.OffsetXText);
         Assert.Equal("-4", font.OffsetYText);
         Assert.Equal(-4, font.ToParameters().GlyphOffsetY);
     }
@@ -254,10 +254,10 @@ public class OffsetRestoreTests : IDisposable
         };
         image.LoadState(imageParameters, schedule: false);
 
-        Assert.Equal("1024", image.OffsetXText);
-        Assert.Equal("-1024", image.OffsetYText);
-        Assert.Equal(1024, image.ToParameters().Processing.OffsetX);
-        Assert.Equal(-1024, image.ToParameters().Processing.OffsetY);
+        Assert.Equal("102", image.OffsetXText);
+        Assert.Equal("-51", image.OffsetYText);
+        Assert.Equal(102, image.ToParameters().Processing.OffsetX);
+        Assert.Equal(-51, image.ToParameters().Processing.OffsetY);
 
         FontGeneratorViewModel font = CreateFont();
         FontTabParameters fontParameters = font.ToParameters() with
@@ -267,10 +267,10 @@ public class OffsetRestoreTests : IDisposable
         };
         font.Load(new FontProjectTab(fontParameters, new FontTable(font.Cell)));
 
-        Assert.Equal("32", font.OffsetXText);
-        Assert.Equal("-32", font.OffsetYText);
-        Assert.Equal(32, font.ToParameters().GlyphOffsetX);
-        Assert.Equal(-32, font.ToParameters().GlyphOffsetY);
+        Assert.Equal("4", font.OffsetXText);
+        Assert.Equal("-6", font.OffsetYText);
+        Assert.Equal(4, font.ToParameters().GlyphOffsetX);
+        Assert.Equal(-6, font.ToParameters().GlyphOffsetY);
     }
 
     [Fact]

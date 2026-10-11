@@ -20,10 +20,10 @@ public sealed record TrueTypeOptions
 
     public FontFaceSpec Face { get; init; }
 
-    /// <summary>Смещение глифа в ячейке по X, пикселей (-32..32; положительное — вправо).</summary>
+    /// <summary>Смещение глифа в ячейке по X, пикселей (-32..32; положительное — вправо). Интерфейс уже: 80 % ширины ячейки (N-67).</summary>
     public int OffsetX { get; init; }
 
-    /// <summary>Смещение глифа в ячейке по Y, пикселей (-32..32; положительное — вниз).</summary>
+    /// <summary>Смещение глифа в ячейке по Y, пикселей (-32..32; положительное — вниз). Интерфейс уже: 80 % высоты ячейки (N-67).</summary>
     public int OffsetY { get; init; }
 
     public GlyphRenderMode RenderMode { get; init; } = GlyphRenderMode.Antialiased;

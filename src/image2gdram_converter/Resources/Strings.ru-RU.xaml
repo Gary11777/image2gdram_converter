@@ -168,7 +168,8 @@
     <sys:String x:Key="Error.Pipeline.TooLarge">Размер после поворота {0}x{1} больше 1024 по одной из сторон. Задайте размер вручную.</sys:String>
     <sys:String x:Key="Error.Width">Ширина — целое число от 1 до 1024.</sys:String>
     <sys:String x:Key="Error.Height">Высота — целое число от 1 до 1024.</sys:String>
-    <sys:String x:Key="Error.Offset">Смещение — целое число от -1024 до 1024.</sys:String>
+    <sys:String x:Key="Error.OffsetX">Смещение X — целое число от -{0} до {0} (не более 80 % ширины {1}).</sys:String>
+    <sys:String x:Key="Error.OffsetY">Смещение Y — целое число от -{0} до {0} (не более 80 % высоты {1}).</sys:String>
     <sys:String x:Key="Error.Threshold">Порог — целое число от 0 до 255.</sys:String>
     <sys:String x:Key="Error.BytesPerLine">Число байт в строке — от 1 до 16.</sys:String>
     <sys:String x:Key="Error.Name.Empty">Имя массива пустое.</sys:String>
@@ -267,7 +268,8 @@
     <sys:String x:Key="Font.SizeLine">Ячейка {0}, {1} на символ, всего {2}</sys:String>
     <sys:String x:Key="Font.Code">{0} {1}</sys:String>
     <sys:String x:Key="Error.FontSize">Размер шрифта — целое число от 1 до 64.</sys:String>
-    <sys:String x:Key="Error.GlyphOffset">Смещение глифа — целое число от -32 до 32.</sys:String>
+    <sys:String x:Key="Error.GlyphOffsetX">Смещение X — целое число от -{0} до {0} (не более 80 % ширины ячейки {1}).</sys:String>
+    <sys:String x:Key="Error.GlyphOffsetY">Смещение Y — целое число от -{0} до {0} (не более 80 % высоты ячейки {1}).</sys:String>
     <sys:String x:Key="Error.SheetCell">Ячейка листа — целое число от 1 до 64.</sys:String>
     <sys:String x:Key="Error.Margin">Отступ — целое число от 0 до 1024.</sys:String>
     <sys:String x:Key="Error.Spacing">Интервал — целое число от 0 до 256.</sys:String>

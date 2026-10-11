@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Globalization;
 using Image2Gdram.Core.Fonts;
 using Image2Gdram.Core.Imaging;
 using Image2Gdram.Core.Output;
@@ -25,8 +26,8 @@ public class ValidationTests : IDisposable
         { nameof(ImageConverterViewModel.WidthText), "12a", "128", "Error.Width" },
         { nameof(ImageConverterViewModel.HeightText), "", "64", "Error.Height" },
         { nameof(ImageConverterViewModel.HeightText), "-1", "64", "Error.Height" },
-        { nameof(ImageConverterViewModel.OffsetXText), "1025", "0", "Error.Offset" },
-        { nameof(ImageConverterViewModel.OffsetYText), "-1025", "0", "Error.Offset" },
+        { nameof(ImageConverterViewModel.OffsetXText), "103", "0", "Error.OffsetX" },
+        { nameof(ImageConverterViewModel.OffsetYText), "-52", "0", "Error.OffsetY" },
         { nameof(ImageConverterViewModel.ThresholdText), "256", "128", "Error.Threshold" },
         { nameof(ImageConverterViewModel.ThresholdText), "x", "128", "Error.Threshold" },
         { nameof(ImageConverterViewModel.BytesPerLineText), "0", "16", "Error.BytesPerLine" },
@@ -42,8 +43,8 @@ public class ValidationTests : IDisposable
     {
         { FontSourceKind.TrueType, nameof(FontGeneratorViewModel.FontSizeText), "0", "8", "Error.FontSize" },
         { FontSourceKind.TrueType, nameof(FontGeneratorViewModel.FontSizeText), "65", "8", "Error.FontSize" },
-        { FontSourceKind.TrueType, nameof(FontGeneratorViewModel.OffsetXText), "33", "0", "Error.GlyphOffset" },
-        { FontSourceKind.TrueType, nameof(FontGeneratorViewModel.OffsetYText), "-33", "0", "Error.GlyphOffset" },
+        { FontSourceKind.TrueType, nameof(FontGeneratorViewModel.OffsetXText), "5", "0", "Error.GlyphOffsetX" },
+        { FontSourceKind.TrueType, nameof(FontGeneratorViewModel.OffsetYText), "-7", "0", "Error.GlyphOffsetY" },
         { FontSourceKind.TrueType, nameof(FontGeneratorViewModel.GlyphThresholdText), "300", "128", "Error.Threshold" },
         { FontSourceKind.Sheet, nameof(FontGeneratorViewModel.SheetWidthText), "0", "6", "Error.SheetCell" },
         { FontSourceKind.Sheet, nameof(FontGeneratorViewModel.SheetHeightText), "65", "8", "Error.SheetCell" },
@@ -73,7 +74,7 @@ public class ValidationTests : IDisposable
 
         Assert.Contains(property, raised);
         string message = Assert.Single(Errors(vm, property));
-        Assert.Equal(Text[key], message);
+        Assert.Equal(ExpectedText(key), message);
         Assert.False(vm.CanCopy);
         Assert.False(vm.CanSaveOutput);
         Assert.False(vm.CopyCommand.CanExecute(null));
@@ -144,7 +145,7 @@ public class ValidationTests : IDisposable
         Set(vm, property, bad);
 
         string message = Assert.Single(Errors(vm, property));
-        Assert.Equal(Text[key], message);
+        Assert.Equal(ExpectedText(key), message);
         Assert.False(vm.CanCopy);
         Assert.False(vm.CopyCommand.CanExecute(null));
         Assert.False(vm.SaveOutputCommand.CanExecute(null));
@@ -213,6 +214,15 @@ public class ValidationTests : IDisposable
         {
         }
     }
+
+    private static string ExpectedText(string key) => key switch
+    {
+        "Error.OffsetX" => string.Format(CultureInfo.InvariantCulture, Text[key], 102, 128),
+        "Error.OffsetY" => string.Format(CultureInfo.InvariantCulture, Text[key], 51, 64),
+        "Error.GlyphOffsetX" => string.Format(CultureInfo.InvariantCulture, Text[key], 4, 6),
+        "Error.GlyphOffsetY" => string.Format(CultureInfo.InvariantCulture, Text[key], 6, 8),
+        _ => Text[key],
+    };
 
     private static void Set(object vm, string property, string value) =>
         vm.GetType().GetProperty(property)!.SetValue(vm, value);
