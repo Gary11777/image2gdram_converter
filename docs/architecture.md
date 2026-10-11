@@ -12,7 +12,7 @@
 image2gdram_converter.sln
 Directory.Build.props
 specification.md, agents.md, README.md
-build.ps1, publish.ps1
+build.ps1, publish.ps1, run.ps1
 src/
   image2gdram_converter/        WPF-приложение
   Image2Gdram.Core/             ядро без WPF
@@ -336,6 +336,7 @@ sequenceDiagram
 - `README.md` — назначение, сборка, тесты, публикация, лицензии. ImageSharp не используется.
 - `build.ps1` — `dotnet build -c Release` и `dotnet test -c Release --no-build`.
 - `publish.ps1` — `dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true` в `publish/` (папка в `.gitignore`).
+- `run.ps1` — для разработки: закрывает копию из `publish/` (`CloseMainWindow`, ожидание 15 с, `Kill` только с `-Force`), при `-Clean` выполняет `dotnet clean`, при `-Test` — `build.ps1`, затем `publish.ps1` и запуск exe.
 - `app.manifest` запрашивает `asInvoker`: опубликованный exe не требует прав администратора.
 - Документы раздела 9 ТЗ: `docs/user_guide.md`, `docs/output_formats.md`, `docs/pmi.md`.
 - Тестовые материалы: изображения приложения Б, три листа шрифтов, `testdata/reference/` (N-60). Сравнение с ядром — `ReferenceFileTests`.
@@ -348,7 +349,7 @@ sequenceDiagram
 
 | Модуль | Состояние |
 |---|---|
-| Структура решения | **сделано (этапы 1–9):** `image2gdram_converter.sln` (папки `src`, `tests`, `tools`; 12 проектов), `Directory.Build.props`; приложение в `src/image2gdram_converter/`; `tools/compile-check.ps1`; `README.md`, `build.ps1`, `publish.ps1` |
+| Структура решения | **сделано (этапы 1–9):** `image2gdram_converter.sln` (папки `src`, `tests`, `tools`; 12 проектов), `Directory.Build.props`; приложение в `src/image2gdram_converter/`; `tools/compile-check.ps1`; `README.md`, `build.ps1`, `publish.ps1`, `run.ps1` |
 | Core: Packing | **сделано (этап 1):** раздел 3.3 |
 | Core: Text | **сделано (этапы 1, 3):** `ProductInfo` (D-02), `RussianPlural` (D-04), `Cp1251` (D-16, N-45) |
 | Core: Imaging, Processing, Editing | **сделано (этап 2):** разделы 3.1, 3.2 и 3.2.1. Декодер WIC — отдельный проект, не часть Core |
