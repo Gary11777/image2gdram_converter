@@ -280,8 +280,18 @@ public class FontGeneratorViewModelTests : IDisposable
         string output = Path.Combine(_directory, "out");
         Directory.CreateDirectory(output);
         harness.Files.NextFolder = output;
+        string code = vm.CodeText;
+        byte[] cBefore = vm.Document.Files[0].Content.ToArray();
+        byte[] hBefore = vm.Document.Files[1].Content.ToArray();
         vm.SaveOutputCommand.Execute(null);
 
+        Assert.Equal("Сохранить код", harness.Files.LastFolderTitle);
+        Assert.Equal("font_a.c, font_a.h", harness.Files.LastFileNameLabel);
+        Assert.Equal("Сохранить", harness.Files.LastOkButton);
+        Assert.Equal("font_a", vm.ArrayName);
+        Assert.Equal(code, vm.CodeText);
+        Assert.Equal(cBefore, vm.Document.Files[0].Content);
+        Assert.Equal(hBefore, vm.Document.Files[1].Content);
         Assert.Equal(vm.Document.Files[0].Content, File.ReadAllBytes(Path.Combine(output, "font_a.c")));
         Assert.Equal(vm.Document.Files[1].Content, File.ReadAllBytes(Path.Combine(output, "font_a.h")));
         File.WriteAllText(Path.Combine(output, "font_a.h"), "old");

@@ -64,13 +64,6 @@ public sealed class FileDialogService : IFileDialogService
         return dialog.ShowDialog() == true ? dialog.FileName : null;
     }
 
-    public string? PickFolder(string? folder, string title)
-    {
-        var dialog = new OpenFolderDialog
-        {
-            Title = title,
-            InitialDirectory = folder ?? string.Empty,
-        };
-        return dialog.ShowDialog() == true ? dialog.FolderName : null;
-    }
+    public string? PickFolder(string? folder, string title, string fileNameLabel, string okButton) =>
+        ShellFolderDialog.Pick(folder, title, fileNameLabel, okButton);
 }

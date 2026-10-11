@@ -12,5 +12,6 @@ public interface IFileDialogService
 
     string? PickSaveProject(string? folder);
 
-    string? PickFolder(string? folder, string title);
+    /// <summary>Выбор каталога. Подпись поля и кнопка не меняют имя сохраняемых файлов.</summary>
+    string? PickFolder(string? folder, string title, string fileNameLabel, string okButton);
 }

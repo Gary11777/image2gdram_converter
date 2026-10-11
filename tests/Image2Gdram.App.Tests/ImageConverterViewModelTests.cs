@@ -257,12 +257,23 @@ public class ImageConverterViewModelTests
         string output = Path.Combine(harness.Directory, "out");
         System.IO.Directory.CreateDirectory(output);
         harness.Files.NextFolder = output;
+        string arrayName = vm.ArrayName;
+        string code = vm.CodeText;
+        byte[] cBefore = vm.Document!.Files[0].Content.ToArray();
+        byte[] hBefore = vm.Document.Files[1].Content.ToArray();
 
         vm.SaveOutputCommand.Execute(null);
 
         string c = Path.Combine(output, "white_128x64.c");
         string h = Path.Combine(output, "white_128x64.h");
-        Assert.Equal(vm.Document!.Files[0].Content, File.ReadAllBytes(c));
+        Assert.Equal("Сохранить код", harness.Files.LastFolderTitle);
+        Assert.Equal("white_128x64.c, white_128x64.h", harness.Files.LastFileNameLabel);
+        Assert.Equal("Сохранить", harness.Files.LastOkButton);
+        Assert.Equal(arrayName, vm.ArrayName);
+        Assert.Equal(code, vm.CodeText);
+        Assert.Equal(cBefore, vm.Document.Files[0].Content);
+        Assert.Equal(hBefore, vm.Document.Files[1].Content);
+        Assert.Equal(vm.Document.Files[0].Content, File.ReadAllBytes(c));
         Assert.Equal(vm.Document.Files[1].Content, File.ReadAllBytes(h));
         Assert.Equal(0, harness.Dialogs.ConfirmCount);
 
@@ -279,6 +290,20 @@ public class ImageConverterViewModelTests
         Assert.Equal(2, harness.Dialogs.ConfirmCount);
         Assert.Equal(vm.Document.Files[0].Content, File.ReadAllBytes(c));
         Assert.Empty(harness.Dialogs.Alerts);
+
+        vm.Format = OutputFormat.Bin;
+        string binCode = vm.CodeText;
+        byte[] bin = vm.Document.Files[0].Content.ToArray();
+        string binFile = vm.Document.Files[0].FileName;
+
+        vm.SaveOutputCommand.Execute(null);
+
+        Assert.Equal(binFile, harness.Files.LastFileNameLabel);
+        Assert.Equal("Сохранить", harness.Files.LastOkButton);
+        Assert.Equal(arrayName, vm.ArrayName);
+        Assert.Equal(binCode, vm.CodeText);
+        Assert.Equal(bin, vm.Document.Files[0].Content);
+        Assert.Equal(bin, File.ReadAllBytes(Path.Combine(output, binFile)));
     }
 
     [Fact]

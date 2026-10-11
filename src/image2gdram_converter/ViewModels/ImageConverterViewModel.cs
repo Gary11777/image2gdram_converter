@@ -585,7 +585,11 @@ public sealed partial class ImageConverterViewModel : ObservableValidator, ICode
             return;
         }
 
-        string? directory = _files.PickFolder(_outputFolder, _loc.Get("File.OutputFolder"));
+        string? directory = _files.PickFolder(
+            _outputFolder,
+            _loc.Get("File.SaveOutputTitle"),
+            string.Join(", ", Document.Files.Select(file => file.FileName)),
+            _loc.Get("Dialog.Save"));
         if (directory is null)
         {
             return;
