@@ -258,7 +258,7 @@ src/image2gdram_converter/
   app.manifest             PerMonitorV2
   Views/                   MainWindow, ImageConverterView, FontGeneratorView, диалоги
   ViewModels/              MVVM (CommunityToolkit.Mvvm)
-  Controls/                PixelGridControl, GlyphTableControl, CodeView
+  Controls/                PixelGridControl, GlyphTableControl, CodeView, TextBoxCommit
   Services/                диалоги, файлы, буфер обмена, локализация, пересчёт
   Resources/Strings.ru-RU.xaml   встроенный словарь строк
 Languages/ (рядом с exe)   дополнительные словари, выбираются в settings.json
@@ -269,6 +269,7 @@ Languages/ (рядом с exe)   дополнительные словари, в
 - `PixelGridControl` — рисование в `WriteableBitmap` (не элемент на пиксель), `BitmapScalingMode=NearestNeighbor`, масштаб 1–32 и «по размеру окна» (N-24), линии сетки и толстые линии через 8 или 6 пикселей по направлению упаковки, подсказка через `IPacker.Locate`, рисование ЛКМ/ПКМ (N-08), события штриха для `EditHistory`.
 - `GlyphTableControl` — 16×16 с подписями кодов; пустые и изменённые вручную символы различимы.
 - `CodeView` — AvalonEdit только для чтения, моноширинный шрифт, подсветка диапазона по `ByteSpanMap`; подвкладки `.c`/`.h`, hex-дамп для BIN (N-17).
+- `TextBoxCommit` — attached-свойства `Command` и `CommandParameter` на `TextBox`. По Enter и при потере фокуса сразу передаёт текст привязки, не дожидаясь задержки 400 мс, и выполняет команду. Поля смещения X/Y так возвращают последнее допустимое значение (N-65).
 - `WpfGlyphOutlineProvider` — **не в приложении, а в сборке `Image2Gdram.Fonts.Wpf`** (раздел 3.5, N-48); приложение создаёт его и `GlyphOutlineCache` и передаёт в `TrueTypeGlyphSource`. `App.OnStartup` регистрирует провайдер кодовых страниц (D-16, N-49).
 
 ---
