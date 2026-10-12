@@ -160,6 +160,7 @@ public sealed partial class ImageConverterViewModel
                 _suppress = outer;
             }
 
+            RefreshCommands();
             if (outer)
             {
                 return;

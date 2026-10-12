@@ -270,7 +270,8 @@ Languages/ (рядом с exe)   дополнительные словари, в
 - `PixelGridControl` — рисование в `WriteableBitmap` (не элемент на пиксель), `BitmapScalingMode=NearestNeighbor`, масштаб 1–32 и «по размеру окна» (N-24), линии сетки и толстые линии через 8 или 6 пикселей по направлению упаковки, подсказка через `IPacker.Locate`, рисование ЛКМ/ПКМ (N-08), события штриха для `EditHistory`.
 - `GlyphTableControl` — 16×16 с подписями кодов; пустые и изменённые вручную символы различимы.
 - `CodeView` — AvalonEdit только для чтения, моноширинный шрифт, подсветка диапазона по `ByteSpanMap`; строка подвкладок с кнопками копирования и сохранения; подвкладки `.c`/`.h`, hex-дамп для BIN (N-17, N-66).
-- `TextBoxCommit` — attached-свойства `Command` и `CommandParameter` на `TextBox`. По Enter и при потере фокуса сразу передаёт текст привязки, не дожидаясь задержки 400 мс, и выполняет команду. Поля смещения X/Y так возвращают последнее допустимое значение (N-65).
+- `TextBoxCommit` — attached-свойства `Command`, `CommandParameter` и `Flush` на `TextBox`. По Enter и при потере фокуса сразу передаёт текст привязки, не дожидаясь задержки 400 мс. Если задана команда, она выполняется: поля смещения X/Y так возвращают последнее допустимое значение (N-65). `Flush` делает только передачу текста, без команды: так кнопки порога видят число, набранное раньше задержки (N-68).
+- Команды порога `DecreaseThreshold` / `IncreaseThreshold`, `DecreaseGlyphThreshold` / `IncreaseGlyphThreshold`, `DecreaseSheetThreshold` / `IncreaseSheetThreshold` пишут в публичный сеттер с шагом 1 в диапазоне 0…255 (N-68).
 - `WpfGlyphOutlineProvider` — **не в приложении, а в сборке `Image2Gdram.Fonts.Wpf`** (раздел 3.5, N-48); приложение создаёт его и `GlyphOutlineCache` и передаёт в `TrueTypeGlyphSource`. `App.OnStartup` регистрирует провайдер кодовых страниц (D-16, N-49).
 
 ---

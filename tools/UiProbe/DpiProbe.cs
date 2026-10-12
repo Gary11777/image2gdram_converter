@@ -28,6 +28,7 @@ internal static class DpiProbe
         session.Model.Image.LoadDecoded(session.Decoder.Decode(pattern), pattern, resetFrame: true, userAction: false);
         session.Model.Image.Presets.Selected = session.Model.Image.Presets.Items.First(item => item.Preset?.Name == "WG240128A");
         session.Model.Font.SourceKind = FontSourceKind.TrueType;
+        session.Model.Font.RenderMode = GlyphRenderMode.Antialiased;
         session.Model.Font.Family = "Consolas";
         session.Model.Font.Cell = FontCellSize.Cell8x8;
         await Task.Delay(1500);
@@ -75,6 +76,31 @@ internal static class DpiProbe
             }
         }
 
+        session.Model.SelectedTab = 1;
+        session.Model.Font.SourceKind = FontSourceKind.Sheet;
+        VisualTreeHelper.SetRootDpi(content, new DpiScale(2, 2));
+        content.Measure(client);
+        content.Arrange(new Rect(client));
+        content.UpdateLayout();
+        await Program.Idle(DispatcherPriority.ApplicationIdle);
+        content.UpdateLayout();
+        List<string> sheetClipped = Clipped(content);
+        ok &= sheetClipped.Count == 0;
+        report.AppendLine(CultureInfo.InvariantCulture, $"| 2, лист | 200 % | {(int)Math.Ceiling(client.Width * 2)}x{(int)Math.Ceiling(client.Height * 2)} | {sheetClipped.Count} | tab2_sheet_200.png |");
+        foreach (string item in sheetClipped)
+        {
+            details.AppendLine(CultureInfo.InvariantCulture, $"- вкладка 2, лист, 200 %: {item}");
+        }
+
+        int sheetWidth = (int)Math.Ceiling(client.Width * 2);
+        int sheetHeight = (int)Math.Ceiling(client.Height * 2);
+        var sheetBitmap = new RenderTargetBitmap(sheetWidth, sheetHeight, 96 * 2, 96 * 2, PixelFormats.Pbgra32);
+        sheetBitmap.Render(new Background(client));
+        sheetBitmap.Render(content);
+        Save(sheetBitmap, Path.Combine(output, "tab2_sheet_200.png"));
+        session.Model.Font.SourceKind = FontSourceKind.TrueType;
+        session.Model.Font.RenderMode = GlyphRenderMode.Antialiased;
+
         content.ClearValue(FrameworkElement.DataContextProperty);
         session.Window.Content = content;
         session.Window.Width = 1024;
@@ -96,6 +122,23 @@ internal static class DpiProbe
             shot.Render(content);
             Save(shot, Path.Combine(output, FormattableString.Invariant($"window_tab{tab + 1}.png")));
         }
+
+        session.Model.SelectedTab = 1;
+        session.Model.Font.SourceKind = FontSourceKind.Sheet;
+        await Task.Delay(500);
+        await Program.Idle(DispatcherPriority.ApplicationIdle);
+        double sheetSystem = VisualTreeHelper.GetDpi(content).DpiScaleX;
+        var sheetShot = new RenderTargetBitmap(
+            (int)Math.Ceiling(content.ActualWidth * sheetSystem),
+            (int)Math.Ceiling(content.ActualHeight * sheetSystem),
+            96 * sheetSystem,
+            96 * sheetSystem,
+            PixelFormats.Pbgra32);
+        sheetShot.Render(new Background(new Size(content.ActualWidth, content.ActualHeight)));
+        sheetShot.Render(content);
+        Save(sheetShot, Path.Combine(output, "window_tab2_sheet.png"));
+        session.Model.Font.SourceKind = FontSourceKind.TrueType;
+        session.Model.Font.RenderMode = GlyphRenderMode.Antialiased;
 
         session.Window.Hide();
         report.AppendLine();
