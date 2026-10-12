@@ -60,6 +60,8 @@ public sealed partial class ImageConverterViewModel : ObservableValidator, ICode
     private string _offsetYText = "0";
     private ResampleMode _resample = ResampleMode.AreaAverage;
     private BinarizeMode _binarize = BinarizeMode.Threshold;
+    private const int MinThreshold = 0;
+    private const int MaxThreshold = 255;
     private int _threshold = ProcessingOptions.DefaultThreshold;
     private string _thresholdText = "128";
 
@@ -394,6 +396,7 @@ public sealed partial class ImageConverterViewModel : ObservableValidator, ICode
         OnPropertyChanged(string.Empty);
         ValidateAllProperties();
         NotifyDerived();
+        RefreshCommands();
         if (schedule)
         {
             Schedule();
@@ -569,6 +572,28 @@ public sealed partial class ImageConverterViewModel : ObservableValidator, ICode
     }
 
     public Task OpenPath(string path) => LoadPathAsync(path);
+
+    [RelayCommand(CanExecute = nameof(CanDecreaseThreshold))]
+    private void DecreaseThreshold()
+    {
+        if (CanDecreaseThreshold())
+        {
+            Threshold = _threshold - 1;
+        }
+    }
+
+    private bool CanDecreaseThreshold() => _threshold > MinThreshold;
+
+    [RelayCommand(CanExecute = nameof(CanIncreaseThreshold))]
+    private void IncreaseThreshold()
+    {
+        if (CanIncreaseThreshold())
+        {
+            Threshold = _threshold + 1;
+        }
+    }
+
+    private bool CanIncreaseThreshold() => _threshold < MaxThreshold;
 
     [RelayCommand(CanExecute = nameof(CanUndo))]
     private void Undo()
@@ -1181,6 +1206,8 @@ public sealed partial class ImageConverterViewModel : ObservableValidator, ICode
         CopyCommand.NotifyCanExecuteChanged();
         SaveOutputCommand.NotifyCanExecuteChanged();
         OpenImageCommand.NotifyCanExecuteChanged();
+        DecreaseThresholdCommand.NotifyCanExecuteChanged();
+        IncreaseThresholdCommand.NotifyCanExecuteChanged();
     }
 
     private string? FirstError()

@@ -175,11 +175,24 @@
                     </Grid.ColumnDefinitions>
                     <TextBlock Style="{StaticResource Field}" Text="{DynamicResource Label.Threshold}"/>
                     <DockPanel Grid.Column="1">
-                        <TextBox Width="64" DockPanel.Dock="Right" Margin="6,0,0,0">
+                        <TextBox Width="64" DockPanel.Dock="Right" Margin="6,0,0,0"
+                                 controls:TextBoxCommit.Flush="True">
                             <TextBox.Text>
                                 <Binding Path="ThresholdText" UpdateSourceTrigger="PropertyChanged" Delay="400"/>
                             </TextBox.Text>
                         </TextBox>
+                        <Button DockPanel.Dock="Right" Margin="4,0,0,0" MinWidth="22" Padding="0" VerticalAlignment="Center"
+                                IsTabStop="False"
+                                Content="{DynamicResource Button.ThresholdIncrease}"
+                                ToolTip="{DynamicResource Tip.ThresholdIncrease}"
+                                AutomationProperties.Name="{DynamicResource Tip.ThresholdIncrease}"
+                                Command="{Binding IncreaseThresholdCommand}"/>
+                        <Button DockPanel.Dock="Left" Margin="0,0,4,0" MinWidth="22" Padding="0" VerticalAlignment="Center"
+                                IsTabStop="False"
+                                Content="{DynamicResource Button.ThresholdDecrease}"
+                                ToolTip="{DynamicResource Tip.ThresholdDecrease}"
+                                AutomationProperties.Name="{DynamicResource Tip.ThresholdDecrease}"
+                                Command="{Binding DecreaseThresholdCommand}"/>
                         <Slider Minimum="0" Maximum="255" TickFrequency="1" IsSnapToTickEnabled="True"
                                 Value="{Binding Threshold, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                 VerticalAlignment="Center"/>

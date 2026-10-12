@@ -204,6 +204,7 @@ public sealed partial class FontGeneratorViewModel
             }
 
             SyncText(ref _glyphThresholdText, value, nameof(GlyphThresholdText));
+            RefreshCommands();
             if (!_suppress)
             {
                 Commit(preset: false, source: true);
@@ -349,6 +350,7 @@ public sealed partial class FontGeneratorViewModel
             }
 
             SyncText(ref _sheetThresholdText, value, nameof(SheetThresholdText));
+            RefreshCommands();
             if (!_suppress)
             {
                 Commit(preset: false, source: true);

@@ -89,6 +89,8 @@ public sealed partial class FontGeneratorViewModel : ObservableValidator, ICodeS
     private string _offsetXText = "0";
     private string _offsetYText = "0";
     private GlyphRenderMode _renderMode = GlyphRenderMode.Antialiased;
+    private const int MinThreshold = 0;
+    private const int MaxThreshold = 255;
     private int _glyphThreshold = 128;
     private string _glyphThresholdText = "128";
     private int _sheetWidth = 6;
@@ -510,6 +512,50 @@ public sealed partial class FontGeneratorViewModel : ObservableValidator, ICodeS
         }
     }
 
+    [RelayCommand(CanExecute = nameof(CanDecreaseGlyphThreshold))]
+    private void DecreaseGlyphThreshold()
+    {
+        if (CanDecreaseGlyphThreshold())
+        {
+            GlyphThreshold = _glyphThreshold - 1;
+        }
+    }
+
+    private bool CanDecreaseGlyphThreshold() => _glyphThreshold > MinThreshold;
+
+    [RelayCommand(CanExecute = nameof(CanIncreaseGlyphThreshold))]
+    private void IncreaseGlyphThreshold()
+    {
+        if (CanIncreaseGlyphThreshold())
+        {
+            GlyphThreshold = _glyphThreshold + 1;
+        }
+    }
+
+    private bool CanIncreaseGlyphThreshold() => _glyphThreshold < MaxThreshold;
+
+    [RelayCommand(CanExecute = nameof(CanDecreaseSheetThreshold))]
+    private void DecreaseSheetThreshold()
+    {
+        if (CanDecreaseSheetThreshold())
+        {
+            SheetThreshold = _sheetThreshold - 1;
+        }
+    }
+
+    private bool CanDecreaseSheetThreshold() => _sheetThreshold > MinThreshold;
+
+    [RelayCommand(CanExecute = nameof(CanIncreaseSheetThreshold))]
+    private void IncreaseSheetThreshold()
+    {
+        if (CanIncreaseSheetThreshold())
+        {
+            SheetThreshold = _sheetThreshold + 1;
+        }
+    }
+
+    private bool CanIncreaseSheetThreshold() => _sheetThreshold < MaxThreshold;
+
     [RelayCommand(CanExecute = nameof(CanUndo))]
     private void Undo()
     {
@@ -822,6 +868,7 @@ public sealed partial class FontGeneratorViewModel : ObservableValidator, ICodeS
         OnPropertyChanged(string.Empty);
         ValidateAllProperties();
         NotifyDerived();
+        RefreshCommands();
     }
 
     private void ApplyParsedImport(string path, IReadOnlyList<ImportedArray> arrays)
@@ -1412,6 +1459,10 @@ public sealed partial class FontGeneratorViewModel : ObservableValidator, ICodeS
         OnPropertyChanged(nameof(CanSaveOutput));
         CopyCommand.NotifyCanExecuteChanged();
         SaveOutputCommand.NotifyCanExecuteChanged();
+        DecreaseGlyphThresholdCommand.NotifyCanExecuteChanged();
+        IncreaseGlyphThresholdCommand.NotifyCanExecuteChanged();
+        DecreaseSheetThresholdCommand.NotifyCanExecuteChanged();
+        IncreaseSheetThresholdCommand.NotifyCanExecuteChanged();
     }
 
     private string? FirstError()

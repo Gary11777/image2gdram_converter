@@ -6,8 +6,9 @@ using System.Windows.Input;
 namespace image2gdram_converter.Controls;
 
 /// <summary>
-/// По Enter и при потере фокуса сразу отдаёт текст привязки и выполняет команду.
-/// Поля смещения так не ждут задержку 400 мс (N-65).
+/// По Enter и при потере фокуса сразу отдаёт текст привязки.
+/// С командой — ещё и выполняет её: поля смещения так не ждут задержку 400 мс (N-65).
+/// <see cref="FlushProperty"/> делает то же без команды, чтобы кнопки порога видели набранное число (N-68).
 /// </summary>
 public static class TextBoxCommit
 {
@@ -15,13 +16,19 @@ public static class TextBoxCommit
         "Command",
         typeof(ICommand),
         typeof(TextBoxCommit),
-        new PropertyMetadata(null, OnCommandChanged));
+        new PropertyMetadata(null, OnHookChanged));
 
     public static readonly DependencyProperty CommandParameterProperty = DependencyProperty.RegisterAttached(
         "CommandParameter",
         typeof(object),
         typeof(TextBoxCommit),
         new PropertyMetadata(null));
+
+    public static readonly DependencyProperty FlushProperty = DependencyProperty.RegisterAttached(
+        "Flush",
+        typeof(bool),
+        typeof(TextBoxCommit),
+        new PropertyMetadata(false, OnHookChanged));
 
     public static ICommand? GetCommand(DependencyObject element) => (ICommand?)element.GetValue(CommandProperty);
 
@@ -32,20 +39,20 @@ public static class TextBoxCommit
     public static void SetCommandParameter(DependencyObject element, object? value) =>
         element.SetValue(CommandParameterProperty, value);
 
-    private static void OnCommandChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+    public static bool GetFlush(DependencyObject element) => (bool)element.GetValue(FlushProperty);
+
+    public static void SetFlush(DependencyObject element, bool value) => element.SetValue(FlushProperty, value);
+
+    private static void OnHookChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
         if (d is not TextBox textBox)
         {
             return;
         }
 
-        if (e.OldValue is not null)
-        {
-            textBox.LostKeyboardFocus -= OnLostKeyboardFocus;
-            textBox.PreviewKeyDown -= OnPreviewKeyDown;
-        }
-
-        if (e.NewValue is not null)
+        textBox.LostKeyboardFocus -= OnLostKeyboardFocus;
+        textBox.PreviewKeyDown -= OnPreviewKeyDown;
+        if (GetCommand(textBox) is not null || GetFlush(textBox))
         {
             textBox.LostKeyboardFocus += OnLostKeyboardFocus;
             textBox.PreviewKeyDown += OnPreviewKeyDown;

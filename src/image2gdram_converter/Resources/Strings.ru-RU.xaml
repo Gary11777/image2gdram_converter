@@ -257,6 +257,10 @@
     <sys:String x:Key="Button.OpenImport">Импорт массива...</sys:String>
     <sys:String x:Key="Button.ClearGlyph">Очистить</sys:String>
     <sys:String x:Key="Button.InvertGlyph">Инверсия</sys:String>
+    <sys:String x:Key="Button.ThresholdDecrease">-</sys:String>
+    <sys:String x:Key="Button.ThresholdIncrease">+</sys:String>
+    <sys:String x:Key="Tip.ThresholdDecrease">Уменьшить порог на 1</sys:String>
+    <sys:String x:Key="Tip.ThresholdIncrease">Увеличить порог на 1</sys:String>
     <sys:String x:Key="Button.ShiftLeft">Влево</sys:String>
     <sys:String x:Key="Button.ShiftRight">Вправо</sys:String>
     <sys:String x:Key="Button.ShiftUp">Вверх</sys:String>
