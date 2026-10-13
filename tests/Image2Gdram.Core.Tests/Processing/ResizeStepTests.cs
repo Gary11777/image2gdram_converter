@@ -79,12 +79,35 @@ public class ResizeStepTests
     public void Offset_shifts_and_clips()
     {
         RgbaImage source = ProcessingTestImages.Solid(2, 2, 7, 0, 0);
-        RgbaImage shifted = Resize(source, 4, 4, FitMode.None, Alignment.TopLeft, BackgroundColor.White, offsetX: 1, offsetY: -1);
+        RgbaImage shifted = Resize(source, 4, 4, FitMode.None, Alignment.TopLeft, BackgroundColor.White, offsetX: 1, offsetY: 1);
 
+        // Положительное смещение Y — вверх (N-69): содержимое ушло на строку вверх и обрезалось сверху.
         shifted.GetPixel(1, 0, out byte r, out _, out _, out _);
         Assert.Equal(7, r);
+        shifted.GetPixel(1, 1, out r, out _, out _, out _);
+        Assert.Equal(255, r);
         shifted.GetPixel(0, 0, out r, out _, out _, out _);
         Assert.Equal(255, r);
+    }
+
+    [Theory]
+    [InlineData(-2, 5)]
+    [InlineData(2, 1)]
+    public void Positive_offset_y_moves_up_and_negative_moves_down(int offsetY, int firstContentRow)
+    {
+        RgbaImage source = ProcessingTestImages.Solid(2, 2, 7, 0, 0);
+        RgbaImage result = Resize(source, 4, 8, FitMode.None, Alignment.Center, BackgroundColor.White, offsetY: offsetY);
+
+        // Исходная позиция при Center на холсте 4x8 — столбцы 1-2, строки 3-4; Y > 0 — вверх, Y < 0 — вниз (N-69).
+        for (int y = 0; y < 8; y++)
+        {
+            for (int x = 0; x < 4; x++)
+            {
+                result.GetPixel(x, y, out byte r, out _, out _, out _);
+                bool content = x is 1 or 2 && y >= firstContentRow && y < firstContentRow + 2;
+                Assert.Equal(content ? (byte)7 : (byte)255, r);
+            }
+        }
     }
 
     [Fact]

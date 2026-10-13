@@ -156,6 +156,42 @@ public class ImagePipelineTests
     }
 
     [Fact]
+    public void Negative_offset_y_moves_the_picture_down()
+    {
+        var source = new RgbaImage(4, 16);
+        for (int y = 0; y < 16; y++)
+        {
+            for (int x = 0; x < 4; x++)
+            {
+                source.SetPixel(x, y, (byte)(y * 16), 0, 0, 255);
+            }
+        }
+
+        var options = new ProcessingOptions
+        {
+            TargetWidth = 4,
+            TargetHeight = 16,
+            Fit = FitMode.None,
+            Resample = ResampleMode.NearestNeighbor,
+            Binarize = BinarizeMode.Threshold,
+            Threshold = 128,
+            Alignment = Alignment.TopLeft,
+        };
+
+        MonoBitmap zero = _pipeline.Run(source, options);
+        MonoBitmap shifted = _pipeline.Run(source, options with { OffsetY = -10 });
+
+        // Y < 0 — вниз (N-69): строка y равна строке y - 10 при смещении 0, верхние 10 строк — фон.
+        for (int y = 0; y < 16; y++)
+        {
+            for (int x = 0; x < 4; x++)
+            {
+                Assert.Equal(y >= 10 && zero[x, y - 10], shifted[x, y]);
+            }
+        }
+    }
+
+    [Fact]
     public void Invalid_manual_size_and_threshold_are_rejected()
     {
         RgbaImage source = ProcessingTestImages.Solid(2, 2, 0, 0, 0);

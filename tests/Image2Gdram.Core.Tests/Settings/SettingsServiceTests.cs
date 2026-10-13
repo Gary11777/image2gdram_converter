@@ -52,7 +52,7 @@ public sealed class SettingsServiceTests : IDisposable
         string text = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true).GetString(first);
         Assert.Contains("\u041f\u0440\u0438\u0432\u0435\u0442", text, StringComparison.Ordinal);
         Assert.DoesNotContain("\\u041F", text, StringComparison.Ordinal);
-        Assert.Contains("\"formatVersion\": 1", text, StringComparison.Ordinal);
+        Assert.Contains("\"formatVersion\": 2", text, StringComparison.Ordinal);
         Assert.Contains("\"direction\": \"Horizontal\"", text, StringComparison.Ordinal);
         Assert.Contains("\"colorScheme\": \"Lcd\"", text, StringComparison.Ordinal);
         Assert.DoesNotContain("generatedAt", text, StringComparison.OrdinalIgnoreCase);
@@ -90,11 +90,103 @@ public sealed class SettingsServiceTests : IDisposable
         Assert.Equal(AppSettings.DefaultLanguage, broken.Settings.Language);
         Assert.Equal("{", File.ReadAllText(service.FilePath));
 
-        File.WriteAllText(service.FilePath, original.Replace("\"formatVersion\": 1", "\"formatVersion\": 2", StringComparison.Ordinal));
-        Assert.NotNull(service.Load().Diagnostic);
+        foreach (string unsupported in new[] { "3", "9" })
+        {
+            File.WriteAllText(service.FilePath, original.Replace("\"formatVersion\": 2", $"\"formatVersion\": {unsupported}", StringComparison.Ordinal));
+            SettingsLoadResult unsupportedResult = service.Load();
+            Assert.NotNull(unsupportedResult.Diagnostic);
+            Assert.Equal(DiagnosticCode.SettingsFileReset, unsupportedResult.Diagnostic!.Code);
+        }
 
         File.WriteAllText(service.FilePath, original.Replace("\"Oled\"", "0", StringComparison.Ordinal));
         Assert.NotNull(service.Load().Diagnostic);
+    }
+
+    [Fact]
+    public void Legacy_version_1_flips_offset_y_and_keeps_offset_x()
+    {
+        SettingsService service = Service();
+        AppSettings settings = AppSettings.CreateDefault();
+        settings.Image = settings.Image with
+        {
+            Parameters = settings.Image.Parameters with
+            {
+                Processing = settings.Image.Parameters.Processing with { OffsetX = -4, OffsetY = 6 },
+            },
+        };
+        settings.Font = settings.Font with
+        {
+            Parameters = settings.Font.Parameters with { GlyphOffsetX = -3, GlyphOffsetY = 5 },
+        };
+        service.Save(settings);
+        DowngradeToVersion1(service.FilePath);
+
+        SettingsLoadResult loaded = service.Load();
+
+        // Версия 1 хранила Y по экранным осям: знак меняется при чтении (N-69), X не трогается.
+        Assert.Null(loaded.Diagnostic);
+        Assert.Equal(-6, loaded.Settings.Image.Parameters.Processing.OffsetY);
+        Assert.Equal(-5, loaded.Settings.Font.Parameters.GlyphOffsetY);
+        Assert.Equal(-4, loaded.Settings.Image.Parameters.Processing.OffsetX);
+        Assert.Equal(-3, loaded.Settings.Font.Parameters.GlyphOffsetX);
+    }
+
+    [Theory]
+    [InlineData(0, 0, 0, 0)]
+    [InlineData(-1024, 1024, 32, -32)]
+    public void Legacy_version_1_flips_zero_and_boundary_offsets(int imageStored, int imageExpected, int glyphStored, int glyphExpected)
+    {
+        SettingsService service = Service();
+        AppSettings settings = AppSettings.CreateDefault();
+        settings.Image = settings.Image with
+        {
+            Parameters = settings.Image.Parameters with
+            {
+                Processing = settings.Image.Parameters.Processing with { OffsetY = imageStored },
+            },
+        };
+        settings.Font = settings.Font with
+        {
+            Parameters = settings.Font.Parameters with { GlyphOffsetY = glyphStored },
+        };
+        service.Save(settings);
+        DowngradeToVersion1(service.FilePath);
+
+        SettingsLoadResult loaded = service.Load();
+
+        Assert.Null(loaded.Diagnostic);
+        Assert.Equal(imageExpected, loaded.Settings.Image.Parameters.Processing.OffsetY);
+        Assert.Equal(glyphExpected, loaded.Settings.Font.Parameters.GlyphOffsetY);
+    }
+
+    [Fact]
+    public void Version_2_roundtrip_keeps_the_sign_and_writes_version_2()
+    {
+        SettingsService service = Service();
+        AppSettings settings = AppSettings.CreateDefault();
+        settings.Image = settings.Image with
+        {
+            Parameters = settings.Image.Parameters with
+            {
+                Processing = settings.Image.Parameters.Processing with { OffsetY = 6 },
+            },
+        };
+        settings.Font = settings.Font with
+        {
+            Parameters = settings.Font.Parameters with { GlyphOffsetY = 5 },
+        };
+        service.Save(settings);
+
+        SettingsLoadResult loaded = service.Load();
+        Assert.Null(loaded.Diagnostic);
+        Assert.Equal(6, loaded.Settings.Image.Parameters.Processing.OffsetY);
+        Assert.Equal(5, loaded.Settings.Font.Parameters.GlyphOffsetY);
+
+        service.Save(loaded.Settings);
+        string text = File.ReadAllText(service.FilePath);
+        Assert.Contains("\"formatVersion\": 2", text, StringComparison.Ordinal);
+        Assert.Contains("\"offsetY\": 6", text, StringComparison.Ordinal);
+        Assert.Contains("\"glyphOffsetY\": 5", text, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -169,6 +261,12 @@ public sealed class SettingsServiceTests : IDisposable
     }
 
     private SettingsService Service() => new(Path.Combine(_root, "exe"), Path.Combine(_root, "appdata"));
+
+    private static void DowngradeToVersion1(string path)
+    {
+        string text = File.ReadAllText(path);
+        File.WriteAllText(path, text.Replace("\"formatVersion\": 2", "\"formatVersion\": 1", StringComparison.Ordinal));
+    }
 
     private AppSettings Sample()
     {

@@ -34,7 +34,8 @@ public static class ResizeStep
         byte bg = BackgroundCompositor.BackgroundValue(background);
         var canvas = new RgbaImage(targetWidth, targetHeight, bg, bg, bg, 255);
         (int originX, int originY) = GetOrigin(alignment, targetWidth, targetHeight, content.Width, content.Height);
-        Blit(content, canvas, originX + offsetX, originY + offsetY, cancellationToken);
+        // Смещение Y: положительное — вверх, отрицательное — вниз (N-69).
+        Blit(content, canvas, originX + offsetX, originY - offsetY, cancellationToken);
         return canvas;
     }
 

@@ -1,5 +1,7 @@
 # Image2GDRAM Converter 1.0
 
+Текущая версия: 0.1.5 (2026-10-13). История изменений — `docs/changelog.md`.
+
 Программа для Windows превращает изображение или набор символов в массив байтов видеопамяти монохромного дисплея (GDRAM). На выходе — исходный текст C для Keil C51 и для STM32, модуль или фрагмент A51, либо двоичный файл BIN.
 
 Целевые модули: WG240128A (T6963C), W0240128 (UC1608), RG12864F (NT7108), RET012864DGPP3N (SSD1305), OLED128X64-0.96 (SSD1306), HT1.3-OLED-BW / HR0161 (SH1106).
@@ -44,7 +46,7 @@ dotnet run --project src/image2gdram_converter -c Release
 
 Команда публикует один самодостаточный файл `publish\image2gdram_converter.exe` для Windows x64. Установленный .NET на машине пользователя не нужен. При первом закрытии программа создаёт `settings.json` рядом с exe. Если папка exe недоступна для записи, настройки пишутся в `%APPDATA%\ImageIU\settings.json`.
 
-Версия сборки — 1.0.0, имя продукта — Image2GDRAM Converter.
+Версия выпуска — 0.1.5. В свойствах exe и в заголовке генерируемых файлов указана версия продукта по ТЗ — 1.0 (FileVersion 1.0.0.0), имя продукта — Image2GDRAM Converter.
 
 Для разработки — пересборка, обновление exe в `publish\` и запуск одной командой:
 
@@ -74,6 +76,7 @@ dotnet run --project tools/TestAssetsGenerator -c Release
 | `docs/output_formats.md` | Форматы вывода и примеры для пресетов |
 | `docs/pmi.md` | Программа и методика испытаний |
 | `docs/decisions.md` | Решения по неоднозначностям ТЗ |
+| `docs/changelog.md` | История изменений |
 | `specification.md` | Техническое задание |
 
 ## Лицензии зависимостей

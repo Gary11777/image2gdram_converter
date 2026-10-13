@@ -1,5 +1,6 @@
 using Image2Gdram.Core.Imaging;
 using Image2Gdram.Core.Output;
+using Image2Gdram.Core.Processing;
 using Image2Gdram.Core.Settings;
 using image2gdram_converter;
 using image2gdram_converter.Services;
@@ -191,6 +192,39 @@ public class MainViewModelTests : IDisposable
     }
 
     [Fact]
+    public void Project_saved_by_an_old_version_opens_with_the_flipped_offset_y_and_the_same_picture()
+    {
+        string image = Path.Combine(_directory, "pic.png");
+        File.WriteAllBytes(image, new byte[] { 0 });
+        var decoder = new MapDecoder();
+        decoder.Add(image, Stripes());
+        string project = Path.Combine(_directory, "old.iiu");
+        MainViewModel first = Create(new FakeDialogs(), files: new FakeFiles { NextSaveProject = project }, decoder: decoder);
+        first.Image.LoadDecoded(decoder.Decode(image), image, true, true);
+        first.Image.SizeMode = TargetSizeMode.MatchSource;
+        first.Image.OffsetYText = "10";
+        first.SaveProjectCommand.Execute(null);
+
+        // Файл версии 0.1.4: formatVersion 1, смещение Y по экранным осям (10 — вниз).
+        string text = File.ReadAllText(project);
+        File.WriteAllText(project, text.Replace("\"formatVersion\": 2", "\"formatVersion\": 1", StringComparison.Ordinal));
+
+        MainViewModel second = Create(new FakeDialogs(), files: new FakeFiles { NextOpenProject = project }, decoder: decoder);
+        second.OpenProjectCommand.Execute(null);
+
+        Assert.Equal("-10", second.Image.OffsetYText);
+        Assert.Equal(-10, second.Image.ToParameters().Processing.OffsetY);
+
+        // Картинка на прежнем месте: как с полем «-10» (10 вниз), а не «10» (10 вверх).
+        MainViewModel reference = Create(new FakeDialogs(), decoder: decoder);
+        reference.Image.LoadDecoded(decoder.Decode(image), image, true, true);
+        reference.Image.SizeMode = TargetSizeMode.MatchSource;
+        reference.Image.OffsetYText = "-10";
+        Assert.True(reference.Image.Preview!.ContentEquals(second.Image.Preview!));
+        Assert.True(second.TryClose());
+    }
+
+    [Fact]
     public void Startup_note_is_shown_in_the_status_bar()
     {
         MainViewModel main = Create(new FakeDialogs(), startupNote: "Словарь en-US не найден");
@@ -211,6 +245,20 @@ public class MainViewModelTests : IDisposable
 
     private static DecodedImage White() =>
         new(ImageFileFormat.Png, new[] { new RgbaImage(8, 8, 255, 255, 255, 255) });
+
+    private static DecodedImage Stripes()
+    {
+        var image = new RgbaImage(16, 16, 255, 255, 255, 255);
+        for (int y = 0; y < 8; y++)
+        {
+            for (int x = 0; x < 16; x++)
+            {
+                image.SetPixel(x, y, 0, 0, 0, 255);
+            }
+        }
+
+        return new DecodedImage(ImageFileFormat.Png, new[] { image });
+    }
 
     private MainViewModel Create(
         FakeDialogs dialogs,

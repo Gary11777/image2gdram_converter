@@ -65,8 +65,27 @@ public class TrueTypeGlyphSourceTests
         {
             for (int x = 0; x < 6; x++)
             {
-                bool expected = x - offsetX is 0 or 1 && y - offsetY is 4 or 5;
+                bool expected = x - offsetX is 0 or 1 && y + offsetY is 4 or 5;
                 Assert.Equal(expected, glyph[x, y]);
+            }
+        }
+    }
+
+    [Fact]
+    public void Negative_offset_y_moves_the_glyph_down()
+    {
+        MonoBitmap down = Source(new FakeOutlineProvider(), o => o with { OffsetY = -1 })
+            .Render(FontCellSize.Cell6x8, CharRangeSet.Default).Glyphs.Get('A')!;
+        MonoBitmap up = Source(new FakeOutlineProvider(), o => o with { OffsetY = 1 })
+            .Render(FontCellSize.Cell6x8, CharRangeSet.Default).Glyphs.Get('A')!;
+
+        // Без смещения квадрат 2x2 занимает строки 4-5; минус — вниз, плюс — вверх (N-69).
+        for (int y = 0; y < 8; y++)
+        {
+            for (int x = 0; x < 6; x++)
+            {
+                Assert.Equal(x is 0 or 1 && y is 5 or 6, down[x, y]);
+                Assert.Equal(x is 0 or 1 && y is 3 or 4, up[x, y]);
             }
         }
     }
