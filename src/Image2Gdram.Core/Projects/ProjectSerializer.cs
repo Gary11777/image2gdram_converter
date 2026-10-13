@@ -49,9 +49,14 @@ public static class ProjectSerializer
             throw new ProjectException(ProjectError.Corrupt, full, ex);
         }
 
-        if (dto.FormatVersion != ProjectDocument.FormatVersion)
+        if (dto.FormatVersion != ProjectDocument.FormatVersion && dto.FormatVersion != LegacyMigration.ScreenAxesOffsetYVersion)
         {
             throw new ProjectException(ProjectError.UnsupportedVersion, full);
+        }
+
+        if (dto.FormatVersion == LegacyMigration.ScreenAxesOffsetYVersion)
+        {
+            LegacyMigration.FlipOffsetY(dto);
         }
 
         try

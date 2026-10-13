@@ -44,7 +44,7 @@ public sealed class ProjectSerializerTests : IDisposable
 
         Assert.False(first.AsSpan(0, 3).SequenceEqual(new byte[] { 0xEF, 0xBB, 0xBF }));
         string text = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true).GetString(first);
-        Assert.Contains("\"formatVersion\": 1", text, StringComparison.Ordinal);
+        Assert.Contains("\"formatVersion\": 2", text, StringComparison.Ordinal);
         Assert.Contains("\u041f\u0440\u0438\u0432\u0435\u0442", text, StringComparison.Ordinal);
         Assert.DoesNotContain("\\u041F", text, StringComparison.Ordinal);
         Assert.Contains("\"direction\": \"Horizontal\"", text, StringComparison.Ordinal);
@@ -122,14 +122,84 @@ public sealed class ProjectSerializerTests : IDisposable
 
         ProjectSerializer.Save(ProjectDocument.CreateDefault(), path);
         string original = File.ReadAllText(path);
-        File.WriteAllText(path, original.Replace("\"formatVersion\": 1", "\"formatVersion\": 9", StringComparison.Ordinal));
-        byte[] stored = File.ReadAllBytes(path);
-        ProjectException version = Assert.Throws<ProjectException>(() => ProjectSerializer.Load(path));
-        Assert.Equal(ProjectError.UnsupportedVersion, version.Error);
-        Assert.Equal(stored, File.ReadAllBytes(path));
+        foreach (string unsupported in new[] { "3", "9" })
+        {
+            File.WriteAllText(path, original.Replace("\"formatVersion\": 2", $"\"formatVersion\": {unsupported}", StringComparison.Ordinal));
+            byte[] stored = File.ReadAllBytes(path);
+            ProjectException version = Assert.Throws<ProjectException>(() => ProjectSerializer.Load(path));
+            Assert.Equal(ProjectError.UnsupportedVersion, version.Error);
+            Assert.Equal(stored, File.ReadAllBytes(path));
+        }
 
         ProjectException missing = Assert.Throws<ProjectException>(() => ProjectSerializer.Load(Path.Combine(_root, "no.iiu")));
         Assert.Equal(ProjectError.IoError, missing.Error);
+    }
+
+    [Fact]
+    public void Legacy_version_1_flips_offset_y_and_keeps_offset_x()
+    {
+        ProjectDocument project = Sample(
+            Path.Combine(_root, "logo.png"),
+            Path.Combine(_root, "sheet.png"),
+            Path.Combine(_root, "font.c"));
+        string path = Path.Combine(_root, "legacy.iiu");
+        ProjectSerializer.Save(project, path);
+        DowngradeToVersion1(path);
+
+        ProjectLoadResult loaded = ProjectSerializer.Load(path);
+
+        // Версия 1 хранила Y по экранным осям: знак меняется при чтении (N-69), X не трогается.
+        Assert.Equal(-6, loaded.Project.Image.Parameters.Processing.OffsetY);
+        Assert.Equal(-5, loaded.Project.Font.Parameters.GlyphOffsetY);
+        Assert.Equal(-4, loaded.Project.Image.Parameters.Processing.OffsetX);
+        Assert.Equal(-3, loaded.Project.Font.Parameters.GlyphOffsetX);
+    }
+
+    [Theory]
+    [InlineData(0, 0, 0, 0)]
+    [InlineData(-1024, 1024, 32, -32)]
+    public void Legacy_version_1_flips_zero_and_boundary_offsets(int imageStored, int imageExpected, int glyphStored, int glyphExpected)
+    {
+        var project = new ProjectDocument(
+            new ImageProjectTab(ImageTabParameters.CreateDefault() with
+            {
+                Processing = ProcessingOptions.Default with { OffsetY = imageStored },
+            }),
+            new FontProjectTab(
+                FontTabParameters.CreateDefault() with { GlyphOffsetY = glyphStored },
+                new FontTable(FontCellSize.Cell6x8)));
+        string path = Path.Combine(_root, "legacy-boundary.iiu");
+        ProjectSerializer.Save(project, path);
+        DowngradeToVersion1(path);
+
+        ProjectLoadResult loaded = ProjectSerializer.Load(path);
+
+        Assert.Equal(imageExpected, loaded.Project.Image.Parameters.Processing.OffsetY);
+        Assert.Equal(glyphExpected, loaded.Project.Font.Parameters.GlyphOffsetY);
+    }
+
+    [Fact]
+    public void Version_2_roundtrip_keeps_the_sign_and_writes_version_2()
+    {
+        ProjectDocument project = Sample(
+            Path.Combine(_root, "logo.png"),
+            Path.Combine(_root, "sheet.png"),
+            Path.Combine(_root, "font.c"));
+        string path = Path.Combine(_root, "v2.iiu");
+        ProjectSerializer.Save(project, path);
+
+        ProjectLoadResult loaded = ProjectSerializer.Load(path);
+
+        Assert.Equal(6, loaded.Project.Image.Parameters.Processing.OffsetY);
+        Assert.Equal(5, loaded.Project.Font.Parameters.GlyphOffsetY);
+        Assert.Equal(-4, loaded.Project.Image.Parameters.Processing.OffsetX);
+        Assert.Equal(-3, loaded.Project.Font.Parameters.GlyphOffsetX);
+
+        ProjectSerializer.Save(loaded.Project, path);
+        string text = File.ReadAllText(path);
+        Assert.Contains("\"formatVersion\": 2", text, StringComparison.Ordinal);
+        Assert.Contains("\"offsetY\": 6", text, StringComparison.Ordinal);
+        Assert.Contains("\"glyphOffsetY\": 5", text, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -143,6 +213,12 @@ public sealed class ProjectSerializerTests : IDisposable
 
         Assert.Throws<ArgumentException>(() => ProjectSerializer.Save(project, Path.Combine(_root, "mismatch.iiu")));
         Assert.False(File.Exists(Path.Combine(_root, "mismatch.iiu")));
+    }
+
+    private static void DowngradeToVersion1(string path)
+    {
+        string text = File.ReadAllText(path);
+        File.WriteAllText(path, text.Replace("\"formatVersion\": 2", "\"formatVersion\": 1", StringComparison.Ordinal));
     }
 
     private static ProjectDocument Sample(string imagePath, string sheetPath, string importPath)

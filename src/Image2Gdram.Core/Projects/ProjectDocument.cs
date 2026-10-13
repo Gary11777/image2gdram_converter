@@ -8,7 +8,7 @@ namespace Image2Gdram.Core.Projects;
 /// <summary>Содержимое проекта <c>.iiu</c> (решение N-16). Версия формата — <see cref="FormatVersion"/>.</summary>
 public sealed class ProjectDocument
 {
-    public const int FormatVersion = 1;
+    public const int FormatVersion = 2;
 
     public ProjectDocument(ImageProjectTab image, FontProjectTab font)
     {

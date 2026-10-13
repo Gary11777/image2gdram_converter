@@ -203,7 +203,7 @@ flowchart LR
 - `Image2Gdram.Core.Editing` — **сделано для штриха пикселей (этап 2) и символа шрифта (этап 4),** см. п. 3.2.1 и 3.5.
 - `Image2Gdram.Core.Presets` — **сделано (этап 5, N-53).** `ColorScheme` (`Lcd` / `Oled`), `Preset` (имя, контроллер, размер 1…1024, упаковка, схема, `IsBuiltIn`), `PresetCatalog.Shared` (ресурс `presets.json`, шесть пресетов D-01; «Пользовательский» в каталог не входит), `PresetBinding` и `PresetApplication` (картинка: размер, упаковка и схема; шрифт: упаковка и схема; пустой выбор значения не меняет), `UserPresetStore` (добавить, переименовать, удалить; встроенные неизменяемы), `PresetException`.
 - `Image2Gdram.Core.Settings` — **сделано (этап 5, N-25, N-53).** `ImageTabParameters`, `FontTabParameters`, `AppSettings` (язык, обе вкладки, пресеты, недавние файлы, папки), `SettingsPathResolver` (`AppContext.BaseDirectory`, иначе `%APPDATA%\ImageIU`), `SettingsService` (атомарная запись; повреждённый файл — умолчания и `SettingsFileReset`), `SettingsException`.
-- `Image2Gdram.Core.Projects` — **сделано (этап 5, N-16, N-53).** `ProjectDocument` (`formatVersion` 1, `ImageProjectTab`, `FontProjectTab`), `ProjectSerializer`. JSON через DTO, не через ViewModel: перечисления строками, UTF-8 без BOM. Путь исходника — абсолютный и относительный; при открытии сначала относительный. Нет файла — `ProjectSourceNotFound`, параметры и 256 символов всё равно читаются.
+- `Image2Gdram.Core.Projects` — **сделано (этап 5, N-16, N-53).** `ProjectDocument` (`formatVersion` 2, `ImageProjectTab`, `FontProjectTab`), `ProjectSerializer`. JSON через DTO, не через ViewModel: перечисления строками, UTF-8 без BOM. Путь исходника — абсолютный и относительный; при открытии сначала относительный. Нет файла — `ProjectSourceNotFound`, параметры и 256 символов всё равно читаются. Файлы версии 1 принимаются со сменой знака смещения Y (`LegacyMigration`, N-69).
 - `Image2Gdram.Core.Text` — **сделано (этапы 1, 3):** `ProductInfo` (константа «Image2GDRAM Converter 1.0», D-02), `RussianPlural` (`Select`, `Format`, `Bytes`, `Symbols`, `Frames`; D-04), `Cp1251` (N-45).
 - `Image2Gdram.Core.Diagnostics` — **сделано (этап 3):** `record Diagnostic(DiagnosticCode Code, DiagnosticSeverity Severity, IReadOnlyList<string> Arguments)`; коды `ArrayExceeds64KForC51`, `NonCp1251CharactersReplaced` (этап 3), `FontNotFound`, `GlyphsMissingInFont` (этап 4, часть 1), `SheetTooSmall`, `ImportValueCountMismatch` (этап 4, часть 2), `SettingsFileReset`, `ProjectSourceNotFound` (этап 5). Следующие этапы добавляют свои коды в конец того же перечисления.
 
@@ -303,8 +303,8 @@ sequenceDiagram
 Сделано на этапе 5 (N-16, N-25, N-53). ViewModel напрямую не сериализуются.
 
 - Встроенные пресеты — ресурс `Presets/presets.json` в Core (D-01). Пользовательские — массив в `settings.json`.
-- `settings.json` — рядом с программой (`AppContext.BaseDirectory`) или, если туда нельзя записать файл, в `%APPDATA%\ImageIU\settings.json`.
-- Проект `.iiu` — JSON UTF-8 без BOM, `formatVersion` 1. В нём обе вкладки, параметры, правки пикселей и все 256 символов.
+- `settings.json` — рядом с программой (`AppContext.BaseDirectory`) или, если туда нельзя записать файл, в `%APPDATA%\ImageIU\settings.json`. Версия формата 2; версия 1 принимается со сменой знака смещения Y (N-69).
+- Проект `.iiu` — JSON UTF-8 без BOM, `formatVersion` 2 (версия 1 принимается со сменой знака смещения Y, N-69). В нём обе вкладки, параметры, правки пикселей и все 256 символов.
 - Порядок полей в JSON — порядок свойств DTO. Списки, у которых есть естественный порядок (коды, кадры, точки), пишутся в этом порядке. `Dictionary` для файла не используется.
 
 ---

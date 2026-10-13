@@ -443,9 +443,14 @@ internal static class SettingsMapping
     public static AppSettings Read(byte[] content)
     {
         SettingsFileDto dto = JsonFormat.Parse<SettingsFileDto>(content);
-        if (dto.FormatVersion != AppSettings.FormatVersion)
+        if (dto.FormatVersion != AppSettings.FormatVersion && dto.FormatVersion != LegacyMigration.ScreenAxesOffsetYVersion)
         {
             throw new StoredDataException($"Settings version {dto.FormatVersion} is not supported.");
+        }
+
+        if (dto.FormatVersion == LegacyMigration.ScreenAxesOffsetYVersion)
+        {
+            LegacyMigration.FlipOffsetY(dto);
         }
 
         var store = new UserPresetStore(PresetCatalog.Shared);

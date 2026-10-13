@@ -22,7 +22,7 @@ public sealed record LastFolders
 /// </summary>
 public sealed class AppSettings
 {
-    public const int FormatVersion = 1;
+    public const int FormatVersion = 2;
     public const string DefaultLanguage = "ru-RU";
     public const int MaxRecentFiles = 10;
 
