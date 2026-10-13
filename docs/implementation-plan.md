@@ -15,15 +15,15 @@
 | Параметр | Значение |
 |---|---|
 | Последний завершённый этап | 10 — «Финальная проверка» (`completed`); все этапы раздела 13 завершены |
-| Текущий этап | нет: этапы раздела 13 завершены; доработка N-68 — раздел «Доработки после этапа 10». Дальше — действия заказчика по `docs/pmi.md` |
-| Дата обновления | 2026-10-12 |
-| Ветка git | `threshold_buttons` |
+| Текущий этап | нет: этапы раздела 13 завершены; исправление N-69 — раздел «Исправления после этапа 10». Дальше — действия заказчика по `docs/pmi.md` |
+| Дата обновления | 2026-10-13 |
+| Ветка git | `fix_shifting_y` |
 | Коммит этапа 1 | `этап 1: структура решения, ядро упаковки, эталонная реализация, тесты` |
 | Коммит этапа 2 | `этап 2: загрузка изображений и конвейер обработки` |
 | Коммит этапа 3 | `этап 3: генераторы вывода C51, STM32, A51, BIN, валидатор имён, кодировки, золотые тесты` |
 | Коммит этапа 4 | `этап 4: шрифты — лист символов, импорт массивов C/A51, диапазоны, интеграция, тесты` |
-| Последний `dotnet build` | 2026-10-12 (N-68): `dotnet build --no-incremental` и `dotnet build -c Release --no-incremental` — 0 предупреждений, 0 ошибок |
-| Последний `dotnet test` | 2026-10-12 (N-68): Debug и Release — **2634 теста, все прошли** (2374 в `Image2Gdram.Core.Tests`, 218 в `Image2Gdram.App.Tests`, 17 в `Image2Gdram.Fonts.Wpf.Tests`, 25 в `Image2Gdram.Imaging.Wic.Tests`), 0 пропущено; до доработки — 2610 |
+| Последний `dotnet build` | 2026-10-13 (N-69): `dotnet build --no-incremental` и `dotnet build -c Release --no-incremental` — 0 предупреждений, 0 ошибок |
+| Последний `dotnet test` | 2026-10-13 (N-69): Debug и Release — **2640 тестов, все прошли** (2378 в `Image2Gdram.Core.Tests`, 220 в `Image2Gdram.App.Tests`, 17 в `Image2Gdram.Fonts.Wpf.Tests`, 25 в `Image2Gdram.Imaging.Wic.Tests`), 0 пропущено; до исправления — 2634 |
 | Замеры п. 5.1 | 2026-10-07 (этап 10, после исправлений): `dotnet run -c Release --project tools/UiProbe -- all` — все 45 сценариев в пределах; максимум 80 мс (240×128), 125 мс (1024×1024), 158 мс (исходник 2048×2048), 66 мс (шрифты). Подробная таблица — «Итоги этапа 8» |
 | Масштаб 100–200 % | 2026-10-12 (N-68): `tools/UiProbe dpi` — окно 1024×680, обе вкладки при 100, 125, 150, 175, 200 % и вкладка шрифтов с источником «Лист» при 200 %: обрезанных элементов 0; снимки `window_tab1.png`, `window_tab2.png` и `window_tab2_sheet.png` просмотрены (масштаб системы 100 %). Замеры времени п. 5.1 остаются от этапа 10 |
 | Дымовая компиляция | 2026-10-07 (этап 10): `tools/compile-check.ps1` формирует образцы вывода в `artifacts/compile-check/`; `gcc`, `clang`, `arm-none-eabi-gcc` не найдены — компиляция пропущена (код возврата 0) |
@@ -436,6 +436,12 @@ public sealed class ImportGlyphSource : IGlyphSource
 
 `dotnet build --no-incremental` и `dotnet build -c Release --no-incremental` — 0 предупреждений, 0 ошибок. `dotnet test` Debug и Release — **2565 тестов, все прошли** (2351 в `Image2Gdram.Core.Tests`, 172 в `Image2Gdram.App.Tests`, 17 в `Image2Gdram.Fonts.Wpf.Tests`, 25 в `Image2Gdram.Imaging.Wic.Tests`), 0 пропущено; до исправления — 2534.
 
+2026-10-13, ветка `fix_shifting_y`.
+
+Замечание заказчика: «Смещение Y» сдвигает не в ту сторону — нужно как на координатных осях: при «-10» изображение уходит вниз. Решение N-69: X без изменений (плюс — вправо), Y — плюс вверх, минус вниз; правило одно для обеих вкладок (смещение картинки и смещение глифа TrueType в ячейке). Изменено ядро в двух точках: `ResizeStep.Apply` (`originY - offsetY`) и `TrueTypeGlyphSource.Render` (`baseline - Options.OffsetY`), плюс XML-комментарий `TrueTypeOptions.OffsetY`. Не менялись: ViewModel, валидация, пределы N-67 (`OffsetLimits` симметричны), `ModelValidation`, `ModelMapping`, `FileDtos`, `FormatVersion` — в них знак не участвует. Старые `.iiu` и `settings.json` не мигрируются: число читается по новому правилу, в проектах прежних версий знак Y нужно поменять вручную (несовместимое изменение, записано в `docs/changelog.md`, версия 0.1.5). Новые тесты: `ResizeStepTests.Positive_offset_y_moves_up_and_negative_moves_down`, `ImagePipelineTests.Negative_offset_y_moves_the_picture_down`, `TrueTypeGlyphSourceTests.Negative_offset_y_moves_the_glyph_down`, `OffsetSignTests` (2 теста); `Offset_shifts_and_clips` и `Offsets_move_the_glyph_and_overflow_is_clipped` переписаны под новый знак.
+
+`dotnet build --no-incremental` и `dotnet build -c Release --no-incremental` — 0 предупреждений, 0 ошибок. `dotnet test` Debug и Release — **2640 тестов, все прошли** (2378 в `Image2Gdram.Core.Tests`, 220 в `Image2Gdram.App.Tests`, 17 в `Image2Gdram.Fonts.Wpf.Tests`, 25 в `Image2Gdram.Imaging.Wic.Tests`), 0 пропущено; до исправления — 2634. Этап 10 остаётся `completed`.
+
 ## Доработки после этапа 10
 
 2026-10-11, ветка `fix_moving_buttons_2`.
@@ -466,7 +472,7 @@ public sealed class ImportGlyphSource : IGlyphSource
 
 **Производительность (п. 5.1).** Замер этапа 10 после исправлений, `tools/UiProbe`, Release, 16 логических процессоров, медиана и максимум из 9 замеров от изменения параметра до отрисованного кода: 240×128 — до 80 мс (предел 200), 1024×1024 — до 125 мс, исходник 2048×2048 в 1024×1024 — до 158 мс (предел 1000), таблицы шрифтов 6×8, 8×8, 12×16 — до 66 мс (предел 200).
 
-**Решения по неоднозначностям.** `decisions.md`: D-01…D-17 (раздел 7 `agents.md`), F-01…F-11 (формулы), N-01…N-68, конфликты K-01…K-06.
+**Решения по неоднозначностям.** `decisions.md`: D-01…D-17 (раздел 7 `agents.md`), F-01…F-11 (формулы), N-01…N-69, конфликты K-01…K-06.
 
 **Требует действий заказчика** (`docs/pmi.md`): согласование эталонов `testdata/reference/` (Q-08), тестовых изображений (Q-11) и пресетов UC1608, RG12864F (NT7108), RET012864DGPP3N (SSD1305) (Q-01); компиляция в Keil C51/A51, Keil MDK-ARM (AC5, AC6), IAR EWARM и STM32CubeIDE — на машине разработки компиляторов нет, `compile-check.ps1` пропускает дымовую проверку; проверка на физических дисплеях (SSD1306 и WG240128A обязательно); запуск на второй ОС, на минимальной конфигурации и при смене масштаба физического монитора; ответы на Q-02…Q-07, Q-10, Q-13 (решения по умолчанию действуют).
 
@@ -508,3 +514,4 @@ public sealed class ImportGlyphSource : IGlyphSource
 | 2026-10-11 | — | Ветка `build1`: `run.ps1` — закрытие копии из `publish/` (`CloseMainWindow`, 15 с, `Kill` только с `-Force`), необязательные `-Clean` и `-Test`, затем `publish.ps1` и запуск exe; UTF-8 с BOM для Windows PowerShell 5.1. `README.md`, `architecture.md`. `.\run.ps1 -Test`: Release — 0 предупреждений, 0 ошибок; `dotnet test` — 2568 из 2568; exe опубликован и запущен. Повторный `.\run.ps1` закрыл запущенную копию без `-Force` и запустил новую; `publish\settings.json` сохранился. Этап 10 остаётся `completed`. |
 | 2026-10-11 | — | Ветка `fix_shifting_restrictions`: смещение X/Y не больше 80 % стороны, ужатие при уменьшении размера (N-67). Debug и Release (`--no-incremental`) — 0 предупреждений, 0 ошибок; `dotnet test` — 2610 из 2610 (было 2568). Этап 10 остаётся `completed`. |
 | 2026-10-12 | — | Ветка `threshold_buttons`: кнопки «-» и «+» у трёх полей порога (N-68). Debug и Release (`--no-incremental`) — 0 предупреждений, 0 ошибок; `dotnet test` — 2634 из 2634 (было 2610). `UiProbe dpi` — 0 обрезанных элементов. Этап 10 остаётся `completed`. |
+| 2026-10-13 | — | Ветка `fix_shifting_y`: знак смещения Y — плюс вверх, минус вниз, на обеих вкладках (N-69). Debug и Release (`--no-incremental`) — 0 предупреждений, 0 ошибок; `dotnet test` — 2640 из 2640 (было 2634). Этап 10 остаётся `completed`. |

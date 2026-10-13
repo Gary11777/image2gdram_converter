@@ -23,7 +23,7 @@ public sealed record TrueTypeOptions
     /// <summary>Смещение глифа в ячейке по X, пикселей (-32..32; положительное — вправо). Интерфейс уже: 80 % ширины ячейки (N-67).</summary>
     public int OffsetX { get; init; }
 
-    /// <summary>Смещение глифа в ячейке по Y, пикселей (-32..32; положительное — вниз). Интерфейс уже: 80 % высоты ячейки (N-67).</summary>
+    /// <summary>Смещение глифа в ячейке по Y, пикселей (-32..32; положительное — вверх, отрицательное — вниз, N-69). Интерфейс уже: 80 % высоты ячейки (N-67).</summary>
     public int OffsetY { get; init; }
 
     public GlyphRenderMode RenderMode { get; init; } = GlyphRenderMode.Antialiased;
@@ -117,7 +117,7 @@ public sealed class TrueTypeGlyphSource : IGlyphSource
                 cell.Width,
                 cell.Height,
                 Options.OffsetX,
-                baseline + Options.OffsetY,
+                baseline - Options.OffsetY,
                 Options.RenderMode,
                 Options.Threshold);
             glyphs.Set(code, bitmap);
