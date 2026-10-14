@@ -84,6 +84,15 @@ public class UiStringTests
     }
 
     [Fact]
+    public void Save_output_caption_matches_the_agreed_phrase()
+    {
+        var keys = TestFiles.LoadUiStrings();
+        Assert.Equal("Сохранить Код", keys["Menu.SaveOutput"]);
+        Assert.Equal("Сохранить Код", keys["Button.SaveOutput"]);
+        Assert.Equal("Сохранить Код", keys["File.SaveOutputTitle"]);
+    }
+
+    [Fact]
     public void External_dictionary_replaces_phrases_and_bad_files_do_not_stop_the_start()
     {
         string root = Path.Combine(Path.GetTempPath(), "i2g-lang-" + Guid.NewGuid().ToString("N"));

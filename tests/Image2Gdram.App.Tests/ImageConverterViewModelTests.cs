@@ -266,7 +266,7 @@ public class ImageConverterViewModelTests
 
         string c = Path.Combine(output, "white_128x64.c");
         string h = Path.Combine(output, "white_128x64.h");
-        Assert.Equal("Сохранить код", harness.Files.LastFolderTitle);
+        Assert.Equal("Сохранить Код", harness.Files.LastFolderTitle);
         Assert.Equal("white_128x64.c, white_128x64.h", harness.Files.LastFileNameLabel);
         Assert.Equal("Сохранить", harness.Files.LastOkButton);
         Assert.Equal(arrayName, vm.ArrayName);
