@@ -285,7 +285,7 @@ public class FontGeneratorViewModelTests : IDisposable
         byte[] hBefore = vm.Document.Files[1].Content.ToArray();
         vm.SaveOutputCommand.Execute(null);
 
-        Assert.Equal("Сохранить код", harness.Files.LastFolderTitle);
+        Assert.Equal("Сохранить Код", harness.Files.LastFolderTitle);
         Assert.Equal("font_a.c, font_a.h", harness.Files.LastFileNameLabel);
         Assert.Equal("Сохранить", harness.Files.LastOkButton);
         Assert.Equal("font_a", vm.ArrayName);
