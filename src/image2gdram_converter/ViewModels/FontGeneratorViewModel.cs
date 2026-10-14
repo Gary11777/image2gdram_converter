@@ -582,40 +582,52 @@ public sealed partial class FontGeneratorViewModel : ObservableValidator, ICodeS
     [RelayCommand(CanExecute = nameof(CanSaveOutput))]
     private void SaveOutput()
     {
-        if (Document is null || !CanSaveOutput)
-        {
-            return;
-        }
-
-        string? directory = _files.PickFolder(
-            _outputFolder,
-            _loc.Get("File.SaveOutputTitle"),
-            string.Join(", ", Document.Files.Select(file => file.FileName)),
-            _loc.Get("Dialog.Save"));
-        if (directory is null)
-        {
-            return;
-        }
-
         var blocked = new List<string>(SourceFiles);
         blocked.AddRange(OtherSourceFiles?.Invoke() ?? Array.Empty<string>());
-        try
-        {
-            OutputSaveResult result = OutputWriter.Save(
-                Document,
-                directory,
-                existing => _dialogs.Confirm(_loc.Format("Dialog.Overwrite", string.Join(Environment.NewLine, existing))),
-                blocked);
-            if (result == OutputSaveResult.Saved)
+        OutputSaveFlow.Run(
+            _loc,
+            _dialogs,
+            _files,
+            () => Document,
+            () => CanSaveOutput,
+            _format,
+            InitialOutputFolder(),
+            () => ArrayName,
+            name => ArrayName = name,
+            RegenerateNow,
+            () => CodeText,
+            blocked,
+            directory =>
             {
                 _outputFolder = directory;
                 FileUsed?.Invoke(directory, SessionFolder.SaveOutput);
-            }
-        }
-        catch (OutputWriteException ex)
+            });
+    }
+
+    private OutputDocument? RegenerateNow()
+    {
+        FontResult result = Compute(Capture(), CancellationToken.None);
+        Apply(result);
+        return result.Document;
+    }
+
+    private string? InitialOutputFolder()
+    {
+        if (OutputSaveFlow.NullIfEmpty(_outputFolder) is string output)
         {
-            _dialogs.Alert(UserText.OutputWrite(_loc, ex));
+            return output;
         }
+
+        string? activeSource = _sourceKind switch
+        {
+            FontSourceKind.Sheet => _sheetPath,
+            FontSourceKind.Import => _importPath,
+            _ => _sheetPath ?? _importPath,
+        };
+        return OutputSaveFlow.FolderOf(activeSource)
+            ?? OutputSaveFlow.FolderOf(_sheetPath)
+            ?? OutputSaveFlow.FolderOf(_importPath)
+            ?? OutputSaveFlow.NullIfEmpty(_fontFolder);
     }
 
     /// <summary>

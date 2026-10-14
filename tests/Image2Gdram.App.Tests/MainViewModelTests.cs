@@ -104,7 +104,7 @@ public class MainViewModelTests : IDisposable
     public void Output_of_one_tab_never_overwrites_a_source_file_of_the_other_tab()
     {
         var dialogs = new FakeDialogs { ConfirmAnswer = true };
-        var files = new FakeFiles { NextFolder = _directory };
+        var files = new FakeFiles();
         MainViewModel main = Create(dialogs, files: files);
         string import = Path.Combine(_directory, "white_128x64.c");
         const string importText = "unsigned char code font[] = { 0x01 };\n";
@@ -112,6 +112,7 @@ public class MainViewModelTests : IDisposable
         main.Font.ImportFile(import);
         main.Image.LoadDecoded(White(), Path.Combine(_directory, "white.png"), true, true);
         Assert.Equal("white_128x64", main.Image.ArrayName);
+        files.NextSaveOutputs.Enqueue(import);
 
         main.Image.SaveOutputCommand.Execute(null);
 
@@ -119,11 +120,23 @@ public class MainViewModelTests : IDisposable
         Assert.False(File.Exists(Path.Combine(_directory, "white_128x64.h")));
         Assert.Contains(dialogs.Alerts, alert => alert.Contains(import, StringComparison.OrdinalIgnoreCase));
 
+        // Запись в исходный файл под новым именем, введённым в окне сохранения, тоже запрещена (N-18).
+        dialogs.Alerts.Clear();
+        main.Image.ArrayName = "safe_name";
+        files.NextSaveOutputs.Enqueue(Path.Combine(_directory, "white_128x64.c"));
+        main.Image.SaveOutputCommand.Execute(null);
+
+        Assert.Equal(importText, File.ReadAllText(import));
+        Assert.False(File.Exists(Path.Combine(_directory, "white_128x64.h")));
+        Assert.Contains(dialogs.Alerts, alert => alert.Contains(import, StringComparison.OrdinalIgnoreCase));
+
+        dialogs.Alerts.Clear();
         string picture = Path.Combine(_directory, "pic.bin");
         File.WriteAllBytes(picture, new byte[] { 1, 2, 3 });
         main.Image.LoadDecoded(White(), picture, true, true);
         main.Font.Format = OutputFormat.Bin;
-        main.Font.ArrayName = "pic";
+        main.Font.ArrayName = "other_font";
+        files.NextSaveOutputs.Enqueue(picture);
 
         main.Font.SaveOutputCommand.Execute(null);
 

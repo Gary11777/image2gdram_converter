@@ -1,5 +1,6 @@
 using Image2Gdram.Core.Fonts;
 using Image2Gdram.Core.Imaging;
+using Image2Gdram.Core.Output;
 using Image2Gdram.Core.Packing;
 using Image2Gdram.Core.Presets;
 using Image2Gdram.Core.Settings;
@@ -279,15 +280,16 @@ public class FontGeneratorViewModelTests : IDisposable
 
         string output = Path.Combine(_directory, "out");
         Directory.CreateDirectory(output);
-        harness.Files.NextFolder = output;
+        harness.Files.NextSaveOutput = Path.Combine(output, "font_a.c");
         string code = vm.CodeText;
         byte[] cBefore = vm.Document.Files[0].Content.ToArray();
         byte[] hBefore = vm.Document.Files[1].Content.ToArray();
         vm.SaveOutputCommand.Execute(null);
 
-        Assert.Equal("Сохранить Код", harness.Files.LastFolderTitle);
-        Assert.Equal("font_a.c, font_a.h", harness.Files.LastFileNameLabel);
-        Assert.Equal("Сохранить", harness.Files.LastOkButton);
+        Assert.Equal("Сохранить Код", harness.Files.LastTitle);
+        Assert.Equal("font_a", harness.Files.LastFileName);
+        Assert.Equal("Файлы кода (*.c, *.h)|*.c", harness.Files.LastFilter);
+        Assert.Equal(".c", harness.Files.LastDefaultExt);
         Assert.Equal("font_a", vm.ArrayName);
         Assert.Equal(code, vm.CodeText);
         Assert.Equal(cBefore, vm.Document.Files[0].Content);
@@ -312,6 +314,306 @@ public class FontGeneratorViewModelTests : IDisposable
         Assert.Empty(harness.Dialogs.Alerts);
     }
 
+    [Fact]
+    public void Save_dialog_on_font_tab_receives_array_name_title_filter_and_initial_folder()
+    {
+        using var harness = new Harness(_directory);
+        FontGeneratorViewModel vm = harness.Font;
+        UseStub(vm);
+        string fontDir = Path.Combine(_directory, "font_dir");
+        string sheetDir = Path.Combine(_directory, "sheet_dir");
+        string importDir = Path.Combine(_directory, "import_dir");
+        string outputDir = Path.Combine(_directory, "out_dir");
+        Directory.CreateDirectory(fontDir);
+        Directory.CreateDirectory(sheetDir);
+        Directory.CreateDirectory(importDir);
+        Directory.CreateDirectory(outputDir);
+
+        vm.SetFolders(fontDir, null);
+        harness.Files.NextSaveOutput = null;
+        vm.SaveOutputCommand.Execute(null);
+
+        Assert.Equal(fontDir, harness.Files.LastFolder);
+        Assert.Equal(vm.ArrayName, harness.Files.LastFileName);
+        Assert.Equal("Сохранить Код", harness.Files.LastTitle);
+        Assert.Equal("Файлы кода (*.c, *.h)|*.c", harness.Files.LastFilter);
+        Assert.Equal(".c", harness.Files.LastDefaultExt);
+
+        vm.LoadSheet(new RgbaImage(6, 8, 255, 255, 255, 255), Path.Combine(sheetDir, "sheet.png"));
+        vm.SaveOutputCommand.Execute(null);
+        Assert.Equal(sheetDir, harness.Files.LastFolder);
+
+        string importPath = Path.Combine(importDir, "font_in.c");
+        File.WriteAllText(importPath, "unsigned char code f[] = { 0x00 };\n");
+        vm.ImportFile(importPath);
+        vm.SaveOutputCommand.Execute(null);
+        Assert.Equal(importDir, harness.Files.LastFolder);
+
+        vm.SetFolders(fontDir, outputDir);
+        vm.Format = OutputFormat.CStm32;
+        vm.SaveOutputCommand.Execute(null);
+        Assert.Equal(outputDir, harness.Files.LastFolder);
+        Assert.Equal("Файлы кода (*.c, *.h)|*.c", harness.Files.LastFilter);
+        Assert.Equal(".c", harness.Files.LastDefaultExt);
+
+        vm.Format = OutputFormat.A51Module;
+        vm.AsmExtension = AsmFileExtension.A51;
+        vm.SaveOutputCommand.Execute(null);
+        Assert.Equal("Файлы кода (*.a51)|*.a51", harness.Files.LastFilter);
+        Assert.Equal(".a51", harness.Files.LastDefaultExt);
+
+        vm.Format = OutputFormat.A51Include;
+        vm.AsmExtension = AsmFileExtension.Asm;
+        vm.SaveOutputCommand.Execute(null);
+        Assert.Equal("Файлы кода (*.asm)|*.asm", harness.Files.LastFilter);
+        Assert.Equal(".asm", harness.Files.LastDefaultExt);
+
+        vm.Format = OutputFormat.Bin;
+        vm.SaveOutputCommand.Execute(null);
+        Assert.Equal("Файлы кода (*.bin)|*.bin", harness.Files.LastFilter);
+        Assert.Equal(".bin", harness.Files.LastDefaultExt);
+    }
+
+    public static TheoryData<string> NewFontCFileNames => new()
+    {
+        "logo_new",
+        "logo_new.c",
+        "logo_new.h",
+    };
+
+    [Theory]
+    [MemberData(nameof(NewFontCFileNames))]
+    public void Save_on_font_tab_with_a_new_name_updates_array_name_regenerates_files_and_marks_name_customized(string entered)
+    {
+        using var harness = new Harness(_directory);
+        FontGeneratorViewModel vm = harness.Font;
+        UseStub(vm);
+        vm.IncludeDate = false;
+        string output = Path.Combine(_directory, "out_" + entered.Replace('.', '_'));
+        Directory.CreateDirectory(output);
+        harness.Files.NextSaveOutput = Path.Combine(output, entered);
+
+        vm.SaveOutputCommand.Execute(null);
+
+        Assert.Equal("logo_new", vm.ArrayName);
+        string cPath = Path.Combine(output, "logo_new.c");
+        string hPath = Path.Combine(output, "logo_new.h");
+        Assert.True(File.Exists(cPath));
+        Assert.True(File.Exists(hPath));
+        string cText = File.ReadAllText(cPath);
+        string hText = File.ReadAllText(hPath);
+        Assert.Contains("#include \"logo_new.h\"", cText, StringComparison.Ordinal);
+        Assert.Contains("logo_new[256][LOGO_NEW_BYTES_PER_CHAR]", cText, StringComparison.Ordinal);
+        Assert.Contains("#define LOGO_NEW_CHAR_WIDTH", hText, StringComparison.Ordinal);
+        Assert.Contains("#define LOGO_NEW_CHAR_HEIGHT", hText, StringComparison.Ordinal);
+        Assert.Contains("#define LOGO_NEW_BYTES_PER_CHAR", hText, StringComparison.Ordinal);
+        Assert.Equal(new[] { "logo_new.c", "logo_new.h" }, vm.CodeFiles.Select(f => f.Caption));
+        Assert.Equal(vm.Document!.Files[0].Content, File.ReadAllBytes(cPath));
+        Assert.Equal(vm.Document.Files[1].Content, File.ReadAllBytes(hPath));
+
+        vm.Cell = FontCellSize.Cell8x8;
+        Assert.Equal("logo_new", vm.ArrayName);
+    }
+
+    [Theory]
+    [InlineData("logo_new.BIN", "logo_new")]
+    [InlineData("LOGO_NEW.BIN", "LOGO_NEW")]
+    public void Save_bin_on_font_tab_strips_uppercase_extension_and_updates_array_name(string entered, string expectedName)
+    {
+        using var harness = new Harness(_directory);
+        FontGeneratorViewModel vm = harness.Font;
+        UseStub(vm);
+        vm.Format = OutputFormat.Bin;
+        string output = Path.Combine(_directory, "out_bin_" + expectedName);
+        Directory.CreateDirectory(output);
+        harness.Files.NextSaveOutput = Path.Combine(output, entered);
+
+        vm.SaveOutputCommand.Execute(null);
+
+        Assert.Equal(expectedName, vm.ArrayName);
+        string binPath = Path.Combine(output, expectedName + ".bin");
+        Assert.True(File.Exists(binPath));
+        Assert.Equal(new[] { expectedName + ".bin" }, vm.CodeFiles.Select(f => f.Caption));
+        Assert.Equal(vm.Document!.Files[0].Content, File.ReadAllBytes(binPath));
+
+        vm.Cell = FontCellSize.Cell8x8;
+        Assert.Equal(expectedName, vm.ArrayName);
+    }
+
+    [Fact]
+    public void Save_on_font_tab_with_a_deferred_scheduler_still_writes_files_with_the_new_name()
+    {
+        var scheduler = new DeferredRecalcScheduler();
+        using var harness = new Harness(_directory, scheduler);
+        FontGeneratorViewModel vm = harness.Font;
+        UseStub(vm);
+        vm.IncludeDate = false;
+        string output = Path.Combine(_directory, "out_deferred");
+        Directory.CreateDirectory(output);
+        harness.Files.NextSaveOutput = Path.Combine(output, "font_deferred.c");
+        scheduler.Hold = true;
+
+        vm.SaveOutputCommand.Execute(null);
+
+        Assert.True(scheduler.PendingCount > 0);
+        Assert.Equal("font_deferred", vm.ArrayName);
+        string cPath = Path.Combine(output, "font_deferred.c");
+        string hPath = Path.Combine(output, "font_deferred.h");
+        Assert.True(File.Exists(cPath));
+        Assert.True(File.Exists(hPath));
+        Assert.Contains("#include \"font_deferred.h\"", File.ReadAllText(cPath), StringComparison.Ordinal);
+        Assert.Contains("#define FONT_DEFERRED_BYTES_PER_CHAR", File.ReadAllText(hPath), StringComparison.Ordinal);
+        Assert.Equal(new[] { "font_deferred.c", "font_deferred.h" }, vm.CodeFiles.Select(f => f.Caption));
+
+        scheduler.RunPending();
+        Assert.Equal("font_deferred", vm.ArrayName);
+        Assert.Equal(new[] { "font_deferred.c", "font_deferred.h" }, vm.CodeFiles.Select(f => f.Caption));
+    }
+
+    public static TheoryData<OutputFormat, string> InvalidFontNames => new()
+    {
+        { OutputFormat.CKeilC51, "1abc" },
+        { OutputFormat.CKeilC51, "лого" },
+        { OutputFormat.CKeilC51, "code" },
+        { OutputFormat.CKeilC51, "my-name" },
+        { OutputFormat.CKeilC51, "logo.v2" },
+        { OutputFormat.A51Module, new string('a', 28) },
+    };
+
+    [Theory]
+    [MemberData(nameof(InvalidFontNames))]
+    public void Save_on_font_tab_with_an_invalid_name_alerts_and_reopens_the_dialog_with_the_entered_text(OutputFormat format, string badName)
+    {
+        using var harness = new Harness(_directory);
+        FontGeneratorViewModel vm = harness.Font;
+        UseStub(vm);
+        vm.Format = format;
+        string originalName = vm.ArrayName;
+        string output = Path.Combine(_directory, "out_bad_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(output);
+        harness.Files.NextSaveOutputs.Enqueue(Path.Combine(output, badName));
+        harness.Files.NextSaveOutputs.Enqueue(null);
+
+        vm.SaveOutputCommand.Execute(null);
+
+        var text = new MapText(TestFiles.LoadUiStrings());
+        string expectedAlert = UserText.Name(text, NameValidator.Validate(badName, format));
+        Assert.Equal(new[] { expectedAlert }, harness.Dialogs.Alerts);
+        Assert.Equal(2, harness.Files.SaveOutputCalls);
+        Assert.Equal(output, harness.Files.LastFolder);
+        Assert.Equal(badName, harness.Files.LastFileName);
+        Assert.Equal(originalName, vm.ArrayName);
+        Assert.Empty(Directory.GetFiles(output));
+    }
+
+    [Fact]
+    public void Save_on_font_tab_after_correcting_an_invalid_name_in_the_reopened_dialog_writes_the_valid_files()
+    {
+        using var harness = new Harness(_directory);
+        FontGeneratorViewModel vm = harness.Font;
+        UseStub(vm);
+        string output = Path.Combine(_directory, "out_retry");
+        Directory.CreateDirectory(output);
+        harness.Files.NextSaveOutputs.Enqueue(Path.Combine(output, "1abc.c"));
+        harness.Files.NextSaveOutputs.Enqueue(Path.Combine(output, "fixed_font.c"));
+
+        vm.SaveOutputCommand.Execute(null);
+
+        Assert.Single(harness.Dialogs.Alerts);
+        Assert.Equal(2, harness.Files.SaveOutputCalls);
+        Assert.Equal("fixed_font", vm.ArrayName);
+        Assert.True(File.Exists(Path.Combine(output, "fixed_font.c")));
+        Assert.True(File.Exists(Path.Combine(output, "fixed_font.h")));
+    }
+
+    [Fact]
+    public void Cancelling_the_first_save_dialog_on_font_tab_writes_nothing_and_keeps_the_array_name()
+    {
+        using var harness = new Harness(_directory);
+        FontGeneratorViewModel vm = harness.Font;
+        UseStub(vm);
+        string originalName = vm.ArrayName;
+        string output = Path.Combine(_directory, "out_cancel");
+        Directory.CreateDirectory(output);
+        harness.Files.NextSaveOutput = null;
+
+        vm.SaveOutputCommand.Execute(null);
+
+        Assert.Equal(1, harness.Files.SaveOutputCalls);
+        Assert.Equal(originalName, vm.ArrayName);
+        Assert.Empty(harness.Dialogs.Alerts);
+        Assert.Empty(Directory.GetFiles(output));
+    }
+
+    [Fact]
+    public void Typing_array_name_on_the_font_panel_and_focusing_save_button_flushes_the_name_before_the_dialog()
+    {
+        using var ui = new StaDispatcher();
+        var scheduler = new DeferredRecalcScheduler();
+        using var harness = new Harness(_directory, scheduler);
+        FontGeneratorViewModel vm = harness.Font;
+        UseStub(vm);
+        string output = Path.Combine(_directory, "out_flush");
+        Directory.CreateDirectory(output);
+        scheduler.Hold = true;
+        System.Windows.Window? window = null;
+        try
+        {
+            ui.Dispatcher.Invoke(() =>
+            {
+                var box = new System.Windows.Controls.TextBox { Width = 120 };
+                var button = new System.Windows.Controls.Button
+                {
+                    Content = "Сохранить Код",
+                    Focusable = true,
+                    Command = vm.SaveOutputCommand,
+                };
+                var panel = new System.Windows.Controls.StackPanel();
+                panel.Children.Add(box);
+                panel.Children.Add(button);
+                window = new System.Windows.Window
+                {
+                    Width = 220,
+                    Height = 120,
+                    Left = -20000,
+                    Top = -20000,
+                    ShowInTaskbar = false,
+                    ShowActivated = true,
+                    WindowStyle = System.Windows.WindowStyle.None,
+                    Content = panel,
+                };
+                window.Show();
+                System.Windows.Data.BindingOperations.SetBinding(
+                    box,
+                    System.Windows.Controls.TextBox.TextProperty,
+                    new System.Windows.Data.Binding(nameof(FontGeneratorViewModel.ArrayName))
+                    {
+                        Source = vm,
+                        Mode = System.Windows.Data.BindingMode.TwoWay,
+                        UpdateSourceTrigger = System.Windows.Data.UpdateSourceTrigger.PropertyChanged,
+                        Delay = 400,
+                    });
+                image2gdram_converter.Controls.TextBoxCommit.SetFlush(box, true);
+                box.Focus();
+                box.Text = "panel_font";
+                Assert.Equal("stub_6x8", vm.ArrayName);
+
+                harness.Files.NextSaveOutput = Path.Combine(output, "panel_font.c");
+                button.Focus();
+                Assert.Equal("panel_font", vm.ArrayName);
+
+                button.Command.Execute(null);
+                Assert.Equal("panel_font", harness.Files.LastFileName);
+                Assert.True(File.Exists(Path.Combine(output, "panel_font.c")));
+                Assert.Contains("#include \"panel_font.h\"", File.ReadAllText(Path.Combine(output, "panel_font.c")), StringComparison.Ordinal);
+            });
+        }
+        finally
+        {
+            ui.Dispatcher.Invoke(() => window?.Close());
+        }
+    }
+
     public void Dispose()
     {
         try
@@ -333,7 +635,7 @@ public class FontGeneratorViewModelTests : IDisposable
 
     private sealed class Harness : IDisposable
     {
-        public Harness(string directory)
+        public Harness(string directory, IRecalcScheduler? scheduler = null)
         {
             var settings = new SettingsService(directory, directory).Load().Settings;
             Dialogs = new FakeDialogs();
@@ -345,7 +647,7 @@ public class FontGeneratorViewModelTests : IDisposable
                 Dialogs,
                 Files,
                 Clipboard,
-                new ImmediateRecalcScheduler(),
+                scheduler ?? new ImmediateRecalcScheduler(),
                 new UnusedDecoder(),
                 new StubOutlines(),
                 PresetCatalog.Shared,

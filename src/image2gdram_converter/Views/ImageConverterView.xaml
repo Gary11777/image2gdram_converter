@@ -265,7 +265,7 @@
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
                     <TextBlock Style="{StaticResource Field}" Text="{DynamicResource Label.ArrayName}"/>
-                    <TextBox Grid.Column="1">
+                    <TextBox Grid.Column="1" controls:TextBoxCommit.Flush="True">
                         <TextBox.Text>
                             <Binding Path="ArrayName" UpdateSourceTrigger="PropertyChanged" Delay="400"/>
                         </TextBox.Text>

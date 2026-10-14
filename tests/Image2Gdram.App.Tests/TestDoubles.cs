@@ -76,13 +76,21 @@ internal sealed class FakeFiles : IFileDialogService
 
     public string? NextSaveProject { get; set; }
 
-    public string? NextFolder { get; set; }
+    public string? NextSaveOutput { get; set; }
 
-    public string? LastFolderTitle { get; private set; }
+    public Queue<string?> NextSaveOutputs { get; } = new();
 
-    public string? LastFileNameLabel { get; private set; }
+    public string? LastFolder { get; private set; }
 
-    public string? LastOkButton { get; private set; }
+    public string? LastFileName { get; private set; }
+
+    public string? LastTitle { get; private set; }
+
+    public string? LastFilter { get; private set; }
+
+    public string? LastDefaultExt { get; private set; }
+
+    public int SaveOutputCalls { get; private set; }
 
     public string? PickOpenImage(string? folder) => NextImage;
 
@@ -94,12 +102,52 @@ internal sealed class FakeFiles : IFileDialogService
 
     public string? PickSaveProject(string? folder) => NextSaveProject;
 
-    public string? PickFolder(string? folder, string title, string fileNameLabel, string okButton)
+    public string? PickSaveOutput(string? folder, string fileName, string title, string filter, string defaultExt)
     {
-        LastFolderTitle = title;
-        LastFileNameLabel = fileNameLabel;
-        LastOkButton = okButton;
-        return NextFolder;
+        SaveOutputCalls++;
+        LastFolder = folder;
+        LastFileName = fileName;
+        LastTitle = title;
+        LastFilter = filter;
+        LastDefaultExt = defaultExt;
+        return NextSaveOutputs.Count > 0 ? NextSaveOutputs.Dequeue() : NextSaveOutput;
+    }
+}
+
+internal sealed class DeferredRecalcScheduler : IRecalcScheduler
+{
+    private readonly List<(Func<CancellationToken, object?> Compute, Action<object?> Apply, Action<Exception> OnError)> _pending = new();
+
+    public bool Hold { get; set; }
+
+    public int PendingCount => _pending.Count;
+
+    public void Schedule(Func<CancellationToken, object?> compute, Action<object?> apply, Action<Exception> onError)
+    {
+        if (Hold)
+        {
+            _pending.Add((compute, apply, onError));
+            return;
+        }
+
+        try
+        {
+            apply(compute(CancellationToken.None));
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            onError(ex);
+        }
+    }
+
+    public void RunPending()
+    {
+        var items = _pending.ToArray();
+        _pending.Clear();
+        foreach (var item in items)
+        {
+            item.Apply(item.Compute(CancellationToken.None));
+        }
     }
 }
 

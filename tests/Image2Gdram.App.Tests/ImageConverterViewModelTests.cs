@@ -256,7 +256,9 @@ public class ImageConverterViewModelTests
         vm.IncludeDate = false;
         string output = Path.Combine(harness.Directory, "out");
         System.IO.Directory.CreateDirectory(output);
-        harness.Files.NextFolder = output;
+        string c = Path.Combine(output, "white_128x64.c");
+        string h = Path.Combine(output, "white_128x64.h");
+        harness.Files.NextSaveOutput = c;
         string arrayName = vm.ArrayName;
         string code = vm.CodeText;
         byte[] cBefore = vm.Document!.Files[0].Content.ToArray();
@@ -264,11 +266,10 @@ public class ImageConverterViewModelTests
 
         vm.SaveOutputCommand.Execute(null);
 
-        string c = Path.Combine(output, "white_128x64.c");
-        string h = Path.Combine(output, "white_128x64.h");
-        Assert.Equal("Сохранить Код", harness.Files.LastFolderTitle);
-        Assert.Equal("white_128x64.c, white_128x64.h", harness.Files.LastFileNameLabel);
-        Assert.Equal("Сохранить", harness.Files.LastOkButton);
+        Assert.Equal("Сохранить Код", harness.Files.LastTitle);
+        Assert.Equal("white_128x64", harness.Files.LastFileName);
+        Assert.Equal("Файлы кода (*.c, *.h)|*.c", harness.Files.LastFilter);
+        Assert.Equal(".c", harness.Files.LastDefaultExt);
         Assert.Equal(arrayName, vm.ArrayName);
         Assert.Equal(code, vm.CodeText);
         Assert.Equal(cBefore, vm.Document.Files[0].Content);
@@ -295,15 +296,306 @@ public class ImageConverterViewModelTests
         string binCode = vm.CodeText;
         byte[] bin = vm.Document.Files[0].Content.ToArray();
         string binFile = vm.Document.Files[0].FileName;
+        harness.Files.NextSaveOutput = Path.Combine(output, binFile);
 
         vm.SaveOutputCommand.Execute(null);
 
-        Assert.Equal(binFile, harness.Files.LastFileNameLabel);
-        Assert.Equal("Сохранить", harness.Files.LastOkButton);
+        Assert.Equal(arrayName, harness.Files.LastFileName);
+        Assert.Equal("Файлы кода (*.bin)|*.bin", harness.Files.LastFilter);
+        Assert.Equal(".bin", harness.Files.LastDefaultExt);
         Assert.Equal(arrayName, vm.ArrayName);
         Assert.Equal(binCode, vm.CodeText);
         Assert.Equal(bin, vm.Document.Files[0].Content);
         Assert.Equal(bin, File.ReadAllBytes(Path.Combine(output, binFile)));
+    }
+
+    [Fact]
+    public void Save_dialog_receives_array_name_title_filter_and_initial_folder()
+    {
+        using var harness = new Harness();
+        ImageConverterViewModel vm = harness.Image;
+        string sourceDir = Path.Combine(harness.Directory, "src_img");
+        string outputDir = Path.Combine(harness.Directory, "out_img");
+        System.IO.Directory.CreateDirectory(sourceDir);
+        System.IO.Directory.CreateDirectory(outputDir);
+        var image = new RgbaImage(8, 8, 255, 255, 255, 255);
+        vm.LoadDecoded(new DecodedImage(ImageFileFormat.Png, new[] { image }), Path.Combine(sourceDir, "logo.png"), resetFrame: true, userAction: false);
+
+        harness.Files.NextSaveOutput = null;
+        vm.SaveOutputCommand.Execute(null);
+
+        Assert.Equal(1, harness.Files.SaveOutputCalls);
+        Assert.Equal(sourceDir, harness.Files.LastFolder);
+        Assert.Equal("logo_128x64", harness.Files.LastFileName);
+        Assert.Equal("Сохранить Код", harness.Files.LastTitle);
+        Assert.Equal("Файлы кода (*.c, *.h)|*.c", harness.Files.LastFilter);
+        Assert.Equal(".c", harness.Files.LastDefaultExt);
+
+        vm.SetFolders(sourceDir, outputDir);
+        vm.Format = OutputFormat.CStm32;
+        vm.SaveOutputCommand.Execute(null);
+        Assert.Equal(outputDir, harness.Files.LastFolder);
+        Assert.Equal("Файлы кода (*.c, *.h)|*.c", harness.Files.LastFilter);
+        Assert.Equal(".c", harness.Files.LastDefaultExt);
+
+        vm.Format = OutputFormat.A51Module;
+        vm.AsmExtension = AsmFileExtension.A51;
+        vm.SaveOutputCommand.Execute(null);
+        Assert.Equal("Файлы кода (*.a51)|*.a51", harness.Files.LastFilter);
+        Assert.Equal(".a51", harness.Files.LastDefaultExt);
+
+        vm.Format = OutputFormat.A51Include;
+        vm.AsmExtension = AsmFileExtension.Asm;
+        vm.SaveOutputCommand.Execute(null);
+        Assert.Equal("Файлы кода (*.asm)|*.asm", harness.Files.LastFilter);
+        Assert.Equal(".asm", harness.Files.LastDefaultExt);
+
+        vm.Format = OutputFormat.Bin;
+        vm.SaveOutputCommand.Execute(null);
+        Assert.Equal("Файлы кода (*.bin)|*.bin", harness.Files.LastFilter);
+        Assert.Equal(".bin", harness.Files.LastDefaultExt);
+    }
+
+    public static TheoryData<string> NewCFileNames => new()
+    {
+        "logo_new",
+        "logo_new.c",
+        "logo_new.h",
+    };
+
+    [Theory]
+    [MemberData(nameof(NewCFileNames))]
+    public void Save_with_a_new_name_updates_array_name_regenerates_files_and_marks_name_customized(string entered)
+    {
+        using var harness = new Harness();
+        ImageConverterViewModel vm = harness.Image;
+        LoadWhite(vm);
+        vm.IncludeDate = false;
+        string output = Path.Combine(harness.Directory, "out");
+        System.IO.Directory.CreateDirectory(output);
+        harness.Files.NextSaveOutput = Path.Combine(output, entered);
+
+        vm.SaveOutputCommand.Execute(null);
+
+        Assert.Equal("logo_new", vm.ArrayName);
+        string cPath = Path.Combine(output, "logo_new.c");
+        string hPath = Path.Combine(output, "logo_new.h");
+        Assert.True(File.Exists(cPath));
+        Assert.True(File.Exists(hPath));
+        Assert.False(File.Exists(Path.Combine(output, "white_128x64.c")));
+        Assert.False(File.Exists(Path.Combine(output, "white_128x64.h")));
+        string cText = File.ReadAllText(cPath);
+        string hText = File.ReadAllText(hPath);
+        Assert.Contains("#include \"logo_new.h\"", cText, StringComparison.Ordinal);
+        Assert.Contains("logo_new[LOGO_NEW_SIZE]", cText, StringComparison.Ordinal);
+        Assert.Contains("#define LOGO_NEW_WIDTH", hText, StringComparison.Ordinal);
+        Assert.Contains("#define LOGO_NEW_HEIGHT", hText, StringComparison.Ordinal);
+        Assert.Contains("#define LOGO_NEW_SIZE", hText, StringComparison.Ordinal);
+        Assert.Equal(new[] { "logo_new.c", "logo_new.h" }, vm.CodeFiles.Select(f => f.Caption));
+        Assert.Equal(vm.Document!.Files[0].Content, File.ReadAllBytes(cPath));
+        Assert.Equal(vm.Document.Files[1].Content, File.ReadAllBytes(hPath));
+
+        vm.WidthText = "64";
+        Assert.Equal("logo_new", vm.ArrayName);
+    }
+
+    [Theory]
+    [InlineData("logo_new.BIN", "logo_new")]
+    [InlineData("LOGO_NEW.BIN", "LOGO_NEW")]
+    public void Save_bin_strips_uppercase_extension_and_updates_array_name(string entered, string expectedName)
+    {
+        using var harness = new Harness();
+        ImageConverterViewModel vm = harness.Image;
+        LoadWhite(vm);
+        vm.Format = OutputFormat.Bin;
+        string output = Path.Combine(harness.Directory, "out_bin");
+        System.IO.Directory.CreateDirectory(output);
+        harness.Files.NextSaveOutput = Path.Combine(output, entered);
+
+        vm.SaveOutputCommand.Execute(null);
+
+        Assert.Equal(expectedName, vm.ArrayName);
+        string binPath = Path.Combine(output, expectedName + ".bin");
+        Assert.True(File.Exists(binPath));
+        Assert.Equal(new[] { expectedName + ".bin" }, vm.CodeFiles.Select(f => f.Caption));
+        Assert.Equal(vm.Document!.Files[0].Content, File.ReadAllBytes(binPath));
+
+        vm.WidthText = "64";
+        Assert.Equal(expectedName, vm.ArrayName);
+    }
+
+    [Fact]
+    public void Save_with_a_deferred_scheduler_still_writes_files_with_the_new_name()
+    {
+        var scheduler = new DeferredRecalcScheduler();
+        using var harness = new Harness(scheduler);
+        ImageConverterViewModel vm = harness.Image;
+        LoadWhite(vm);
+        vm.IncludeDate = false;
+        string output = Path.Combine(harness.Directory, "out_deferred");
+        System.IO.Directory.CreateDirectory(output);
+        harness.Files.NextSaveOutput = Path.Combine(output, "logo_deferred.c");
+        scheduler.Hold = true;
+
+        vm.SaveOutputCommand.Execute(null);
+
+        Assert.True(scheduler.PendingCount > 0);
+        Assert.Equal("logo_deferred", vm.ArrayName);
+        string cPath = Path.Combine(output, "logo_deferred.c");
+        string hPath = Path.Combine(output, "logo_deferred.h");
+        Assert.True(File.Exists(cPath));
+        Assert.True(File.Exists(hPath));
+        Assert.Contains("#include \"logo_deferred.h\"", File.ReadAllText(cPath), StringComparison.Ordinal);
+        Assert.Contains("#define LOGO_DEFERRED_SIZE", File.ReadAllText(hPath), StringComparison.Ordinal);
+        Assert.Equal(new[] { "logo_deferred.c", "logo_deferred.h" }, vm.CodeFiles.Select(f => f.Caption));
+
+        scheduler.RunPending();
+        Assert.Equal("logo_deferred", vm.ArrayName);
+        Assert.Equal(new[] { "logo_deferred.c", "logo_deferred.h" }, vm.CodeFiles.Select(f => f.Caption));
+    }
+
+    public static TheoryData<OutputFormat, string> InvalidNames => new()
+    {
+        { OutputFormat.CKeilC51, "1abc" },
+        { OutputFormat.CKeilC51, "лого" },
+        { OutputFormat.CKeilC51, "code" },
+        { OutputFormat.CKeilC51, "my-name" },
+        { OutputFormat.CKeilC51, "logo.v2" },
+        { OutputFormat.A51Module, new string('a', 28) },
+    };
+
+    [Theory]
+    [MemberData(nameof(InvalidNames))]
+    public void Save_with_an_invalid_name_alerts_and_reopens_the_dialog_with_the_entered_text(OutputFormat format, string badName)
+    {
+        using var harness = new Harness();
+        ImageConverterViewModel vm = harness.Image;
+        LoadWhite(vm);
+        vm.Format = format;
+        string originalName = vm.ArrayName;
+        string output = Path.Combine(harness.Directory, "out_bad");
+        System.IO.Directory.CreateDirectory(output);
+        harness.Files.NextSaveOutputs.Enqueue(Path.Combine(output, badName));
+        harness.Files.NextSaveOutputs.Enqueue(null);
+
+        vm.SaveOutputCommand.Execute(null);
+
+        var text = new MapText(TestFiles.LoadUiStrings());
+        string expectedAlert = UserText.Name(text, NameValidator.Validate(badName, format));
+        Assert.Equal(new[] { expectedAlert }, harness.Dialogs.Alerts);
+        Assert.Equal(2, harness.Files.SaveOutputCalls);
+        Assert.Equal(output, harness.Files.LastFolder);
+        Assert.Equal(badName, harness.Files.LastFileName);
+        Assert.Equal(originalName, vm.ArrayName);
+        Assert.Empty(System.IO.Directory.GetFiles(output));
+    }
+
+    [Fact]
+    public void Save_after_correcting_an_invalid_name_in_the_reopened_dialog_writes_the_valid_files()
+    {
+        using var harness = new Harness();
+        ImageConverterViewModel vm = harness.Image;
+        LoadWhite(vm);
+        string output = Path.Combine(harness.Directory, "out_retry");
+        System.IO.Directory.CreateDirectory(output);
+        harness.Files.NextSaveOutputs.Enqueue(Path.Combine(output, "1abc.c"));
+        harness.Files.NextSaveOutputs.Enqueue(Path.Combine(output, "fixed_logo.c"));
+
+        vm.SaveOutputCommand.Execute(null);
+
+        Assert.Single(harness.Dialogs.Alerts);
+        Assert.Equal(2, harness.Files.SaveOutputCalls);
+        Assert.Equal("fixed_logo", vm.ArrayName);
+        Assert.True(File.Exists(Path.Combine(output, "fixed_logo.c")));
+        Assert.True(File.Exists(Path.Combine(output, "fixed_logo.h")));
+    }
+
+    [Fact]
+    public void Cancelling_the_first_save_dialog_writes_nothing_and_keeps_the_array_name()
+    {
+        using var harness = new Harness();
+        ImageConverterViewModel vm = harness.Image;
+        LoadWhite(vm);
+        string originalName = vm.ArrayName;
+        string output = Path.Combine(harness.Directory, "out_cancel");
+        System.IO.Directory.CreateDirectory(output);
+        harness.Files.NextSaveOutput = null;
+
+        vm.SaveOutputCommand.Execute(null);
+
+        Assert.Equal(1, harness.Files.SaveOutputCalls);
+        Assert.Equal(originalName, vm.ArrayName);
+        Assert.Empty(harness.Dialogs.Alerts);
+        Assert.Empty(System.IO.Directory.GetFiles(output));
+    }
+
+    [Fact]
+    public void Typing_array_name_on_the_panel_and_focusing_save_button_flushes_the_name_before_the_dialog()
+    {
+        using var ui = new StaDispatcher();
+        var scheduler = new DeferredRecalcScheduler();
+        using var harness = new Harness(scheduler);
+        ImageConverterViewModel vm = harness.Image;
+        LoadWhite(vm);
+        string output = Path.Combine(harness.Directory, "out_flush");
+        System.IO.Directory.CreateDirectory(output);
+        scheduler.Hold = true;
+        System.Windows.Window? window = null;
+        try
+        {
+            ui.Dispatcher.Invoke(() =>
+            {
+                var box = new System.Windows.Controls.TextBox { Width = 120 };
+                var button = new System.Windows.Controls.Button
+                {
+                    Content = "Сохранить Код",
+                    Focusable = true,
+                    Command = vm.SaveOutputCommand,
+                };
+                var panel = new System.Windows.Controls.StackPanel();
+                panel.Children.Add(box);
+                panel.Children.Add(button);
+                window = new System.Windows.Window
+                {
+                    Width = 220,
+                    Height = 120,
+                    Left = -20000,
+                    Top = -20000,
+                    ShowInTaskbar = false,
+                    ShowActivated = true,
+                    WindowStyle = System.Windows.WindowStyle.None,
+                    Content = panel,
+                };
+                window.Show();
+                System.Windows.Data.BindingOperations.SetBinding(
+                    box,
+                    System.Windows.Controls.TextBox.TextProperty,
+                    new System.Windows.Data.Binding(nameof(ImageConverterViewModel.ArrayName))
+                    {
+                        Source = vm,
+                        Mode = System.Windows.Data.BindingMode.TwoWay,
+                        UpdateSourceTrigger = System.Windows.Data.UpdateSourceTrigger.PropertyChanged,
+                        Delay = 400,
+                    });
+                image2gdram_converter.Controls.TextBoxCommit.SetFlush(box, true);
+                box.Focus();
+                box.Text = "panel_logo";
+                Assert.Equal("white_128x64", vm.ArrayName);
+
+                harness.Files.NextSaveOutput = Path.Combine(output, "panel_logo.c");
+                button.Focus();
+                Assert.Equal("panel_logo", vm.ArrayName);
+
+                button.Command.Execute(null);
+                Assert.Equal("panel_logo", harness.Files.LastFileName);
+                Assert.True(File.Exists(Path.Combine(output, "panel_logo.c")));
+                Assert.Contains("#include \"panel_logo.h\"", File.ReadAllText(Path.Combine(output, "panel_logo.c")), StringComparison.Ordinal);
+            });
+        }
+        finally
+        {
+            ui.Dispatcher.Invoke(() => window?.Close());
+        }
     }
 
     [Fact]
@@ -369,7 +661,7 @@ public class ImageConverterViewModelTests
 
     private sealed class Harness : IDisposable
     {
-        public Harness()
+        public Harness(IRecalcScheduler? scheduler = null)
         {
             Directory = Path.Combine(Path.GetTempPath(), "i2g-app-" + Guid.NewGuid().ToString("N"));
             System.IO.Directory.CreateDirectory(Directory);
@@ -383,7 +675,7 @@ public class ImageConverterViewModelTests
                 Dialogs,
                 Files,
                 Clipboard,
-                new ImmediateRecalcScheduler(),
+                scheduler ?? new ImmediateRecalcScheduler(),
                 new UnusedDecoder(),
                 PresetCatalog.Shared,
                 settings.UserPresets,

@@ -80,7 +80,7 @@ internal sealed class Session : IDisposable
 
         public string? PickSaveProject(string? folder) => null;
 
-        public string? PickFolder(string? folder, string title, string fileNameLabel, string okButton) => null;
+        public string? PickSaveOutput(string? folder, string fileName, string title, string filter, string defaultExt) => null;
     }
 
     private sealed class NoClipboard : IClipboardService
