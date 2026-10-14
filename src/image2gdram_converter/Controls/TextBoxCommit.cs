@@ -43,6 +43,16 @@ public static class TextBoxCommit
 
     public static void SetFlush(DependencyObject element, bool value) => element.SetValue(FlushProperty, value);
 
+    public static void FlushFocused()
+    {
+        if (Thread.CurrentThread.GetApartmentState() == ApartmentState.STA
+            && Keyboard.FocusedElement is TextBox textBox
+            && GetFlush(textBox))
+        {
+            BindingOperations.GetBindingExpression(textBox, TextBox.TextProperty)?.UpdateSource();
+        }
+    }
+
     private static void OnHookChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
         if (d is not TextBox textBox)

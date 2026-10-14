@@ -627,39 +627,37 @@ public sealed partial class ImageConverterViewModel : ObservableValidator, ICode
     [RelayCommand(CanExecute = nameof(CanSaveOutput))]
     private void SaveOutput()
     {
-        if (Document is null || !CanSaveOutput)
-        {
-            return;
-        }
-
-        string? directory = _files.PickFolder(
-            _outputFolder,
-            _loc.Get("File.SaveOutputTitle"),
-            string.Join(", ", Document.Files.Select(file => file.FileName)),
-            _loc.Get("Dialog.Save"));
-        if (directory is null)
-        {
-            return;
-        }
-
-        try
-        {
-            OutputSaveResult result = OutputWriter.Save(
-                Document,
-                directory,
-                existing => _dialogs.Confirm(_loc.Format("Dialog.Overwrite", string.Join(Environment.NewLine, existing))),
-                SourceFiles.Concat(OtherSourceFiles?.Invoke() ?? Array.Empty<string>()).ToArray());
-            if (result == OutputSaveResult.Saved)
+        OutputSaveFlow.Run(
+            _loc,
+            _dialogs,
+            _files,
+            () => Document,
+            () => CanSaveOutput,
+            _format,
+            InitialOutputFolder(),
+            () => ArrayName,
+            name => ArrayName = name,
+            RegenerateNow,
+            () => CodeText,
+            SourceFiles.Concat(OtherSourceFiles?.Invoke() ?? Array.Empty<string>()).ToArray(),
+            directory =>
             {
                 _outputFolder = directory;
                 FileUsed?.Invoke(directory, SessionFolder.SaveOutput);
-            }
-        }
-        catch (OutputWriteException ex)
-        {
-            _dialogs.Alert(UserText.OutputWrite(_loc, ex));
-        }
+            });
     }
+
+    private OutputDocument? RegenerateNow()
+    {
+        PreviewResult result = Compute(Capture(), CancellationToken.None);
+        Apply(result);
+        return result.Document;
+    }
+
+    private string? InitialOutputFolder() =>
+        OutputSaveFlow.NullIfEmpty(_outputFolder)
+        ?? OutputSaveFlow.FolderOf(_sourcePath)
+        ?? OutputSaveFlow.NullIfEmpty(_openFolder);
 
     /// <summary>
     /// Пустое или недопустимое смещение при выходе из поля и по Enter
