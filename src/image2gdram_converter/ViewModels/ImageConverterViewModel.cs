@@ -38,6 +38,12 @@ public sealed partial class ImageConverterViewModel : ObservableValidator, ICode
     private FramePixelOverrides _edits = new();
     private bool _suppress;
     private bool _nameCustomized;
+
+    /// <summary>Имя сверено до появления пути исходника (N-72). Сбрасывается, когда путь известен или имя правят вручную.</summary>
+    private bool _namePendingSource;
+
+    /// <summary>Путь для автоимени, если картинка ещё не открыта (settings.json). На экран не выводится.</summary>
+    private string? _nameSourcePath;
     private bool _busy;
     private bool _keepHighlight;
     private string? _openFolder;
@@ -247,7 +253,7 @@ public sealed partial class ImageConverterViewModel : ObservableValidator, ICode
 
     public bool Stm32Enabled => _format == OutputFormat.CStm32;
 
-    public bool ShowCodeTabs => CodeFiles.Count > 1;
+    public bool ShowCodeFiles => CodeFiles.Count > 0;
 
     public bool CanUndo => _history.CanUndo;
 
@@ -390,6 +396,7 @@ public sealed partial class ImageConverterViewModel : ObservableValidator, ICode
         _selectedFrame = Math.Max(1, parameters.SelectedFrame);
         _exportAll = parameters.ExportAllFrames;
         _nameCustomized = !IsAutomaticName(_arrayName);
+        _namePendingSource = true;
         _suppress = false;
 
         Presets.Show(_binding);
@@ -409,6 +416,7 @@ public sealed partial class ImageConverterViewModel : ObservableValidator, ICode
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
         _image = image;
         _sourcePath = path;
+        _nameSourcePath = path;
         if (resetFrame || _selectedFrame < 1 || _selectedFrame > image.Frames.Count)
         {
             _selectedFrame = 1;
@@ -830,6 +838,7 @@ public sealed partial class ImageConverterViewModel : ObservableValidator, ICode
         bool nameCustomized = _nameCustomized;
         LoadState(next, schedule: false);
         _nameCustomized = nameCustomized;
+        _namePendingSource = false;
         ClampOffsetsToSize();
         UpdateAutomaticName();
         Schedule();
@@ -1046,8 +1055,40 @@ public sealed partial class ImageConverterViewModel : ObservableValidator, ICode
         OnPropertyChanged(nameof(PresetCaption));
     }
 
+    /// <summary>
+    /// Запоминает путь исходника для автоимени, не открывая картинку.
+    /// Нужен после старта из <c>settings.json</c>, где путь уже есть, а кадры ещё не читались (N-72).
+    /// </summary>
+    public void RememberNameSource(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return;
+        }
+
+        _nameSourcePath = path;
+        string previous = _arrayName;
+        UpdateAutomaticName();
+        if (!string.Equals(previous, _arrayName, StringComparison.Ordinal))
+        {
+            Schedule();
+        }
+    }
+
     private void UpdateAutomaticName()
     {
+        if (_namePendingSource && !string.IsNullOrWhiteSpace(NamePath))
+        {
+            // Снять «ручное» только если имя совпало с автоименем. Заготовку image_WxH не помечать ручной:
+            // её ещё предстоит заменить именем файла.
+            if (IsAutomaticName(_arrayName))
+            {
+                _nameCustomized = false;
+            }
+
+            _namePendingSource = false;
+        }
+
         if (_nameCustomized || !TryEffectiveSize(out int width, out int height))
         {
             return;
@@ -1083,15 +1124,21 @@ public sealed partial class ImageConverterViewModel : ObservableValidator, ICode
             return false;
         }
 
-        return name == BuildAutoName(width, height);
+        return name == BuildAutoName(width, height, NameValidator.MaxLength)
+            || name == BuildAutoName(width, height, NameValidator.MaxLengthA51Module);
     }
 
-    private string BuildAutoName(int width, int height)
+    private string? NamePath => string.IsNullOrWhiteSpace(_sourcePath) ? _nameSourcePath : _sourcePath;
+
+    private string BuildAutoName(int width, int height) =>
+        BuildAutoName(width, height, NameValidator.GetMaxLength(_format));
+
+    private string BuildAutoName(int width, int height, int maxLength)
     {
-        int max = NameValidator.GetMaxLength(_format);
-        return string.IsNullOrWhiteSpace(_sourcePath)
-            ? DefaultNameBuilder.Build(null, width, height, ArrayNameKind.Image, max)
-            : DefaultNameBuilder.FromFile(_sourcePath, width, height, ArrayNameKind.Image, max);
+        string? path = NamePath;
+        return string.IsNullOrWhiteSpace(path)
+            ? DefaultNameBuilder.Build(null, width, height, ArrayNameKind.Image, maxLength)
+            : DefaultNameBuilder.FromFile(path, width, height, ArrayNameKind.Image, maxLength);
     }
 
     private bool TryEffectiveSize(out int width, out int height)
@@ -1185,7 +1232,7 @@ public sealed partial class ImageConverterViewModel : ObservableValidator, ICode
         OnPropertyChanged(nameof(SourceName));
         OnPropertyChanged(nameof(ResultSizeText));
         OnPropertyChanged(nameof(PresetCaption));
-        OnPropertyChanged(nameof(ShowCodeTabs));
+        OnPropertyChanged(nameof(ShowCodeFiles));
     }
 
     private void NotifyUndo()

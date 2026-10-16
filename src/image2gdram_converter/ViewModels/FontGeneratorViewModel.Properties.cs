@@ -30,7 +30,7 @@ public sealed partial class FontGeneratorViewModel
 
     public bool Stm32Enabled => _format == OutputFormat.CStm32;
 
-    public bool ShowCodeTabs => CodeFiles.Count > 1;
+    public bool ShowCodeFiles => CodeFiles.Count > 0;
 
     public bool HasMissing => _missing.Count > 0;
 
@@ -541,6 +541,7 @@ public sealed partial class FontGeneratorViewModel
             }
 
             _nameCustomized = true;
+            _namePendingSource = false;
             RefreshCommands();
             if (FirstError() is not null)
             {

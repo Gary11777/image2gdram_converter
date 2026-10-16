@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using Image2Gdram.Core.Imaging;
 using Image2Gdram.Core.Output;
 using Image2Gdram.Core.Presets;
@@ -652,6 +653,98 @@ public class ImageConverterViewModelTests
 
         Assert.Equal(string.Empty, vm.WarningText);
     }
+
+    [Theory]
+    [InlineData(OutputFormat.A51Module, AsmFileExtension.A51, ".a51")]
+    [InlineData(OutputFormat.A51Include, AsmFileExtension.Asm, ".asm")]
+    [InlineData(OutputFormat.Bin, AsmFileExtension.A51, ".bin")]
+    public void Single_output_file_keeps_its_name_above_the_code(OutputFormat format, AsmFileExtension extension, string suffix)
+    {
+        using var harness = new Harness();
+        ImageConverterViewModel vm = harness.Image;
+        LoadWhite(vm);
+        vm.Format = format;
+        vm.AsmExtension = extension;
+
+        CodeFileItem file = Assert.Single(vm.CodeFiles);
+        Assert.Equal(vm.ArrayName + suffix, file.Caption);
+        Assert.True(vm.ShowCodeFiles);
+        Assert.Equal(0, vm.CodeIndex);
+        Assert.Equal(file.Text, vm.CodeText);
+
+        vm.SetHover(0, 0);
+
+        Assert.True(vm.HighlightLength > 0);
+        Assert.Equal(0, vm.CodeIndex);
+    }
+
+    [Fact]
+    public void Automatic_name_from_a_long_file_fits_an_a51_module_when_the_picture_opens_after_load_state()
+    {
+        using var harness = new Harness();
+        ImageConverterViewModel vm = harness.Image;
+        string path = Path.Combine(harness.Directory, "very_long_source_picture_name.png");
+        string full = DefaultNameBuilder.FromFile(path, 128, 64, ArrayNameKind.Image, NameValidator.MaxLength);
+        Assert.Equal(NameValidator.MaxLength, full.Length);
+        ImageTabParameters parameters = ImageTabParameters.CreateDefault() with
+        {
+            Output = OutputOptions.Default with { ArrayName = full },
+        };
+
+        vm.LoadState(parameters, schedule: false);
+        vm.LoadDecoded(
+            new DecodedImage(ImageFileFormat.Png, new[] { new RgbaImage(8, 8, 255, 255, 255, 255) }),
+            path,
+            resetFrame: false,
+            userAction: false);
+        vm.Format = OutputFormat.A51Module;
+
+        Assert.Empty(NameErrors(vm));
+        Assert.InRange(vm.ArrayName.Length, 1, NameValidator.MaxLengthA51Module);
+        Assert.True(vm.CanCopy);
+
+        vm.Format = OutputFormat.A51Include;
+
+        Assert.Empty(NameErrors(vm));
+        Assert.Equal(full, vm.ArrayName);
+        Assert.True(vm.CanCopy);
+
+        vm.Format = OutputFormat.CKeilC51;
+
+        Assert.Equal(full, vm.ArrayName);
+        Assert.Empty(NameErrors(vm));
+    }
+
+    [Fact]
+    public void Manual_name_typed_after_load_state_is_not_replaced_when_the_picture_opens()
+    {
+        using var harness = new Harness();
+        ImageConverterViewModel vm = harness.Image;
+        string path = Path.Combine(harness.Directory, "very_long_source_picture_name.png");
+        string full = DefaultNameBuilder.FromFile(path, 128, 64, ArrayNameKind.Image, NameValidator.MaxLength);
+        ImageTabParameters parameters = ImageTabParameters.CreateDefault() with
+        {
+            Output = OutputOptions.Default with { ArrayName = full },
+        };
+
+        vm.LoadState(parameters, schedule: false);
+        vm.ArrayName = "screen";
+        vm.LoadDecoded(
+            new DecodedImage(ImageFileFormat.Png, new[] { new RgbaImage(8, 8, 255, 255, 255, 255) }),
+            path,
+            resetFrame: false,
+            userAction: false);
+        vm.Format = OutputFormat.A51Module;
+
+        Assert.Equal("screen", vm.ArrayName);
+        Assert.Empty(NameErrors(vm));
+        Assert.True(vm.CanCopy);
+    }
+
+    private static string[] NameErrors(ImageConverterViewModel vm) =>
+        ((INotifyDataErrorInfo)vm).GetErrors(nameof(ImageConverterViewModel.ArrayName)).Cast<object>()
+            .Select(error => error.ToString()!)
+            .ToArray();
 
     private static void LoadWhite(ImageConverterViewModel vm)
     {

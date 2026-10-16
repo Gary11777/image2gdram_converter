@@ -11,7 +11,7 @@
                      SelectedIndex="{Binding CodeIndex, Mode=TwoWay}"
                      BorderThickness="0"
                      Background="Transparent"
-                     Visibility="{Binding ShowCodeTabs, Converter={StaticResource BoolToVis}}">
+                     Visibility="{Binding ShowCodeFiles, Converter={StaticResource BoolToVis}}">
                 <ListBox.ItemsPanel>
                     <ItemsPanelTemplate>
                         <StackPanel Orientation="Horizontal"/>

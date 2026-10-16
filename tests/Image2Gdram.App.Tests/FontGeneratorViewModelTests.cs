@@ -1,8 +1,10 @@
+using System.ComponentModel;
 using Image2Gdram.Core.Fonts;
 using Image2Gdram.Core.Imaging;
 using Image2Gdram.Core.Output;
 using Image2Gdram.Core.Packing;
 using Image2Gdram.Core.Presets;
+using Image2Gdram.Core.Projects;
 using Image2Gdram.Core.Settings;
 using image2gdram_converter;
 using image2gdram_converter.Services;
@@ -613,6 +615,79 @@ public class FontGeneratorViewModelTests : IDisposable
             ui.Dispatcher.Invoke(() => window?.Close());
         }
     }
+
+    [Theory]
+    [InlineData(OutputFormat.A51Module, AsmFileExtension.A51, ".a51")]
+    [InlineData(OutputFormat.A51Include, AsmFileExtension.Asm, ".asm")]
+    [InlineData(OutputFormat.Bin, AsmFileExtension.A51, ".bin")]
+    public void Single_output_file_keeps_its_name_above_the_code(OutputFormat format, AsmFileExtension extension, string suffix)
+    {
+        using var harness = new Harness(_directory);
+        FontGeneratorViewModel vm = harness.Font;
+        UseStub(vm);
+        vm.Format = format;
+        vm.AsmExtension = extension;
+
+        CodeFileItem file = Assert.Single(vm.CodeFiles);
+        Assert.Equal(vm.ArrayName + suffix, file.Caption);
+        Assert.True(vm.ShowCodeFiles);
+        Assert.Equal(file.Text, vm.CodeText);
+        Assert.Equal(0, vm.CodeIndex);
+    }
+
+    [Fact]
+    public void Long_family_automatic_name_fits_the_a51_module_and_the_include_fragment()
+    {
+        using var harness = new Harness(_directory);
+        FontGeneratorViewModel vm = harness.Font;
+        vm.Family = "LongTypefaceNameForEmbeddedDisplay";
+        Assert.Equal(NameValidator.MaxLength, vm.ArrayName.Length);
+
+        vm.Format = OutputFormat.A51Module;
+
+        Assert.InRange(vm.ArrayName.Length, 1, NameValidator.MaxLengthA51Module);
+        Assert.Empty(NameErrors(vm));
+        Assert.True(vm.CanCopy);
+
+        vm.Format = OutputFormat.A51Include;
+
+        Assert.Empty(NameErrors(vm));
+        Assert.Equal(NameValidator.MaxLength, vm.ArrayName.Length);
+        Assert.True(vm.CanCopy);
+    }
+
+    [Fact]
+    public void Long_sheet_path_automatic_name_fits_the_a51_module()
+    {
+        using var harness = new Harness(_directory);
+        FontGeneratorViewModel vm = harness.Font;
+        string path = Path.Combine(_directory, "character_sheet_with_a_very_long_file_name.png");
+        string full = DefaultNameBuilder.FromFile(path, 6, 8, ArrayNameKind.Font, NameValidator.MaxLength);
+        Assert.Equal(NameValidator.MaxLength, full.Length);
+        FontTabParameters current = vm.ToParameters();
+        FontTabParameters parameters = current with
+        {
+            SourceKind = FontSourceKind.Sheet,
+            Output = current.Output with { ArrayName = full },
+        };
+
+        vm.Load(new FontProjectTab(parameters, new FontTable(FontCellSize.Cell6x8), path));
+        vm.Format = OutputFormat.A51Module;
+
+        Assert.InRange(vm.ArrayName.Length, 1, NameValidator.MaxLengthA51Module);
+        Assert.Empty(NameErrors(vm));
+        Assert.True(vm.CanCopy);
+
+        vm.Format = OutputFormat.A51Include;
+
+        Assert.Empty(NameErrors(vm));
+        Assert.Equal(full, vm.ArrayName);
+    }
+
+    private static string[] NameErrors(FontGeneratorViewModel vm) =>
+        ((INotifyDataErrorInfo)vm).GetErrors(nameof(FontGeneratorViewModel.ArrayName)).Cast<object>()
+            .Select(error => error.ToString()!)
+            .ToArray();
 
     public void Dispose()
     {

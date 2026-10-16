@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using Image2Gdram.Core.Imaging;
 using Image2Gdram.Core.Output;
 using Image2Gdram.Core.Processing;
@@ -244,6 +245,45 @@ public class MainViewModelTests : IDisposable
 
         Assert.Contains("Словарь en-US не найден", main.StatusText, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void Long_automatic_name_restored_from_settings_fits_an_a51_module_without_opening_the_picture()
+    {
+        string path = Path.Combine(_directory, "very_long_source_picture_name.png");
+        File.WriteAllBytes(path, new byte[] { 1 });
+        var decoder = new MapDecoder();
+        decoder.Add(path, White());
+        MainViewModel first = Create(new FakeDialogs(), decoder: decoder);
+        first.Image.LoadDecoded(decoder.Decode(path), path, resetFrame: true, userAction: false);
+        string full = first.Image.ArrayName;
+        Assert.Equal(NameValidator.MaxLength, full.Length);
+        Assert.True(first.TryClose());
+
+        MainViewModel second = Create(new FakeDialogs(), decoder: decoder);
+
+        Assert.False(second.Image.HasImage);
+        Assert.Equal(string.Empty, second.Image.SourceName);
+        Assert.Equal(full, second.Image.ArrayName);
+
+        second.Image.Format = OutputFormat.A51Module;
+
+        Assert.InRange(second.Image.ArrayName.Length, 1, NameValidator.MaxLengthA51Module);
+        Assert.Empty(NameErrors(second.Image));
+
+        second.Image.Format = OutputFormat.A51Include;
+
+        Assert.Equal(full, second.Image.ArrayName);
+        Assert.Empty(NameErrors(second.Image));
+
+        second.Image.Format = OutputFormat.CKeilC51;
+
+        Assert.Equal(full, second.Image.ArrayName);
+    }
+
+    private static string[] NameErrors(ImageConverterViewModel vm) =>
+        ((INotifyDataErrorInfo)vm).GetErrors(nameof(ImageConverterViewModel.ArrayName)).Cast<object>()
+            .Select(error => error.ToString()!)
+            .ToArray();
 
     public void Dispose()
     {

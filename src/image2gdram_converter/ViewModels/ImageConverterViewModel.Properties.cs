@@ -277,6 +277,7 @@ public sealed partial class ImageConverterViewModel
             }
 
             _nameCustomized = true;
+            _namePendingSource = false;
             RefreshCommands();
             if (FirstError() is not null)
             {
