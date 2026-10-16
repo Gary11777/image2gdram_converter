@@ -63,6 +63,9 @@ public sealed partial class FontGeneratorViewModel : ObservableValidator, ICodeS
     private string? _outputFolder;
     private bool _suppress;
     private bool _nameCustomized;
+
+    /// <summary>Имя сверено, когда у текущего источника ещё не было гарнитуры или пути (N-72).</summary>
+    private bool _namePendingSource;
     private bool _keepHighlight;
     private SourceJob _job = SourceJob.None;
     private int _jobId;
@@ -860,6 +863,7 @@ public sealed partial class FontGeneratorViewModel : ObservableValidator, ICodeS
         _includeDate = output.IncludeDate;
         _importArrayName = parameters.ImportArrayName;
         _nameCustomized = !IsAutomatic(_arrayName);
+        _namePendingSource = !HasNameBasis();
         if (!_nameCustomized)
         {
             UpdateAutomaticName();
@@ -1086,6 +1090,7 @@ public sealed partial class FontGeneratorViewModel : ObservableValidator, ICodeS
             HighlightLength = 0;
             _fontBytes = null;
             WarningText = string.Empty;
+            NotifyDerived();
             RefreshCommands();
             CommandsChanged?.Invoke();
             return;
@@ -1119,6 +1124,7 @@ public sealed partial class FontGeneratorViewModel : ObservableValidator, ICodeS
         OnPropertyChanged(nameof(HasMissing));
         OnPropertyChanged(nameof(SizeLine));
         OnPropertyChanged(nameof(Document));
+        NotifyDerived();
         RefreshCommands();
         CommandsChanged?.Invoke();
     }
@@ -1214,6 +1220,17 @@ public sealed partial class FontGeneratorViewModel : ObservableValidator, ICodeS
 
     private void UpdateAutomaticName()
     {
+        if (_namePendingSource && HasNameBasis())
+        {
+            // Снять «ручное» только если имя совпало с автоименем. Заготовку font_WxH не помечать ручной.
+            if (IsAutomatic(_arrayName))
+            {
+                _nameCustomized = false;
+            }
+
+            _namePendingSource = false;
+        }
+
         if (_nameCustomized)
         {
             return;
@@ -1230,11 +1247,22 @@ public sealed partial class FontGeneratorViewModel : ObservableValidator, ICodeS
         ValidateProperty(_arrayName, nameof(ArrayName));
     }
 
+    private bool HasNameBasis() => _sourceKind switch
+    {
+        FontSourceKind.TrueType => !string.IsNullOrWhiteSpace(_family),
+        FontSourceKind.Sheet => !string.IsNullOrWhiteSpace(_sheetPath),
+        FontSourceKind.Import => !string.IsNullOrWhiteSpace(_importPath),
+        _ => true,
+    };
+
     private bool IsAutomatic(string name) =>
         string.Equals(name, "font", StringComparison.Ordinal)
-        || string.Equals(name, BuildAutoName(), StringComparison.Ordinal);
+        || string.Equals(name, BuildAutoName(NameValidator.MaxLength), StringComparison.Ordinal)
+        || string.Equals(name, BuildAutoName(NameValidator.MaxLengthA51Module), StringComparison.Ordinal);
 
-    private string BuildAutoName()
+    private string BuildAutoName() => BuildAutoName(NameValidator.GetMaxLength(_format));
+
+    private string BuildAutoName(int maxLength)
     {
         string? basis = _sourceKind switch
         {
@@ -1245,7 +1273,7 @@ public sealed partial class FontGeneratorViewModel : ObservableValidator, ICodeS
         };
         if (string.IsNullOrWhiteSpace(basis))
         {
-            return DefaultNameBuilder.Build(null, _cell.Width, _cell.Height, ArrayNameKind.Font);
+            return DefaultNameBuilder.Build(null, _cell.Width, _cell.Height, ArrayNameKind.Font, maxLength);
         }
 
         bool file = basis.Contains(Path.DirectorySeparatorChar, StringComparison.Ordinal)
@@ -1253,8 +1281,8 @@ public sealed partial class FontGeneratorViewModel : ObservableValidator, ICodeS
             || basis.Contains('\\', StringComparison.Ordinal)
             || Path.HasExtension(basis);
         return file
-            ? DefaultNameBuilder.FromFile(basis, _cell.Width, _cell.Height, ArrayNameKind.Font)
-            : DefaultNameBuilder.Build(basis, _cell.Width, _cell.Height, ArrayNameKind.Font);
+            ? DefaultNameBuilder.FromFile(basis, _cell.Width, _cell.Height, ArrayNameKind.Font, maxLength)
+            : DefaultNameBuilder.Build(basis, _cell.Width, _cell.Height, ArrayNameKind.Font, maxLength);
     }
 
     /// <summary>Модуль смещения глифа не больше 80 % стороны ячейки и абсолютного предела (N-67).</summary>
@@ -1449,7 +1477,7 @@ public sealed partial class FontGeneratorViewModel : ObservableValidator, ICodeS
         OnPropertyChanged(nameof(SheetCaption));
         OnPropertyChanged(nameof(ImportCaption));
         OnPropertyChanged(nameof(SizeLine));
-        OnPropertyChanged(nameof(ShowCodeTabs));
+        OnPropertyChanged(nameof(ShowCodeFiles));
         OnPropertyChanged(nameof(MissingText));
         OnPropertyChanged(nameof(HasMissing));
     }

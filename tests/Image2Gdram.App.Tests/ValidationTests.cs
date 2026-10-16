@@ -109,6 +109,22 @@ public class ValidationTests : IDisposable
     }
 
     [Fact]
+    public void Manual_name_too_long_for_an_a51_module_is_accepted_by_the_include_fragment()
+    {
+        ImageConverterViewModel vm = CreateImage();
+        LoadWhite(vm);
+        vm.ArrayName = new string('a', 30);
+        vm.Format = OutputFormat.A51Module;
+        Assert.Equal(string.Format(Text["Error.Name.TooLong"], 27), Assert.Single(Errors(vm, nameof(vm.ArrayName))));
+
+        vm.Format = OutputFormat.A51Include;
+
+        Assert.Empty(Errors(vm, nameof(vm.ArrayName)));
+        Assert.Equal(new string('a', 30), vm.ArrayName);
+        Assert.True(vm.CanCopy);
+    }
+
+    [Fact]
     public void Size_fields_are_not_checked_when_the_size_follows_the_source()
     {
         ImageConverterViewModel vm = CreateImage();

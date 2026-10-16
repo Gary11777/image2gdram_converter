@@ -70,6 +70,7 @@ public sealed partial class MainViewModel : ObservableObject
             PresetCatalog.Shared,
             _settings.UserPresets,
             _settings.Image.Parameters);
+        Image.RememberNameSource(_settings.Image.SourcePath);
         Image.SetFolders(_folders.OpenImage, _folders.SaveOutput);
         Image.ParametersChanged = OnParametersChanged;
         Image.EditsChanged = OnEditsChanged;

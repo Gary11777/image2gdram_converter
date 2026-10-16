@@ -12,7 +12,7 @@ public class CodeViewLayoutTests
     {
         XDocument code = Load("Controls", "CodeView.xaml");
         XElement tabs = code.Descendants(Presentation + "ListBox").Single(element =>
-            Visibility(element).Contains("ShowCodeTabs", StringComparison.Ordinal));
+            Visibility(element).Contains("ShowCodeFiles", StringComparison.Ordinal));
         XElement copy = SingleButton(code, "CopyCommand");
         XElement save = SingleButton(code, "SaveOutputCommand");
 
@@ -23,7 +23,7 @@ public class CodeViewLayoutTests
 
         XElement header = HeaderRow(copy);
         Assert.Equal("Top", header.Attribute("DockPanel.Dock")?.Value);
-        Assert.DoesNotContain("ShowCodeTabs", Visibility(header), StringComparison.Ordinal);
+        Assert.DoesNotContain("ShowCodeFiles", Visibility(header), StringComparison.Ordinal);
         Assert.Contains(tabs, header.Descendants());
         Assert.Contains(save, header.Descendants());
     }
