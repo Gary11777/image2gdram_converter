@@ -30,7 +30,7 @@ public sealed class StringPreviewControl : FrameworkElement
         nameof(Invert), typeof(bool), typeof(StringPreviewControl), new PropertyMetadata(false, Invalidate));
 
     public static readonly DependencyProperty SchemeProperty = DependencyProperty.Register(
-        nameof(Scheme), typeof(ColorScheme), typeof(StringPreviewControl), new PropertyMetadata(ColorScheme.Oled, Invalidate));
+        nameof(Scheme), typeof(ColorScheme), typeof(StringPreviewControl), new PropertyMetadata(ColorScheme.Lcd, Invalidate));
 
     public StringPreviewControl()
     {

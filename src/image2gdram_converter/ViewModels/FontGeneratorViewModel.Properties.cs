@@ -508,11 +508,7 @@ public sealed partial class FontGeneratorViewModel
         set => BeginChange(ref _invert, value, source: false, preset: true);
     }
 
-    public ColorScheme Scheme
-    {
-        get => _scheme;
-        set => BeginChange(ref _scheme, value, source: false, preset: true);
-    }
+    public ColorScheme Scheme => ColorScheme.Lcd;
 
     public OutputFormat Format
     {
