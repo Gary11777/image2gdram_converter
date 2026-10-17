@@ -38,7 +38,7 @@
     <sys:String x:Key="Label.Alignment">Выравнивание</sys:String>
     <sys:String x:Key="Label.OffsetX">Смещение X</sys:String>
     <sys:String x:Key="Label.OffsetY">Смещение Y</sys:String>
-    <sys:String x:Key="Label.Resample">Масштаб</sys:String>
+    <sys:String x:Key="Label.Resample">Грань</sys:String>
     <sys:String x:Key="Label.Binarize">Режим</sys:String>
     <sys:String x:Key="Label.Threshold">Порог</sys:String>
     <sys:String x:Key="Label.Direction">Направление</sys:String>
