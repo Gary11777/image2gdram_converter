@@ -45,7 +45,6 @@
     <sys:String x:Key="Label.BitOrder">Порядок бит</sys:String>
     <sys:String x:Key="Label.Bits">Бит в байте</sys:String>
     <sys:String x:Key="Label.Traversal">Обход</sys:String>
-    <sys:String x:Key="Label.Scheme">Схема</sys:String>
     <sys:String x:Key="Label.Format">Формат</sys:String>
     <sys:String x:Key="Label.ArrayName">Имя массива</sys:String>
     <sys:String x:Key="Label.Encoding">Кодировка</sys:String>
@@ -109,8 +108,6 @@
     <sys:String x:Key="Opt.Bits.6">6</sys:String>
     <sys:String x:Key="Opt.Page.ByPages">По страницам</sys:String>
     <sys:String x:Key="Opt.Page.ByColumns">По столбцам</sys:String>
-    <sys:String x:Key="Opt.Scheme.Lcd">ЖКИ</sys:String>
-    <sys:String x:Key="Opt.Scheme.Oled">OLED</sys:String>
     <sys:String x:Key="Opt.Format.C51">C — Keil C51</sys:String>
     <sys:String x:Key="Opt.Format.Stm32">C — STM32</sys:String>
     <sys:String x:Key="Opt.Format.A51Module">A51 — модуль</sys:String>

@@ -242,15 +242,6 @@
                               IsEnabled="{Binding TraversalEnabled}"/>
                 </Grid>
                 <CheckBox Content="{DynamicResource Check.Invert}" IsChecked="{Binding Invert}" Margin="0,4,0,0"/>
-                <Grid Margin="0,4,0,0">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="140"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
-                    <TextBlock Style="{StaticResource Field}" Text="{DynamicResource Label.Scheme}"/>
-                    <ComboBox Grid.Column="1" ItemsSource="{Binding Schemes}" DisplayMemberPath="Caption"
-                              SelectedValuePath="Value" SelectedValue="{Binding Scheme}"/>
-                </Grid>
 
                 <TextBlock Style="{StaticResource Section}" Text="{DynamicResource Section.Output}"/>
                 <Grid Margin="0,2">

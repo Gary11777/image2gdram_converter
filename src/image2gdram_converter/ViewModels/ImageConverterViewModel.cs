@@ -76,7 +76,6 @@ public sealed partial class ImageConverterViewModel : ObservableValidator, ICode
     private int _bits = 8;
     private PageTraversal _traversal = PageTraversal.ByPages;
     private bool _invert;
-    private ColorScheme _scheme = ColorScheme.Oled;
     private PresetBinding _binding = PresetBinding.Custom;
 
     private OutputFormat _format = OutputFormat.CKeilC51;
@@ -137,7 +136,6 @@ public sealed partial class ImageConverterViewModel : ObservableValidator, ICode
         BitOrders = OptionLists.BitOrders(localization);
         BitCounts = OptionLists.BitCounts(localization);
         Traversals = OptionLists.Traversals(localization);
-        Schemes = OptionLists.Schemes(localization);
         Formats = OptionLists.Formats(localization);
         Encodings = OptionLists.Encodings(localization);
         AsmNumberFormats = OptionLists.AsmNumbers(localization);
@@ -202,8 +200,6 @@ public sealed partial class ImageConverterViewModel : ObservableValidator, ICode
     public IReadOnlyList<Labeled<int>> BitCounts { get; }
 
     public IReadOnlyList<Labeled<PageTraversal>> Traversals { get; }
-
-    public IReadOnlyList<Labeled<ColorScheme>> Schemes { get; }
 
     public IReadOnlyList<Labeled<OutputFormat>> Formats { get; }
 
@@ -380,7 +376,6 @@ public sealed partial class ImageConverterViewModel : ObservableValidator, ICode
         _bits = packing.BitsPerByte is 6 or 8 ? packing.BitsPerByte : 8;
         _traversal = packing.PageTraversal;
         _invert = packing.Invert;
-        _scheme = parameters.ColorScheme;
         _binding = parameters.Preset;
 
         OutputOptions output = parameters.Output;
@@ -478,7 +473,7 @@ public sealed partial class ImageConverterViewModel : ObservableValidator, ICode
         Processing = ToProcessing(),
         Packing = ToPacking(),
         Output = ToOutput(),
-        ColorScheme = _scheme,
+        ColorScheme = ColorScheme.Lcd,
         Preset = _binding,
         SelectedFrame = _selectedFrame,
         ExportAllFrames = _exportAll,
@@ -699,7 +694,7 @@ public sealed partial class ImageConverterViewModel : ObservableValidator, ICode
 
         try
         {
-            var preset = new Preset(name, controller: null, _width, _height, ToPacking(), _scheme, isBuiltIn: false);
+            var preset = new Preset(name, controller: null, _width, _height, ToPacking(), ColorScheme.Lcd, isBuiltIn: false);
             _users.Add(preset);
             _binding = PresetBinding.ForPreset(preset);
             Presets.Show(_binding);
