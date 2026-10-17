@@ -1,9 +1,11 @@
 using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Interop;
+using System.Xml.Linq;
 using Image2Gdram.Core.Fonts;
 using Image2Gdram.Core.Imaging;
 using Image2Gdram.Core.Output;
@@ -19,9 +21,11 @@ using image2gdram_converter.ViewModels;
 
 namespace Image2Gdram.App.Tests;
 
-/// <summary>N-68: minus and plus buttons on the three threshold fields.</summary>
+/// <summary>N-68, N-73: repeat arrow buttons on the three threshold fields.</summary>
 public class ThresholdStepTests : IDisposable
 {
+    private static readonly XNamespace Presentation = "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
+    private static readonly XNamespace Xaml = "http://schemas.microsoft.com/winfx/2006/xaml";
     private static readonly Dictionary<string, string> Text = TestFiles.LoadUiStrings();
     private readonly string _directory = Path.Combine(Path.GetTempPath(), "i2g-threshold-" + Guid.NewGuid().ToString("N"));
 
@@ -257,15 +261,17 @@ public class ThresholdStepTests : IDisposable
         {
             ui.Dispatcher.Invoke(() =>
             {
+                ResourceDictionary resources = LoadSharedResources();
                 var box = new TextBox { Width = 64 };
-                var button = new Button
+                var button = new RepeatButton
                 {
-                    Content = "+",
-                    MinWidth = 22,
-                    Focusable = true,
-                    IsTabStop = false,
+                    Style = (Style)resources["ThresholdIncreaseButton"],
                     Command = vm.IncreaseThresholdCommand,
                 };
+                Assert.Null(button.Content);
+                Assert.True(button.Focusable);
+                Assert.False(button.IsTabStop);
+                Assert.Null(button.FocusVisualStyle);
                 var panel = new StackPanel();
                 panel.Children.Add(box);
                 panel.Children.Add(button);
@@ -319,6 +325,148 @@ public class ThresholdStepTests : IDisposable
         {
             ui.Dispatcher.Invoke(() => window?.Close());
         }
+    }
+
+    [Fact]
+    public void Markup_uses_repeat_buttons_bound_to_slider_delay_and_interval()
+    {
+        XDocument image = LoadView("ImageConverterView.xaml");
+        XDocument font = LoadView("FontGeneratorView.xaml");
+
+        VerifyThresholdRow(image, "ThresholdSlider", "DecreaseThresholdCommand", "IncreaseThresholdCommand");
+        VerifyThresholdRow(font, "GlyphThresholdSlider", "DecreaseGlyphThresholdCommand", "IncreaseGlyphThresholdCommand");
+        VerifyThresholdRow(font, "SheetThresholdSlider", "DecreaseSheetThresholdCommand", "IncreaseSheetThresholdCommand");
+
+        XElement[] repeatButtons = image.Descendants(Presentation + "RepeatButton")
+            .Concat(font.Descendants(Presentation + "RepeatButton"))
+            .Where(element => (element.Attribute("Command")?.Value ?? "").Contains("ThresholdCommand", StringComparison.Ordinal))
+            .ToArray();
+        Assert.Equal(6, repeatButtons.Length);
+
+        XElement[] plainButtons = image.Descendants(Presentation + "Button")
+            .Concat(font.Descendants(Presentation + "Button"))
+            .Where(element => (element.Attribute("Command")?.Value ?? "").Contains("ThresholdCommand", StringComparison.Ordinal))
+            .ToArray();
+        Assert.Empty(plainButtons);
+    }
+
+    [Fact]
+    public void Repeat_button_delay_and_interval_match_slider_track_repeat_buttons()
+    {
+        using var ui = new StaDispatcher();
+        Window? window = null;
+        try
+        {
+            ui.Dispatcher.Invoke(() =>
+            {
+                ResourceDictionary resources = LoadSharedResources();
+                var slider = new Slider
+                {
+                    Minimum = 0,
+                    Maximum = 255,
+                    TickFrequency = 1,
+                    IsSnapToTickEnabled = true,
+                    LargeChange = 1,
+                };
+                var decrease = new RepeatButton
+                {
+                    Style = (Style)resources["ThresholdDecreaseButton"],
+                };
+                var increase = new RepeatButton
+                {
+                    Style = (Style)resources["ThresholdIncreaseButton"],
+                };
+                BindRepeatTiming(decrease, slider);
+                BindRepeatTiming(increase, slider);
+
+                var panel = new DockPanel();
+                DockPanel.SetDock(increase, Dock.Right);
+                DockPanel.SetDock(decrease, Dock.Left);
+                panel.Children.Add(increase);
+                panel.Children.Add(decrease);
+                panel.Children.Add(slider);
+
+                window = new Window
+                {
+                    Width = 240,
+                    Height = 80,
+                    Left = -20000,
+                    Top = -20000,
+                    ShowInTaskbar = false,
+                    ShowActivated = false,
+                    WindowStyle = WindowStyle.None,
+                    Content = panel,
+                };
+                window.Show();
+                window.UpdateLayout();
+
+                var track = (Track)slider.Template.FindName("PART_Track", slider);
+                Assert.NotNull(track);
+                Assert.NotNull(track.DecreaseRepeatButton);
+                Assert.NotNull(track.IncreaseRepeatButton);
+
+                Assert.Equal(12, decrease.ActualWidth);
+                Assert.Equal(12, increase.ActualWidth);
+                var leftArrow = (System.Windows.Shapes.Path)decrease.Template.FindName("Arrow", decrease);
+                var rightArrow = (System.Windows.Shapes.Path)increase.Template.FindName("Arrow", increase);
+                Assert.NotNull(leftArrow?.Data);
+                Assert.NotNull(rightArrow?.Data);
+
+                Assert.Equal(track.IncreaseRepeatButton.Delay, increase.Delay);
+                Assert.Equal(track.IncreaseRepeatButton.Interval, increase.Interval);
+                Assert.Equal(track.DecreaseRepeatButton.Delay, decrease.Delay);
+                Assert.Equal(track.DecreaseRepeatButton.Interval, decrease.Interval);
+
+                slider.Delay = 321;
+                slider.Interval = 45;
+                Assert.Equal(321, track.IncreaseRepeatButton.Delay);
+                Assert.Equal(321, increase.Delay);
+                Assert.Equal(321, decrease.Delay);
+                Assert.Equal(45, track.IncreaseRepeatButton.Interval);
+                Assert.Equal(45, increase.Interval);
+                Assert.Equal(45, decrease.Interval);
+            });
+        }
+        finally
+        {
+            ui.Dispatcher.Invoke(() => window?.Close());
+        }
+    }
+
+    [Theory]
+    [MemberData(nameof(Kinds))]
+    public void Repeated_steps_stop_at_bounds_and_disable_the_command(Kind kind)
+    {
+        using Session session = Create();
+        PrepareInk(session, kind);
+
+        SetThreshold(session, kind, 250);
+        ICommand increase = Increase(session, kind);
+        for (int i = 0; i < 8; i++)
+        {
+            bool expectedCanExecute = i < 5;
+            Assert.Equal(expectedCanExecute, increase.CanExecute(null));
+            increase.Execute(null);
+            Assert.Equal(Math.Min(255, 250 + i + 1), Read(session, kind));
+        }
+
+        Assert.Equal(255, Read(session, kind));
+        Assert.Equal("255", ReadText(session, kind));
+        Assert.False(increase.CanExecute(null));
+
+        SetThreshold(session, kind, 5);
+        ICommand decrease = Decrease(session, kind);
+        for (int i = 0; i < 8; i++)
+        {
+            bool expectedCanExecute = i < 5;
+            Assert.Equal(expectedCanExecute, decrease.CanExecute(null));
+            decrease.Execute(null);
+            Assert.Equal(Math.Max(0, 5 - (i + 1)), Read(session, kind));
+        }
+
+        Assert.Equal(0, Read(session, kind));
+        Assert.Equal("0", ReadText(session, kind));
+        Assert.False(decrease.CanExecute(null));
     }
 
     [Fact]
@@ -388,6 +536,52 @@ public class ThresholdStepTests : IDisposable
         {
             RoutedEvent = Keyboard.LostKeyboardFocusEvent,
         });
+
+    private static ResourceDictionary LoadSharedResources() => new()
+    {
+        Source = new Uri("pack://application:,,,/image2gdram_converter;component/Resources/Shared.xaml", UriKind.Absolute),
+    };
+
+    private static XDocument LoadView(string file)
+    {
+        string path = Path.Combine(TestFiles.RepoRoot(), "src", "image2gdram_converter", "Views", file);
+        return XDocument.Load(path);
+    }
+
+    private static void VerifyThresholdRow(XContainer document, string sliderName, string decreaseCommand, string increaseCommand)
+    {
+        XElement slider = document.Descendants(Presentation + "Slider")
+            .Single(element => element.Attribute(Xaml + "Name")?.Value == sliderName);
+        Assert.Equal("1", slider.Attribute("LargeChange")?.Value);
+
+        XElement panel = Assert.IsType<XElement>(slider.Parent);
+        VerifyRepeatButton(panel, decreaseCommand, "ThresholdDecreaseButton", "Left", sliderName);
+        VerifyRepeatButton(panel, increaseCommand, "ThresholdIncreaseButton", "Right", sliderName);
+    }
+
+    private static void VerifyRepeatButton(XContainer panel, string command, string styleKey, string dock, string sliderName)
+    {
+        XElement button = panel.Elements(Presentation + "RepeatButton")
+            .Single(element => element.Attribute("Command")?.Value == "{Binding " + command + "}");
+        Assert.Equal("{StaticResource " + styleKey + "}", button.Attribute("Style")?.Value);
+        Assert.Equal(dock, button.Attribute("DockPanel.Dock")?.Value);
+        Assert.Null(button.Attribute("Content"));
+        Assert.Empty(button.Elements(Presentation + "RepeatButton.Content"));
+        Assert.Equal("{Binding Delay, ElementName=" + sliderName + "}", button.Attribute("Delay")?.Value);
+        Assert.Equal("{Binding Interval, ElementName=" + sliderName + "}", button.Attribute("Interval")?.Value);
+    }
+
+    private static void BindRepeatTiming(RepeatButton button, Slider slider)
+    {
+        BindingOperations.SetBinding(
+            button,
+            RepeatButton.DelayProperty,
+            new Binding(nameof(Slider.Delay)) { Source = slider });
+        BindingOperations.SetBinding(
+            button,
+            RepeatButton.IntervalProperty,
+            new Binding(nameof(Slider.Interval)) { Source = slider });
+    }
 
     private void PrepareInk(Session session, Kind kind)
     {

@@ -106,19 +106,22 @@
                                     <Binding Path="GlyphThresholdText" UpdateSourceTrigger="PropertyChanged" Delay="400"/>
                                 </TextBox.Text>
                             </TextBox>
-                            <Button DockPanel.Dock="Right" Margin="4,0,0,0" MinWidth="22" Padding="0" VerticalAlignment="Center"
-                                    IsTabStop="False"
-                                    Content="{DynamicResource Button.ThresholdIncrease}"
-                                    ToolTip="{DynamicResource Tip.ThresholdIncrease}"
-                                    AutomationProperties.Name="{DynamicResource Tip.ThresholdIncrease}"
-                                    Command="{Binding IncreaseGlyphThresholdCommand}"/>
-                            <Button DockPanel.Dock="Left" Margin="0,0,4,0" MinWidth="22" Padding="0" VerticalAlignment="Center"
-                                    IsTabStop="False"
-                                    Content="{DynamicResource Button.ThresholdDecrease}"
-                                    ToolTip="{DynamicResource Tip.ThresholdDecrease}"
-                                    AutomationProperties.Name="{DynamicResource Tip.ThresholdDecrease}"
-                                    Command="{Binding DecreaseGlyphThresholdCommand}"/>
-                            <Slider Minimum="0" Maximum="255" TickFrequency="1" IsSnapToTickEnabled="True"
+                            <RepeatButton DockPanel.Dock="Right"
+                                          Style="{StaticResource ThresholdIncreaseButton}"
+                                          Delay="{Binding Delay, ElementName=GlyphThresholdSlider}"
+                                          Interval="{Binding Interval, ElementName=GlyphThresholdSlider}"
+                                          ToolTip="{DynamicResource Tip.ThresholdIncrease}"
+                                          AutomationProperties.Name="{DynamicResource Tip.ThresholdIncrease}"
+                                          Command="{Binding IncreaseGlyphThresholdCommand}"/>
+                            <RepeatButton DockPanel.Dock="Left"
+                                          Style="{StaticResource ThresholdDecreaseButton}"
+                                          Delay="{Binding Delay, ElementName=GlyphThresholdSlider}"
+                                          Interval="{Binding Interval, ElementName=GlyphThresholdSlider}"
+                                          ToolTip="{DynamicResource Tip.ThresholdDecrease}"
+                                          AutomationProperties.Name="{DynamicResource Tip.ThresholdDecrease}"
+                                          Command="{Binding DecreaseGlyphThresholdCommand}"/>
+                            <Slider x:Name="GlyphThresholdSlider" Minimum="0" Maximum="255" TickFrequency="1" IsSnapToTickEnabled="True"
+                                    LargeChange="1"
                                     Value="{Binding GlyphThreshold}" VerticalAlignment="Center"/>
                         </DockPanel>
                     </Grid>
@@ -234,19 +237,22 @@
                                     <Binding Path="SheetThresholdText" UpdateSourceTrigger="PropertyChanged" Delay="400"/>
                                 </TextBox.Text>
                             </TextBox>
-                            <Button DockPanel.Dock="Right" Margin="4,0,0,0" MinWidth="22" Padding="0" VerticalAlignment="Center"
-                                    IsTabStop="False"
-                                    Content="{DynamicResource Button.ThresholdIncrease}"
-                                    ToolTip="{DynamicResource Tip.ThresholdIncrease}"
-                                    AutomationProperties.Name="{DynamicResource Tip.ThresholdIncrease}"
-                                    Command="{Binding IncreaseSheetThresholdCommand}"/>
-                            <Button DockPanel.Dock="Left" Margin="0,0,4,0" MinWidth="22" Padding="0" VerticalAlignment="Center"
-                                    IsTabStop="False"
-                                    Content="{DynamicResource Button.ThresholdDecrease}"
-                                    ToolTip="{DynamicResource Tip.ThresholdDecrease}"
-                                    AutomationProperties.Name="{DynamicResource Tip.ThresholdDecrease}"
-                                    Command="{Binding DecreaseSheetThresholdCommand}"/>
-                            <Slider Minimum="0" Maximum="255" TickFrequency="1" IsSnapToTickEnabled="True"
+                            <RepeatButton DockPanel.Dock="Right"
+                                          Style="{StaticResource ThresholdIncreaseButton}"
+                                          Delay="{Binding Delay, ElementName=SheetThresholdSlider}"
+                                          Interval="{Binding Interval, ElementName=SheetThresholdSlider}"
+                                          ToolTip="{DynamicResource Tip.ThresholdIncrease}"
+                                          AutomationProperties.Name="{DynamicResource Tip.ThresholdIncrease}"
+                                          Command="{Binding IncreaseSheetThresholdCommand}"/>
+                            <RepeatButton DockPanel.Dock="Left"
+                                          Style="{StaticResource ThresholdDecreaseButton}"
+                                          Delay="{Binding Delay, ElementName=SheetThresholdSlider}"
+                                          Interval="{Binding Interval, ElementName=SheetThresholdSlider}"
+                                          ToolTip="{DynamicResource Tip.ThresholdDecrease}"
+                                          AutomationProperties.Name="{DynamicResource Tip.ThresholdDecrease}"
+                                          Command="{Binding DecreaseSheetThresholdCommand}"/>
+                            <Slider x:Name="SheetThresholdSlider" Minimum="0" Maximum="255" TickFrequency="1" IsSnapToTickEnabled="True"
+                                    LargeChange="1"
                                     Value="{Binding SheetThreshold}" VerticalAlignment="Center"/>
                         </DockPanel>
                     </Grid>

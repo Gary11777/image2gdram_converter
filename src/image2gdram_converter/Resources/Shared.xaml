@@ -4,6 +4,53 @@
         <ResourceDictionary Source="Strings.ru-RU.xaml"/>
     </ResourceDictionary.MergedDictionaries>
     <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+    <Geometry x:Key="Geometry.ThresholdLeft">M 5,0 L 0,4.5 L 5,9 Z</Geometry>
+    <Geometry x:Key="Geometry.ThresholdRight">M 0,0 L 5,4.5 L 0,9 Z</Geometry>
+    <Style x:Key="ThresholdStepButton" TargetType="RepeatButton">
+        <Setter Property="Width" Value="12"/>
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="VerticalAlignment" Value="Stretch"/>
+        <Setter Property="IsTabStop" Value="False"/>
+        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="RepeatButton">
+                    <Border Background="Transparent" SnapsToDevicePixels="True">
+                        <Path x:Name="Arrow"
+                              Data="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}}"
+                              Fill="{x:Static SystemColors.ControlTextBrush}"
+                              Stretch="None"
+                              HorizontalAlignment="Center"
+                              VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Arrow" Property="Fill" Value="{x:Static SystemColors.HighlightBrush}"/>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="Arrow" Property="Fill" Value="{x:Static SystemColors.HighlightBrush}"/>
+                            <Setter TargetName="Arrow" Property="RenderTransform">
+                                <Setter.Value>
+                                    <TranslateTransform Y="1"/>
+                                </Setter.Value>
+                            </Setter>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="Arrow" Property="Fill" Value="{x:Static SystemColors.GrayTextBrush}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+    <Style x:Key="ThresholdDecreaseButton" TargetType="RepeatButton" BasedOn="{StaticResource ThresholdStepButton}">
+        <Setter Property="Margin" Value="0,0,2,0"/>
+        <Setter Property="Tag" Value="{StaticResource Geometry.ThresholdLeft}"/>
+    </Style>
+    <Style x:Key="ThresholdIncreaseButton" TargetType="RepeatButton" BasedOn="{StaticResource ThresholdStepButton}">
+        <Setter Property="Margin" Value="2,0,0,0"/>
+        <Setter Property="Tag" Value="{StaticResource Geometry.ThresholdRight}"/>
+    </Style>
     <Style TargetType="TextBox">
         <Style.Triggers>
             <Trigger Property="Validation.HasError" Value="True">
