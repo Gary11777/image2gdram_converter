@@ -148,15 +148,6 @@
                         </TextBox.Text>
                     </TextBox>
                 </Grid>
-                <Grid Margin="0,2">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="140"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
-                    <TextBlock Style="{StaticResource Field}" Text="{DynamicResource Label.Resample}"/>
-                    <ComboBox Grid.Column="1" ItemsSource="{Binding Resamples}" DisplayMemberPath="Caption"
-                              SelectedValuePath="Value" SelectedValue="{Binding Resample}"/>
-                </Grid>
 
                 <TextBlock Style="{StaticResource Section}" Text="{DynamicResource Section.Binarize}"/>
                 <Grid Margin="0,2">
@@ -200,6 +191,15 @@
                                 Value="{Binding Threshold, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                 VerticalAlignment="Center"/>
                     </DockPanel>
+                </Grid>
+                <Grid Margin="0,2">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="140"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Style="{StaticResource Field}" Text="{DynamicResource Label.Resample}"/>
+                    <ComboBox Grid.Column="1" ItemsSource="{Binding Resamples}" DisplayMemberPath="Caption"
+                              SelectedValuePath="Value" SelectedValue="{Binding Resample}"/>
                 </Grid>
 
                 <TextBlock Style="{StaticResource Section}" Text="{DynamicResource Section.Packing}"/>
