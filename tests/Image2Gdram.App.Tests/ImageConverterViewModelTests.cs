@@ -136,7 +136,7 @@ public class ImageConverterViewModelTests
         Assert.Contains("Байт: 0x0 (0)", vm.HoverText);
         Assert.Contains("Значение байта: 0x01  00000001", vm.HoverText);
         Assert.Contains("Бит: 0", vm.HoverText);
-        Assert.Contains("Значение бита: (1)", vm.HoverText);
+        Assert.Contains("Значение бита: 1", vm.HoverText);
         Assert.DoesNotContain("Активный", vm.HoverText);
         Assert.True(vm.HighlightLength > 0);
     }
@@ -150,8 +150,9 @@ public class ImageConverterViewModelTests
         vm.SetHover(0, 0);
 
         Assert.Equal(
-            "X: 0    Y: 0    Байт: 0x0 (0)    Значение байта: 0x01  00000001    Бит: 0    Значение бита: (1)",
+            "X: 0    Y: 0    Байт: 0x0 (0)    Значение байта: 0x01  00000001    Бит: 0    Значение бита: 1",
             vm.HoverText);
+        Assert.DoesNotContain("Значение бита: (", vm.HoverText);
     }
 
     [Fact]
@@ -164,7 +165,7 @@ public class ImageConverterViewModelTests
         vm.SetHover(0, 0);
 
         Assert.Equal(
-            "X: 0    Y: 0    Байт: 0x0 (0)    Значение байта: 0xFE  11111110    Бит: 0    Значение бита: (0)",
+            "X: 0    Y: 0    Байт: 0x0 (0)    Значение байта: 0xFE  11111110    Бит: 0    Значение бита: 0",
             vm.HoverText);
         AssertBitValueMatchesPackedByte(vm.HoverText);
     }
@@ -185,7 +186,7 @@ public class ImageConverterViewModelTests
         vm.SetHover(0, 3);
 
         Assert.Equal(
-            "X: 0    Y: 3    Байт: 0x0 (0)    Значение байта: 0x10  00010000    Бит: 4    Значение бита: (1)",
+            "X: 0    Y: 3    Байт: 0x0 (0)    Значение байта: 0x10  00010000    Бит: 4    Значение бита: 1",
             vm.HoverText);
         Assert.NotEqual(0, BitNumber(vm.HoverText));
         AssertBitValueMatchesPackedByte(vm.HoverText);
@@ -193,7 +194,7 @@ public class ImageConverterViewModelTests
         vm.SetHover(0, 0);
 
         Assert.Equal(
-            "X: 0    Y: 0    Байт: 0x0 (0)    Значение байта: 0x10  00010000    Бит: 7    Значение бита: (0)",
+            "X: 0    Y: 0    Байт: 0x0 (0)    Значение байта: 0x10  00010000    Бит: 7    Значение бита: 0",
             vm.HoverText);
         AssertBitValueMatchesPackedByte(vm.HoverText);
 
@@ -207,7 +208,7 @@ public class ImageConverterViewModelTests
         vm.SetHover(2, 0);
 
         Assert.Equal(
-            "X: 2    Y: 0    Байт: 0x0 (0)    Значение байта: 0x08  00001000    Бит: 3    Значение бита: (1)",
+            "X: 2    Y: 0    Байт: 0x0 (0)    Значение байта: 0x08  00001000    Бит: 3    Значение бита: 1",
             vm.HoverText);
         Assert.NotEqual(0, BitNumber(vm.HoverText));
         AssertBitValueMatchesPackedByte(vm.HoverText);
@@ -215,7 +216,7 @@ public class ImageConverterViewModelTests
         vm.SetHover(0, 0);
 
         Assert.Equal(
-            "X: 0    Y: 0    Байт: 0x0 (0)    Значение байта: 0x08  00001000    Бит: 5    Значение бита: (0)",
+            "X: 0    Y: 0    Байт: 0x0 (0)    Значение байта: 0x08  00001000    Бит: 5    Значение бита: 0",
             vm.HoverText);
         AssertBitValueMatchesPackedByte(vm.HoverText);
     }
@@ -242,7 +243,7 @@ public class ImageConverterViewModelTests
         vm.SetHover(1, 0);
 
         Assert.Equal(
-            "X: 1    Y: 0    Байт: 0x9 (9)    Значение байта: 0x01  00000001    Бит: 0    Значение бита: (1)    Кадр: 2    Байт в кадре: 0x1 (1)",
+            "X: 1    Y: 0    Байт: 0x9 (9)    Значение байта: 0x01  00000001    Бит: 0    Значение бита: 1    Кадр: 2    Байт в кадре: 0x1 (1)",
             vm.HoverText);
         Assert.EndsWith("Кадр: 2    Байт в кадре: 0x1 (1)", vm.HoverText);
     }
@@ -887,7 +888,7 @@ public class ImageConverterViewModelTests
         Assert.True(valueAt >= 0, hover);
         int value = Convert.ToInt32(hover.Substring(valueAt + valueMark.Length, 2), 16);
         int bit = BitNumber(hover);
-        const string shownMark = "Значение бита: (";
+        const string shownMark = "Значение бита: ";
         int shownAt = hover.IndexOf(shownMark, StringComparison.Ordinal);
         Assert.True(shownAt >= 0, hover);
         Assert.Equal((value >> bit) & 1, hover[shownAt + shownMark.Length] - '0');

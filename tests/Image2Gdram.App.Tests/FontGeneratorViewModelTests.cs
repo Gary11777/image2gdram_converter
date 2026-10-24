@@ -77,9 +77,10 @@ public class FontGeneratorViewModelTests : IDisposable
         vm.SetHover(0, 0);
 
         Assert.Equal(
-            "X: 0    Y: 0    Байт: 0x0 (0)    Значение байта: 0x01  00000001    Бит: 0    Значение бита: (1)",
+            "X: 0    Y: 0    Байт: 0x0 (0)    Значение байта: 0x01  00000001    Бит: 0    Значение бита: 1",
             vm.HoverText);
         Assert.DoesNotContain("Активный", vm.HoverText);
+        Assert.DoesNotContain("Значение бита: (", vm.HoverText);
     }
 
     [Fact]
