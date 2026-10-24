@@ -1,4 +1,6 @@
 using System.Text.RegularExpressions;
+using System.Windows;
+using System.Windows.Markup;
 using System.Xml.Linq;
 using Image2Gdram.Core.Imaging;
 using image2gdram_converter;
@@ -74,6 +76,29 @@ public class UiStringTests
         }
 
         Assert.True(offenders.Count == 0, "Cyrillic UI text outside the dictionary: " + string.Join(", ", offenders));
+    }
+
+    [Fact]
+    public void Hover_templates_keep_spaces_when_loaded_as_wpf_xaml()
+    {
+        const string cell =
+            "X: {0}    Y: {1}    Байт: 0x{2} ({3})    Значение байта: 0x{4}  {5}    Бит: {6}    Значение бита: {7}";
+        const string frame = "{0}    Кадр: {1}    Байт в кадре: 0x{2} ({3})";
+        string path = Path.Combine(
+            TestFiles.RepoRoot(),
+            "src",
+            "image2gdram_converter",
+            "Resources",
+            "Strings.ru-RU.xaml");
+
+        using var sta = new StaDispatcher();
+        sta.Dispatcher.Invoke(() =>
+        {
+            using FileStream stream = File.OpenRead(path);
+            var dictionary = (ResourceDictionary)XamlReader.Load(stream);
+            Assert.Equal(cell, (string)dictionary["Hover.Cell"]);
+            Assert.Equal(frame, (string)dictionary["Hover.Frame"]);
+        });
     }
 
     [Fact]
