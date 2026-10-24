@@ -149,7 +149,6 @@ public static class UserText
         int byteIndex,
         int bit,
         byte value,
-        bool active,
         bool allFrames,
         int frameNumber,
         int indexInFrame)
@@ -158,12 +157,12 @@ public static class UserText
             "Hover.Cell",
             IntText.Format(x),
             IntText.Format(y),
-            IntText.Format(byteIndex),
             byteIndex.ToString("X", CultureInfo.InvariantCulture),
-            IntText.Format(bit),
+            IntText.Format(byteIndex),
             value.ToString("X2", CultureInfo.InvariantCulture),
             Convert.ToString(value, 2).PadLeft(8, '0'),
-            text.Get(active ? "Hover.Yes" : "Hover.No"));
+            IntText.Format(bit),
+            ((value >> bit) & 1).ToString(CultureInfo.InvariantCulture));
         if (!allFrames)
         {
             return line;
@@ -173,8 +172,8 @@ public static class UserText
             "Hover.Frame",
             line,
             IntText.Format(frameNumber),
-            IntText.Format(indexInFrame),
-            indexInFrame.ToString("X", CultureInfo.InvariantCulture));
+            indexInFrame.ToString("X", CultureInfo.InvariantCulture),
+            IntText.Format(indexInFrame));
     }
 
     private static string Field(ILocalizationService text, string field) => field switch

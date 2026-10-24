@@ -67,6 +67,22 @@ public class FontGeneratorViewModelTests : IDisposable
     }
 
     [Fact]
+    public void Hover_uses_the_new_line_without_active()
+    {
+        using var harness = new Harness(_directory);
+        FontGeneratorViewModel vm = harness.Font;
+        vm.IncludeDate = false;
+        vm.Editor.ApplyStroke(new[] { (0, 0) }, StrokePaint.Toggle);
+
+        vm.SetHover(0, 0);
+
+        Assert.Equal(
+            "X: 0    Y: 0    Байт: 0x0 (0)    Значение байта: 0x01  00000001    Бит: 0    Значение бита: (1)",
+            vm.HoverText);
+        Assert.DoesNotContain("Активный", vm.HoverText);
+    }
+
+    [Fact]
     public void Refusing_a_new_cell_keeps_the_manual_glyph()
     {
         using var harness = new Harness(_directory);

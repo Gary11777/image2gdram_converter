@@ -544,7 +544,6 @@ public sealed partial class ImageConverterViewModel : ObservableValidator, ICode
             full,
             location.Bit,
             _frameBytes[local],
-            Preview[x.Value, y.Value],
             _packedExportAll,
             _packedFrameNumber,
             local);
