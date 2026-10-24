@@ -1,6 +1,8 @@
 using System.ComponentModel;
+using System.Globalization;
 using Image2Gdram.Core.Imaging;
 using Image2Gdram.Core.Output;
+using Image2Gdram.Core.Packing;
 using Image2Gdram.Core.Presets;
 using Image2Gdram.Core.Processing;
 using Image2Gdram.Core.Settings;
@@ -125,21 +127,132 @@ public class ImageConverterViewModelTests
     public void Hover_reports_the_packed_byte_of_the_origin()
     {
         using var harness = new Harness();
-        ImageConverterViewModel vm = harness.Image;
-        vm.WidthText = "4";
-        vm.HeightText = "4";
-        var pixels = new RgbaImage(4, 4, 255, 255, 255, 255);
-        pixels.SetPixel(0, 0, 0, 0, 0, 255);
-        vm.LoadDecoded(new DecodedImage(ImageFileFormat.Png, new[] { pixels }), "dot.png", resetFrame: true, userAction: false);
-        vm.IncludeDate = false;
+        ImageConverterViewModel vm = LoadDot(harness.Image, 4, 4, 0, 0);
 
         vm.SetHover(0, 0);
 
         Assert.Contains("X: 0", vm.HoverText);
         Assert.Contains("Y: 0", vm.HoverText);
-        Assert.Contains("0x01", vm.HoverText);
-        Assert.Contains("00000001", vm.HoverText);
+        Assert.Contains("Байт: 0x0 (0)", vm.HoverText);
+        Assert.Contains("Значение байта: 0x01  00000001", vm.HoverText);
+        Assert.Contains("Бит: 0", vm.HoverText);
+        Assert.Contains("Значение бита: (1)", vm.HoverText);
+        Assert.DoesNotContain("Активный", vm.HoverText);
         Assert.True(vm.HighlightLength > 0);
+    }
+
+    [Fact]
+    public void Hover_line_matches_the_template_for_a_single_dot()
+    {
+        using var harness = new Harness();
+        ImageConverterViewModel vm = LoadDot(harness.Image, 4, 4, 0, 0);
+
+        vm.SetHover(0, 0);
+
+        Assert.Equal(
+            "X: 0    Y: 0    Байт: 0x0 (0)    Значение байта: 0x01  00000001    Бит: 0    Значение бита: (1)",
+            vm.HoverText);
+    }
+
+    [Fact]
+    public void Hover_bit_is_zero_for_an_active_pixel_when_inverted()
+    {
+        using var harness = new Harness();
+        ImageConverterViewModel vm = LoadDot(harness.Image, 4, 4, 0, 0);
+        vm.Invert = true;
+
+        vm.SetHover(0, 0);
+
+        Assert.Equal(
+            "X: 0    Y: 0    Байт: 0x0 (0)    Значение байта: 0xFE  11111110    Бит: 0    Значение бита: (0)",
+            vm.HoverText);
+        AssertBitValueMatchesPackedByte(vm.HoverText);
+    }
+
+    [Fact]
+    public void Hover_middle_bit_matches_the_byte_for_msb_first_and_t6963c_6_bit()
+    {
+        using var harness = new Harness();
+        ImageConverterViewModel vm = harness.Image;
+        vm.WidthText = "8";
+        vm.HeightText = "8";
+        vm.BitOrder = BitOrder.MsbFirst;
+        var column = new RgbaImage(8, 8, 255, 255, 255, 255);
+        column.SetPixel(0, 3, 0, 0, 0, 255);
+        vm.LoadDecoded(new DecodedImage(ImageFileFormat.Png, new[] { column }), "column.png", resetFrame: true, userAction: false);
+        vm.IncludeDate = false;
+
+        vm.SetHover(0, 3);
+
+        Assert.Equal(
+            "X: 0    Y: 3    Байт: 0x0 (0)    Значение байта: 0x10  00010000    Бит: 4    Значение бита: (1)",
+            vm.HoverText);
+        Assert.NotEqual(0, BitNumber(vm.HoverText));
+        AssertBitValueMatchesPackedByte(vm.HoverText);
+
+        vm.SetHover(0, 0);
+
+        Assert.Equal(
+            "X: 0    Y: 0    Байт: 0x0 (0)    Значение байта: 0x10  00010000    Бит: 7    Значение бита: (0)",
+            vm.HoverText);
+        AssertBitValueMatchesPackedByte(vm.HoverText);
+
+        vm.Direction = PackDirection.Horizontal;
+        vm.BitOrder = BitOrder.MsbFirst;
+        vm.BitsPerByte = 6;
+        var row = new RgbaImage(8, 8, 255, 255, 255, 255);
+        row.SetPixel(2, 0, 0, 0, 0, 255);
+        vm.LoadDecoded(new DecodedImage(ImageFileFormat.Png, new[] { row }), "row.png", resetFrame: true, userAction: false);
+
+        vm.SetHover(2, 0);
+
+        Assert.Equal(
+            "X: 2    Y: 0    Байт: 0x0 (0)    Значение байта: 0x08  00001000    Бит: 3    Значение бита: (1)",
+            vm.HoverText);
+        Assert.NotEqual(0, BitNumber(vm.HoverText));
+        AssertBitValueMatchesPackedByte(vm.HoverText);
+
+        vm.SetHover(0, 0);
+
+        Assert.Equal(
+            "X: 0    Y: 0    Байт: 0x0 (0)    Значение байта: 0x08  00001000    Бит: 5    Значение бита: (0)",
+            vm.HoverText);
+        AssertBitValueMatchesPackedByte(vm.HoverText);
+    }
+
+    [Fact]
+    public void Hover_all_frames_names_the_frame_and_the_byte_inside_it()
+    {
+        using var harness = new Harness();
+        ImageConverterViewModel vm = harness.Image;
+        vm.WidthText = "8";
+        vm.HeightText = "8";
+        vm.IncludeDate = false;
+        var frames = new RgbaImage[3];
+        for (int i = 0; i < frames.Length; i++)
+        {
+            frames[i] = new RgbaImage(8, 8, 255, 255, 255, 255);
+            frames[i].SetPixel(i, 0, 0, 0, 0, 255);
+        }
+
+        vm.LoadDecoded(new DecodedImage(ImageFileFormat.Gif, frames), "anim.gif", resetFrame: true, userAction: true);
+        vm.SelectedFrame = 2;
+        vm.ExportAllFrames = true;
+
+        vm.SetHover(1, 0);
+
+        Assert.Equal(
+            "X: 1    Y: 0    Байт: 0x9 (9)    Значение байта: 0x01  00000001    Бит: 0    Значение бита: (1)    Кадр: 2    Байт в кадре: 0x1 (1)",
+            vm.HoverText);
+        Assert.EndsWith("Кадр: 2    Байт в кадре: 0x1 (1)", vm.HoverText);
+    }
+
+    [Fact]
+    public void Dictionary_does_not_contain_hover_active_keys()
+    {
+        Dictionary<string, string> keys = TestFiles.LoadUiStrings();
+        Assert.False(keys.ContainsKey("Hover.Yes"));
+        Assert.False(keys.ContainsKey("Hover.No"));
     }
 
     [Fact]
@@ -745,6 +858,40 @@ public class ImageConverterViewModelTests
         ((INotifyDataErrorInfo)vm).GetErrors(nameof(ImageConverterViewModel.ArrayName)).Cast<object>()
             .Select(error => error.ToString()!)
             .ToArray();
+
+    private static ImageConverterViewModel LoadDot(ImageConverterViewModel vm, int width, int height, int x, int y)
+    {
+        vm.WidthText = width.ToString(CultureInfo.InvariantCulture);
+        vm.HeightText = height.ToString(CultureInfo.InvariantCulture);
+        var pixels = new RgbaImage(width, height, 255, 255, 255, 255);
+        pixels.SetPixel(x, y, 0, 0, 0, 255);
+        vm.LoadDecoded(new DecodedImage(ImageFileFormat.Png, new[] { pixels }), "dot.png", resetFrame: true, userAction: false);
+        vm.IncludeDate = false;
+        return vm;
+    }
+
+    private static int BitNumber(string hover)
+    {
+        const string mark = "Бит: ";
+        int start = hover.IndexOf(mark, StringComparison.Ordinal);
+        Assert.True(start >= 0, hover);
+        int end = hover.IndexOf("    Значение бита:", start, StringComparison.Ordinal);
+        Assert.True(end > start, hover);
+        return int.Parse(hover.Substring(start + mark.Length, end - (start + mark.Length)), CultureInfo.InvariantCulture);
+    }
+
+    private static void AssertBitValueMatchesPackedByte(string hover)
+    {
+        const string valueMark = "Значение байта: 0x";
+        int valueAt = hover.IndexOf(valueMark, StringComparison.Ordinal);
+        Assert.True(valueAt >= 0, hover);
+        int value = Convert.ToInt32(hover.Substring(valueAt + valueMark.Length, 2), 16);
+        int bit = BitNumber(hover);
+        const string shownMark = "Значение бита: (";
+        int shownAt = hover.IndexOf(shownMark, StringComparison.Ordinal);
+        Assert.True(shownAt >= 0, hover);
+        Assert.Equal((value >> bit) & 1, hover[shownAt + shownMark.Length] - '0');
+    }
 
     private static void LoadWhite(ImageConverterViewModel vm)
     {

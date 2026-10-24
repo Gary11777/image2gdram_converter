@@ -146,10 +146,8 @@
     <sys:String x:Key="File.SaveOutputTitle">Сохранить Код</sys:String>
     <sys:String x:Key="File.SaveOutputFilter">Файлы кода ({0})|{1}</sys:String>
 
-    <sys:String x:Key="Hover.Cell">X: {0}    Y: {1}    Байт: {2} (0x{3})    Бит: {4}    Значение: 0x{5}  {6}    Активный: {7}</sys:String>
-    <sys:String x:Key="Hover.Frame">{0}    Кадр: {1}    Байт в кадре: {2} (0x{3})</sys:String>
-    <sys:String x:Key="Hover.Yes">да</sys:String>
-    <sys:String x:Key="Hover.No">нет</sys:String>
+    <sys:String x:Key="Hover.Cell">X: {0}    Y: {1}    Байт: 0x{2} ({3})    Значение байта: 0x{4}  {5}    Бит: {6}    Значение бита: ({7})</sys:String>
+    <sys:String x:Key="Hover.Frame">{0}    Кадр: {1}    Байт в кадре: 0x{2} ({3})</sys:String>
     <sys:String x:Key="Code.NoImage">Откройте изображение BMP, PNG, JPEG или GIF.</sys:String>
     <sys:String x:Key="Status.Result">{0}x{1}, {2}</sys:String>
 

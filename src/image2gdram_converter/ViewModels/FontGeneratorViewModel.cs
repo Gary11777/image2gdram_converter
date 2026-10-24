@@ -423,7 +423,6 @@ public sealed partial class FontGeneratorViewModel : ObservableValidator, ICodeS
             index,
             location.Bit,
             _fontBytes[index],
-            glyph[x.Value, y.Value],
             allFrames: false,
             frameNumber: 0,
             indexInFrame: 0);
