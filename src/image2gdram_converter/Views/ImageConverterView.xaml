@@ -328,10 +328,6 @@
                 <RowDefinition Height="*" MinHeight="140"/>
             </Grid.RowDefinitions>
             <DockPanel Grid.Row="0" Margin="0,0,0,6">
-                <TextBlock DockPanel.Dock="Left" VerticalAlignment="Center" Margin="0,0,8,0" Text="{DynamicResource Label.Zoom}"/>
-                <ComboBox DockPanel.Dock="Left" Width="160" ItemsSource="{Binding Zooms}" DisplayMemberPath="Caption"
-                          SelectedItem="{Binding Zoom}" Margin="0,0,12,0"/>
-                <CheckBox Content="{DynamicResource Check.Grid}" IsChecked="{Binding ShowGrid}" VerticalAlignment="Center" Margin="0,0,12,0"/>
                 <Button Content="{DynamicResource Button.Undo}" Command="{Binding UndoCommand}" Margin="0,0,6,0" DockPanel.Dock="Right"/>
                 <Button Content="{DynamicResource Button.Redo}" Command="{Binding RedoCommand}" DockPanel.Dock="Right" Margin="0,0,6,0"/>
                 <TextBlock Text="{Binding ResultSizeText}" VerticalAlignment="Center"/>
@@ -341,25 +337,41 @@
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="2*"/>
                 </Grid.ColumnDefinitions>
-                <DockPanel Grid.Column="0" Margin="0,0,8,0">
-                    <TextBlock DockPanel.Dock="Top" Text="{DynamicResource Label.Source}" Margin="0,0,0,4"/>
-                    <Border BorderBrush="#FFB0B0B0" BorderThickness="1" Background="#FFE8E8E8">
-                        <Image Source="{Binding SourcePreview, Converter={StaticResource RgbaToBitmap}}" Stretch="Uniform"
-                               RenderOptions.BitmapScalingMode="HighQuality"/>
-                    </Border>
-                </DockPanel>
-                <DockPanel Grid.Column="1">
-                    <TextBlock DockPanel.Dock="Top" Text="{DynamicResource Label.Result}" Margin="0,0,0,4"/>
-                    <controls:PixelGridControl x:Name="Pixels"
-                                               Pixels="{Binding Preview}"
-                                               Invert="{Binding Invert}"
-                                               Scheme="{Binding Scheme}"
-                                               Scale="{Binding Scale}"
-                                               FitToWindow="{Binding FitToWindow}"
-                                               ShowGrid="{Binding ShowGrid}"
-                                               Direction="{Binding Direction}"
-                                               BitsPerByte="{Binding BitsPerByte}"/>
-                </DockPanel>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                <TextBlock Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" Margin="0,0,8,4"
+                           Text="{DynamicResource Label.Source}"/>
+                <Grid Grid.Row="0" Grid.Column="1" Margin="0,0,0,4">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" VerticalAlignment="Center" Margin="0,0,8,0"
+                               Text="{DynamicResource Label.Result}"/>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal">
+                        <TextBlock VerticalAlignment="Center" Margin="0,0,8,0" Text="{DynamicResource Label.Zoom}"/>
+                        <ComboBox Width="140" ItemsSource="{Binding Zooms}" DisplayMemberPath="Caption"
+                                  SelectedItem="{Binding Zoom}"/>
+                        <CheckBox Content="{DynamicResource Check.Grid}" IsChecked="{Binding ShowGrid}"
+                                  VerticalAlignment="Center" Margin="12,0,0,0"/>
+                    </StackPanel>
+                </Grid>
+                <Border Grid.Row="1" Grid.Column="0" Margin="0,0,8,0" BorderBrush="#FFB0B0B0" BorderThickness="1" Background="#FFE8E8E8">
+                    <Image Source="{Binding SourcePreview, Converter={StaticResource RgbaToBitmap}}" Stretch="Uniform"
+                           RenderOptions.BitmapScalingMode="HighQuality"/>
+                </Border>
+                <controls:PixelGridControl Grid.Row="1" Grid.Column="1" x:Name="Pixels"
+                                           Pixels="{Binding Preview}"
+                                           Invert="{Binding Invert}"
+                                           Scheme="{Binding Scheme}"
+                                           Scale="{Binding Scale}"
+                                           FitToWindow="{Binding FitToWindow}"
+                                           ShowGrid="{Binding ShowGrid}"
+                                           Direction="{Binding Direction}"
+                                           BitsPerByte="{Binding BitsPerByte}"/>
             </Grid>
             <TextBlock Grid.Row="2" Margin="0,4,0,4" Text="{Binding HoverText}" TextWrapping="Wrap" MinHeight="18"/>
             <DockPanel Grid.Row="3">
