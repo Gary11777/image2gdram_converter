@@ -91,7 +91,8 @@ public sealed class PresetCatalogTests
 
         Assert.Equal(240, applied.Processing.TargetWidth);
         Assert.Equal(128, applied.Processing.TargetHeight);
-        Assert.Equal(TargetSizeMode.Manual, applied.Processing.SizeMode);
+        Assert.Null(applied.Processing.Crop);
+        Assert.Null(applied.PendingLegacy);
         Assert.Equal(200, applied.Processing.Threshold);
         Assert.Equal(Rotation.Rotate90, applied.Processing.Rotation);
         Assert.Equal(preset.Packing, applied.Packing);

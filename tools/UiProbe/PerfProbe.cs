@@ -111,6 +111,7 @@ internal static class PerfProbe
         rows.Add(await Scenario(group, limit, vm, "масштабирование (ширина)", () => vm.WidthText = otherWidth, () => vm.WidthText = width));
         rows.Add(await Scenario(group, limit, vm, "ближайший сосед / усреднение", () => vm.Resample = ResampleMode.NearestNeighbor, () => vm.Resample = ResampleMode.AreaAverage));
         rows.Add(await Scenario(group, limit, vm, "поворот 180° / 0°", () => vm.Rotation = Rotation.Rotate180, () => vm.Rotation = Rotation.Rotate0));
+        rows.Add(await Scenario(group, limit, vm, "перемещение прямоугольника", () => vm.Crop = vm.Crop with { CenterX = vm.Crop.CenterX + 4 }, () => vm.Crop = vm.Crop with { CenterX = vm.Crop.CenterX - 4 }));
         rows.Add(await Scenario(group, limit, vm, "штрих в сетке", () => vm.ApplyStroke(new[] { (3, 3), (4, 3), (5, 3) }, StrokePaint.Dot), () => vm.UndoCommand.Execute(null)));
         await Setup(() =>
         {

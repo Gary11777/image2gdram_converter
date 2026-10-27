@@ -23,33 +23,6 @@ public static class OptionLists
         new Labeled<Rotation>(Rotation.Rotate270, text.Get("Opt.Rotation.270")),
     };
 
-    public static IReadOnlyList<Labeled<TargetSizeMode>> SizeModes(ILocalizationService text) => new[]
-    {
-        new Labeled<TargetSizeMode>(TargetSizeMode.Manual, text.Get("Opt.Size.Manual")),
-        new Labeled<TargetSizeMode>(TargetSizeMode.MatchSource, text.Get("Opt.Size.Match")),
-    };
-
-    public static IReadOnlyList<Labeled<FitMode>> Fits(ILocalizationService text) => new[]
-    {
-        new Labeled<FitMode>(FitMode.None, text.Get("Opt.Fit.None")),
-        new Labeled<FitMode>(FitMode.Fit, text.Get("Opt.Fit.Fit")),
-        new Labeled<FitMode>(FitMode.Stretch, text.Get("Opt.Fit.Stretch")),
-        new Labeled<FitMode>(FitMode.Fill, text.Get("Opt.Fit.Fill")),
-    };
-
-    public static IReadOnlyList<Labeled<Alignment>> Alignments(ILocalizationService text) => new[]
-    {
-        new Labeled<Alignment>(Alignment.TopLeft, text.Get("Opt.Align.TopLeft")),
-        new Labeled<Alignment>(Alignment.TopCenter, text.Get("Opt.Align.TopCenter")),
-        new Labeled<Alignment>(Alignment.TopRight, text.Get("Opt.Align.TopRight")),
-        new Labeled<Alignment>(Alignment.MiddleLeft, text.Get("Opt.Align.MiddleLeft")),
-        new Labeled<Alignment>(Alignment.Center, text.Get("Opt.Align.Center")),
-        new Labeled<Alignment>(Alignment.MiddleRight, text.Get("Opt.Align.MiddleRight")),
-        new Labeled<Alignment>(Alignment.BottomLeft, text.Get("Opt.Align.BottomLeft")),
-        new Labeled<Alignment>(Alignment.BottomCenter, text.Get("Opt.Align.BottomCenter")),
-        new Labeled<Alignment>(Alignment.BottomRight, text.Get("Opt.Align.BottomRight")),
-    };
-
     public static IReadOnlyList<Labeled<ResampleMode>> Resamples(ILocalizationService text) => new[]
     {
         new Labeled<ResampleMode>(ResampleMode.AreaAverage, text.Get("Opt.Resample.Area")),

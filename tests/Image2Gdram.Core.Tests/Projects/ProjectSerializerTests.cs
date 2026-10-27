@@ -44,7 +44,7 @@ public sealed class ProjectSerializerTests : IDisposable
 
         Assert.False(first.AsSpan(0, 3).SequenceEqual(new byte[] { 0xEF, 0xBB, 0xBF }));
         string text = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true).GetString(first);
-        Assert.Contains("\"formatVersion\": 2", text, StringComparison.Ordinal);
+        Assert.Contains("\"formatVersion\": 3", text, StringComparison.Ordinal);
         Assert.Contains("\u041f\u0440\u0438\u0432\u0435\u0442", text, StringComparison.Ordinal);
         Assert.DoesNotContain("\\u041F", text, StringComparison.Ordinal);
         Assert.Contains("\"direction\": \"Horizontal\"", text, StringComparison.Ordinal);
@@ -122,9 +122,9 @@ public sealed class ProjectSerializerTests : IDisposable
 
         ProjectSerializer.Save(ProjectDocument.CreateDefault(), path);
         string original = File.ReadAllText(path);
-        foreach (string unsupported in new[] { "3", "9" })
+        foreach (string unsupported in new[] { "4", "9" })
         {
-            File.WriteAllText(path, original.Replace("\"formatVersion\": 2", $"\"formatVersion\": {unsupported}", StringComparison.Ordinal));
+            File.WriteAllText(path, original.Replace("\"formatVersion\": 3", $"\"formatVersion\": {unsupported}", StringComparison.Ordinal));
             byte[] stored = File.ReadAllBytes(path);
             ProjectException version = Assert.Throws<ProjectException>(() => ProjectSerializer.Load(path));
             Assert.Equal(ProjectError.UnsupportedVersion, version.Error);
@@ -136,70 +136,94 @@ public sealed class ProjectSerializerTests : IDisposable
     }
 
     [Fact]
-    public void Legacy_version_1_flips_offset_y_and_keeps_offset_x()
+    public void Legacy_version_1_flips_offset_y_before_the_crop_is_deferred()
     {
-        ProjectDocument project = Sample(
-            Path.Combine(_root, "logo.png"),
-            Path.Combine(_root, "sheet.png"),
-            Path.Combine(_root, "font.c"));
         string path = Path.Combine(_root, "legacy.iiu");
-        ProjectSerializer.Save(project, path);
-        DowngradeToVersion1(path);
+        ProjectSerializer.Save(ProjectDocument.CreateDefault(), path);
+        InjectLegacy(path, 1, "None", "TopLeft", -4, 6, glyphOffsetX: -3, glyphOffsetY: 5);
 
         ProjectLoadResult loaded = ProjectSerializer.Load(path);
 
-        // Версия 1 хранила Y по экранным осям: знак меняется при чтении (N-69), X не трогается.
-        Assert.Equal(-6, loaded.Project.Image.Parameters.Processing.OffsetY);
+        LegacyPlacement pending = Assert.IsType<LegacyPlacement>(loaded.Project.Image.Parameters.PendingLegacy);
+        Assert.Null(loaded.Project.Image.Parameters.Processing.Crop);
+        Assert.Equal(-4, pending.OffsetX);
+        Assert.Equal(-6, pending.OffsetY);
+        Assert.Equal(FitMode.None, pending.Fit);
+        Assert.Equal(Alignment.TopLeft, pending.Alignment);
         Assert.Equal(-5, loaded.Project.Font.Parameters.GlyphOffsetY);
-        Assert.Equal(-4, loaded.Project.Image.Parameters.Processing.OffsetX);
         Assert.Equal(-3, loaded.Project.Font.Parameters.GlyphOffsetX);
     }
 
     [Theory]
-    [InlineData(0, 0, 0, 0)]
-    [InlineData(-1024, 1024, 32, -32)]
-    public void Legacy_version_1_flips_zero_and_boundary_offsets(int imageStored, int imageExpected, int glyphStored, int glyphExpected)
+    [InlineData(0, 0)]
+    [InlineData(-1024, 1024)]
+    public void Legacy_version_1_flips_zero_and_boundary_offsets(int imageStored, int imageExpected)
     {
-        var project = new ProjectDocument(
-            new ImageProjectTab(ImageTabParameters.CreateDefault() with
-            {
-                Processing = ProcessingOptions.Default with { OffsetY = imageStored },
-            }),
-            new FontProjectTab(
-                FontTabParameters.CreateDefault() with { GlyphOffsetY = glyphStored },
-                new FontTable(FontCellSize.Cell6x8)));
-        string path = Path.Combine(_root, "legacy-boundary.iiu");
-        ProjectSerializer.Save(project, path);
-        DowngradeToVersion1(path);
+        string path = Path.Combine(_root, "legacy-boundary-" + imageStored.ToString(System.Globalization.CultureInfo.InvariantCulture) + ".iiu");
+        ProjectSerializer.Save(
+            new ProjectDocument(
+                ImageProjectTab.CreateDefault(),
+                new FontProjectTab(FontTabParameters.CreateDefault(), new FontTable(FontCellSize.Cell6x8))),
+            path);
+        InjectLegacy(path, 1, "Fit", "Center", 0, imageStored, glyphOffsetX: 0, glyphOffsetY: 32);
 
         ProjectLoadResult loaded = ProjectSerializer.Load(path);
 
-        Assert.Equal(imageExpected, loaded.Project.Image.Parameters.Processing.OffsetY);
-        Assert.Equal(glyphExpected, loaded.Project.Font.Parameters.GlyphOffsetY);
+        if (imageStored == 0)
+        {
+            Assert.Null(loaded.Project.Image.Parameters.PendingLegacy);
+        }
+        else
+        {
+            Assert.Equal(imageExpected, loaded.Project.Image.Parameters.PendingLegacy!.OffsetY);
+        }
+
+        Assert.Equal(-32, loaded.Project.Font.Parameters.GlyphOffsetY);
     }
 
     [Fact]
-    public void Version_2_roundtrip_keeps_the_sign_and_writes_version_2()
+    public void Version_2_defers_a_nontrivial_placement_and_version_3_keeps_the_crop()
     {
-        ProjectDocument project = Sample(
-            Path.Combine(_root, "logo.png"),
-            Path.Combine(_root, "sheet.png"),
-            Path.Combine(_root, "font.c"));
-        string path = Path.Combine(_root, "v2.iiu");
+        string path = Path.Combine(_root, "v3.iiu");
+        var project = new ProjectDocument(
+            new ImageProjectTab(ImageTabParameters.CreateDefault() with
+            {
+                Processing = ProcessingOptions.Default with { Crop = new CropViewport(4, 8, 1.25) },
+            }),
+            FontProjectTab.CreateDefault());
         ProjectSerializer.Save(project, path);
+        string saved = File.ReadAllText(path);
+        Assert.Contains("\"formatVersion\": 3", saved, StringComparison.Ordinal);
+        Assert.Contains("\"cropScale\": 1.25", saved, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"offsetX\"", saved, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"fit\"", saved, StringComparison.Ordinal);
+
+        ProjectLoadResult round = ProjectSerializer.Load(path);
+        Assert.Equal(new CropViewport(4, 8, 1.25), round.Project.Image.Parameters.Processing.Crop);
+        Assert.Null(round.Project.Image.Parameters.PendingLegacy);
+
+        InjectLegacy(path, 2, "Fill", "BottomRight", -4, 6, glyphOffsetX: 0, glyphOffsetY: 0);
+        ProjectLoadResult legacy = ProjectSerializer.Load(path);
+        LegacyPlacement pending = Assert.IsType<LegacyPlacement>(legacy.Project.Image.Parameters.PendingLegacy);
+        Assert.Equal(FitMode.Fill, pending.Fit);
+        Assert.Equal(Alignment.BottomRight, pending.Alignment);
+        Assert.Equal(-4, pending.OffsetX);
+        Assert.Equal(6, pending.OffsetY);
+        Assert.Null(legacy.Project.Image.Parameters.Processing.Crop);
+    }
+
+    [Fact]
+    public void Legacy_stretch_drops_to_automatic_fit_with_a_warning_flag()
+    {
+        string path = Path.Combine(_root, "stretch.iiu");
+        ProjectSerializer.Save(ProjectDocument.CreateDefault(), path);
+        InjectLegacy(path, 2, "Stretch", "Center", 0, 0, glyphOffsetX: 0, glyphOffsetY: 0);
 
         ProjectLoadResult loaded = ProjectSerializer.Load(path);
 
-        Assert.Equal(6, loaded.Project.Image.Parameters.Processing.OffsetY);
-        Assert.Equal(5, loaded.Project.Font.Parameters.GlyphOffsetY);
-        Assert.Equal(-4, loaded.Project.Image.Parameters.Processing.OffsetX);
-        Assert.Equal(-3, loaded.Project.Font.Parameters.GlyphOffsetX);
-
-        ProjectSerializer.Save(loaded.Project, path);
-        string text = File.ReadAllText(path);
-        Assert.Contains("\"formatVersion\": 2", text, StringComparison.Ordinal);
-        Assert.Contains("\"offsetY\": 6", text, StringComparison.Ordinal);
-        Assert.Contains("\"glyphOffsetY\": 5", text, StringComparison.Ordinal);
+        Assert.Null(loaded.Project.Image.Parameters.PendingLegacy);
+        Assert.Null(loaded.Project.Image.Parameters.Processing.Crop);
+        Assert.True(loaded.Project.Image.Parameters.LegacyStretchDropped);
     }
 
     [Fact]
@@ -215,10 +239,27 @@ public sealed class ProjectSerializerTests : IDisposable
         Assert.False(File.Exists(Path.Combine(_root, "mismatch.iiu")));
     }
 
-    private static void DowngradeToVersion1(string path)
+    private static void InjectLegacy(
+        string path,
+        int version,
+        string fit,
+        string alignment,
+        int offsetX,
+        int offsetY,
+        int glyphOffsetX,
+        int glyphOffsetY)
     {
         string text = File.ReadAllText(path);
-        File.WriteAllText(path, text.Replace("\"formatVersion\": 2", "\"formatVersion\": 1", StringComparison.Ordinal));
+        text = text.Replace("\"formatVersion\": 3", "\"formatVersion\": " + version.ToString(System.Globalization.CultureInfo.InvariantCulture), StringComparison.Ordinal);
+        text = text.Replace(
+            "\"processing\": {",
+            "\"processing\": { \"sizeMode\": \"Manual\", \"fit\": \"" + fit + "\", \"alignment\": \"" + alignment
+            + "\", \"offsetX\": " + offsetX.ToString(System.Globalization.CultureInfo.InvariantCulture)
+            + ", \"offsetY\": " + offsetY.ToString(System.Globalization.CultureInfo.InvariantCulture) + ",",
+            StringComparison.Ordinal);
+        text = text.Replace("\"glyphOffsetX\": 0", "\"glyphOffsetX\": " + glyphOffsetX.ToString(System.Globalization.CultureInfo.InvariantCulture), StringComparison.Ordinal);
+        text = text.Replace("\"glyphOffsetY\": 0", "\"glyphOffsetY\": " + glyphOffsetY.ToString(System.Globalization.CultureInfo.InvariantCulture), StringComparison.Ordinal);
+        File.WriteAllText(path, text);
     }
 
     private static ProjectDocument Sample(string imagePath, string sheetPath, string importPath)
@@ -239,13 +280,9 @@ public sealed class ProjectSerializerTests : IDisposable
                 Rotation = Rotation.Rotate270,
                 FlipHorizontal = true,
                 FlipVertical = true,
-                SizeMode = TargetSizeMode.Manual,
                 TargetWidth = 13,
                 TargetHeight = 11,
-                Fit = FitMode.Fill,
-                Alignment = Alignment.BottomRight,
-                OffsetX = -4,
-                OffsetY = 6,
+                Crop = new CropViewport(1.5, 2.25, 0.5),
                 Resample = ResampleMode.NearestNeighbor,
                 Binarize = BinarizeMode.Bayer8,
                 Threshold = 200,

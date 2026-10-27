@@ -3,250 +3,181 @@ using Image2Gdram.Core.Processing;
 
 namespace Image2Gdram.Core.Tests.Processing;
 
+/// <summary>Шаг 3 читает фрагмент через <see cref="CropGeometry"/> (N-80).</summary>
 public class ResizeStepTests
 {
-    [Theory]
-    [InlineData(FitMode.None, 100, 50)]
-    [InlineData(FitMode.Stretch, 30, 40)]
-    [InlineData(FitMode.Fit, 30, 15)]
-    [InlineData(FitMode.Fill, 80, 40)]
-    public void Scaled_size_follows_fit_mode(FitMode fit, int width, int height)
-    {
-        ResizeStep.ScaledSize size = ResizeStep.GetScaledSize(100, 50, 30, 40, fit);
-        Assert.Equal(new ResizeStep.ScaledSize(width, height), size);
-    }
-
     [Fact]
-    public void Undefined_side_rounds_half_up_and_stays_at_least_one()
-    {
-        Assert.Equal(11, ResizeStep.RoundHalfUp(1050, 100));
-        Assert.Equal(10, ResizeStep.RoundHalfUp(1010, 100));
-        Assert.Equal(new ResizeStep.ScaledSize(10, 11), ResizeStep.GetScaledSize(100, 105, 10, 100, FitMode.Fit));
-        Assert.Equal(new ResizeStep.ScaledSize(1, 1), ResizeStep.GetScaledSize(1000, 1, 1, 1, FitMode.Fit));
-    }
-
-    [Fact]
-    public void Fit_centers_with_odd_remainder_toward_top()
-    {
-        RgbaImage source = ProcessingTestImages.Solid(100, 50, 255, 0, 0);
-        RgbaImage result = Resize(source, 30, 40, FitMode.Fit, Alignment.Center, BackgroundColor.Black);
-
-        Assert.Equal(new ResizeStep.ScaledSize(30, 15), ResizeStep.GetScaledSize(100, 50, 30, 40, FitMode.Fit));
-        AssertBackgroundRow(result, 11, background: true);
-        AssertBackgroundRow(result, 12, background: false);
-        AssertBackgroundRow(result, 26, background: false);
-        AssertBackgroundRow(result, 27, background: true);
-    }
-
-    [Theory]
-    [InlineData(Alignment.TopLeft, 0, 0)]
-    [InlineData(Alignment.TopCenter, 2, 0)]
-    [InlineData(Alignment.TopRight, 4, 0)]
-    [InlineData(Alignment.MiddleLeft, 0, 1)]
-    [InlineData(Alignment.Center, 2, 1)]
-    [InlineData(Alignment.MiddleRight, 4, 1)]
-    [InlineData(Alignment.BottomLeft, 0, 2)]
-    [InlineData(Alignment.BottomCenter, 2, 2)]
-    [InlineData(Alignment.BottomRight, 4, 2)]
-    public void Nine_alignments_place_unscaled_image(Alignment alignment, int originX, int originY)
-    {
-        Assert.Equal((originX, originY), ResizeStep.GetOrigin(alignment, 6, 4, 2, 2));
-        RgbaImage source = ProcessingTestImages.Solid(2, 2, 200, 0, 0);
-        RgbaImage result = Resize(source, 6, 4, FitMode.None, alignment, BackgroundColor.White);
-
-        result.GetPixel(originX, originY, out byte r, out _, out _, out byte a);
-        Assert.Equal((200, 255), (r, a));
-        result.GetPixel(originX == 0 ? 5 : 0, originY == 0 ? 3 : 0, out r, out byte g, out byte b, out a);
-        Assert.Equal((255, 255, 255, 255), (r, g, b, a));
-    }
-
-    [Fact]
-    public void Odd_center_remainder_goes_right_and_down()
-    {
-        Assert.Equal((1, 1), ResizeStep.GetOrigin(Alignment.Center, 5, 5, 2, 2));
-        RgbaImage source = ProcessingTestImages.Solid(2, 2, 9, 0, 0);
-        RgbaImage result = Resize(source, 5, 5, FitMode.None, Alignment.Center, BackgroundColor.White);
-
-        result.GetPixel(1, 1, out byte r, out _, out _, out _);
-        Assert.Equal(9, r);
-        result.GetPixel(0, 1, out r, out _, out _, out _);
-        Assert.Equal(255, r);
-        result.GetPixel(4, 1, out r, out _, out _, out _);
-        Assert.Equal(255, r);
-    }
-
-    [Fact]
-    public void Offset_shifts_and_clips()
-    {
-        RgbaImage source = ProcessingTestImages.Solid(2, 2, 7, 0, 0);
-        RgbaImage shifted = Resize(source, 4, 4, FitMode.None, Alignment.TopLeft, BackgroundColor.White, offsetX: 1, offsetY: 1);
-
-        // Положительное смещение Y — вверх (N-69): содержимое ушло на строку вверх и обрезалось сверху.
-        shifted.GetPixel(1, 0, out byte r, out _, out _, out _);
-        Assert.Equal(7, r);
-        shifted.GetPixel(1, 1, out r, out _, out _, out _);
-        Assert.Equal(255, r);
-        shifted.GetPixel(0, 0, out r, out _, out _, out _);
-        Assert.Equal(255, r);
-    }
-
-    [Theory]
-    [InlineData(-2, 5)]
-    [InlineData(2, 1)]
-    public void Positive_offset_y_moves_up_and_negative_moves_down(int offsetY, int firstContentRow)
-    {
-        RgbaImage source = ProcessingTestImages.Solid(2, 2, 7, 0, 0);
-        RgbaImage result = Resize(source, 4, 8, FitMode.None, Alignment.Center, BackgroundColor.White, offsetY: offsetY);
-
-        // Исходная позиция при Center на холсте 4x8 — столбцы 1-2, строки 3-4; Y > 0 — вверх, Y < 0 — вниз (N-69).
-        for (int y = 0; y < 8; y++)
-        {
-            for (int x = 0; x < 4; x++)
-            {
-                result.GetPixel(x, y, out byte r, out _, out _, out _);
-                bool content = x is 1 or 2 && y >= firstContentRow && y < firstContentRow + 2;
-                Assert.Equal(content ? (byte)7 : (byte)255, r);
-            }
-        }
-    }
-
-    [Fact]
-    public void Uncovered_pixels_use_step1_background()
-    {
-        RgbaImage source = ProcessingTestImages.Solid(1, 1, 255, 0, 0);
-        RgbaImage result = Resize(source, 3, 3, FitMode.None, Alignment.TopLeft, BackgroundColor.Black);
-
-        result.GetPixel(0, 0, out byte r, out byte g, out byte b, out byte a);
-        Assert.Equal((255, 0, 0, 255), (r, g, b, a));
-        result.GetPixel(2, 2, out r, out g, out b, out a);
-        Assert.Equal((0, 0, 0, 255), (r, g, b, a));
-    }
-
-    [Fact]
-    public void None_crops_and_fill_crops_the_long_side()
-    {
-        RgbaImage source = new(4, 2);
-        for (int x = 0; x < 4; x++)
-        {
-            source.SetPixel(x, 0, (byte)(x + 1), 0, 0, 255);
-            source.SetPixel(x, 1, (byte)(x + 1), 0, 0, 255);
-        }
-
-        RgbaImage cropped = Resize(source, 2, 2, FitMode.None, Alignment.TopLeft, BackgroundColor.White);
-        cropped.GetPixel(0, 0, out byte left, out _, out _, out _);
-        cropped.GetPixel(1, 0, out byte next, out _, out _, out _);
-        Assert.Equal((1, 2), (left, next));
-
-        RgbaImage filled = Resize(source, 2, 2, FitMode.Fill, Alignment.Center, BackgroundColor.White, ResampleMode.NearestNeighbor);
-        filled.GetPixel(0, 0, out byte first, out _, out _, out _);
-        filled.GetPixel(1, 0, out byte second, out _, out _, out _);
-        Assert.Equal((2, 3), (first, second));
-    }
-
-    [Fact]
-    public void Stretch_changes_both_axes()
-    {
-        RgbaImage source = ProcessingTestImages.Solid(2, 2, 4, 5, 6);
-        RgbaImage result = Resize(source, 5, 3, FitMode.Stretch, Alignment.TopLeft, BackgroundColor.White);
-
-        Assert.Equal(5, result.Width);
-        Assert.Equal(3, result.Height);
-        result.GetPixel(4, 2, out byte r, out byte g, out byte b, out _);
-        Assert.Equal((4, 5, 6), (r, g, b));
-    }
-
-    [Fact]
-    public void Nearest_neighbor_doubles_pixel_art_without_mixing()
-    {
-        var source = new RgbaImage(2, 2);
-        source.SetPixel(0, 0, 10, 0, 0, 255);
-        source.SetPixel(1, 0, 20, 0, 0, 255);
-        source.SetPixel(0, 1, 30, 0, 0, 255);
-        source.SetPixel(1, 1, 40, 0, 0, 255);
-
-        RgbaImage result = ResizeStep.Resample(source, 4, 4, ResampleMode.NearestNeighbor);
-
-        Assert.Equal((10, 10, 20, 20), Row(result, 0));
-        Assert.Equal((10, 10, 20, 20), Row(result, 1));
-        Assert.Equal((30, 30, 40, 40), Row(result, 2));
-        Assert.Equal((30, 30, 40, 40), Row(result, 3));
-    }
-
-    [Fact]
-    public void Area_average_keeps_a_thin_line_that_nearest_neighbor_skips()
-    {
-        var source = new RgbaImage(8, 4, 255, 255, 255, 255);
-        for (int y = 0; y < 4; y++)
-        {
-            source.SetPixel(0, y, 0, 0, 0, 255);
-        }
-
-        RgbaImage nearest = ResizeStep.Resample(source, 4, 4, ResampleMode.NearestNeighbor);
-        nearest.GetPixel(0, 0, out byte nearestRed, out _, out _, out _);
-        Assert.Equal(255, nearestRed);
-
-        RgbaImage average = ResizeStep.Resample(source, 4, 4, ResampleMode.AreaAverage);
-        average.GetPixel(0, 0, out byte averaged, out _, out _, out _);
-        average.GetPixel(1, 0, out byte untouched, out _, out _, out _);
-        Assert.Equal(128, averaged);
-        Assert.Equal(255, untouched);
-    }
-
-    [Fact]
-    public void Area_average_of_equal_quarters_rounds_half_away_from_zero()
-    {
-        var source = new RgbaImage(2, 2);
-        source.SetPixel(0, 0, 0, 0, 0, 255);
-        source.SetPixel(1, 0, 255, 255, 255, 255);
-        source.SetPixel(0, 1, 255, 255, 255, 255);
-        source.SetPixel(1, 1, 0, 0, 0, 255);
-
-        RgbaImage result = ResizeStep.Resample(source, 1, 1, ResampleMode.AreaAverage);
-        result.GetPixel(0, 0, out byte r, out _, out _, out _);
-        Assert.Equal(128, r);
-    }
-
-    [Fact]
-    public void Resample_is_repeatable()
+    public void Scale_one_centered_on_the_same_size_copies_the_source()
     {
         var source = new RgbaImage(5, 3);
         for (int y = 0; y < 3; y++)
         {
             for (int x = 0; x < 5; x++)
             {
-                source.SetPixel(x, y, (byte)(x * 40 + y), (byte)(255 - x * 20), 10, 255);
+                source.SetPixel(x, y, (byte)(10 * x), (byte)(20 * y), 7, 255);
             }
         }
 
-        RgbaImage first = ResizeStep.Resample(source, 3, 2, ResampleMode.AreaAverage);
-        RgbaImage second = ResizeStep.Resample(source, 3, 2, ResampleMode.AreaAverage);
+        RgbaImage nearest = Render(source, 5, 3, CropGeometry.Fit(5, 3, 5, 3, Rotation.Rotate0), ResampleMode.NearestNeighbor, BackgroundColor.White);
+        RgbaImage area = Render(source, 5, 3, CropGeometry.Fit(5, 3, 5, 3, Rotation.Rotate0), ResampleMode.AreaAverage, BackgroundColor.White);
+        Assert.True(source.ContentEquals(nearest));
+        Assert.True(source.ContentEquals(area));
+    }
+
+    [Fact]
+    public void Exact_half_scale_matches_the_former_fit_center()
+    {
+        var source = new RgbaImage(8, 4);
+        for (int y = 0; y < 4; y++)
+        {
+            for (int x = 0; x < 8; x++)
+            {
+                source.SetPixel(x, y, (byte)(x * 20), (byte)(y * 40), 1, 255);
+            }
+        }
+
+        CropViewport fit = CropGeometry.Fit(8, 4, 4, 2, Rotation.Rotate0);
+        Assert.Equal(0.5, fit.Scale);
+        RgbaImage result = Render(source, 4, 2, fit, ResampleMode.AreaAverage, BackgroundColor.White);
+        for (int y = 0; y < 2; y++)
+        {
+            for (int x = 0; x < 4; x++)
+            {
+                result.GetPixel(x, y, out byte r, out byte g, out _, out _);
+                int expectedR = (sourcePixel(x * 2, y * 2) + sourcePixel(x * 2 + 1, y * 2)
+                    + sourcePixel(x * 2, y * 2 + 1) + sourcePixel(x * 2 + 1, y * 2 + 1)) / 4;
+                Assert.Equal(expectedR, r);
+                Assert.Equal((byte)((y * 2 * 40 + (y * 2 + 1) * 40) / 2), g);
+            }
+        }
+
+        byte sourcePixel(int x, int y)
+        {
+            source.GetPixel(x, y, out byte r, out _, out _, out _);
+            return r;
+        }
+    }
+
+    [Fact]
+    public void Exact_double_nearest_duplicates_each_pixel()
+    {
+        var source = new RgbaImage(3, 2);
+        source.SetPixel(0, 0, 10, 0, 0, 255);
+        source.SetPixel(1, 0, 20, 0, 0, 255);
+        source.SetPixel(2, 0, 30, 0, 0, 255);
+        source.SetPixel(0, 1, 40, 0, 0, 255);
+        source.SetPixel(1, 1, 50, 0, 0, 255);
+        source.SetPixel(2, 1, 60, 0, 0, 255);
+        CropViewport fit = CropGeometry.Fit(3, 2, 6, 4, Rotation.Rotate0);
+        Assert.Equal(2, fit.Scale);
+        RgbaImage result = Render(source, 6, 4, fit, ResampleMode.NearestNeighbor, BackgroundColor.Black);
+        for (int y = 0; y < 4; y++)
+        {
+            for (int x = 0; x < 6; x++)
+            {
+                result.GetPixel(x, y, out byte r, out _, out _, out _);
+                source.GetPixel(x / 2, y / 2, out byte expected, out _, out _, out _);
+                Assert.Equal(expected, r);
+            }
+        }
+    }
+
+    [Fact]
+    public void Letterbox_240_from_128_keeps_integer_centering()
+    {
+        var source = new RgbaImage(128, 64, 200, 0, 0, 255);
+        CropViewport fit = CropGeometry.Fit(128, 64, 240, 128, Rotation.Rotate0);
+        Assert.Equal(1.875, fit.Scale);
+        RgbaImage result = Render(source, 240, 128, fit, ResampleMode.NearestNeighbor, BackgroundColor.White);
+        for (int y = 0; y < 4; y++)
+        {
+            result.GetPixel(0, y, out byte r, out _, out _, out _);
+            Assert.Equal(255, r);
+            result.GetPixel(0, 124 + y, out r, out _, out _, out _);
+            Assert.Equal(255, r);
+        }
+
+        result.GetPixel(0, 4, out byte content, out _, out _, out _);
+        Assert.Equal(200, content);
+    }
+
+    [Theory]
+    [InlineData(BackgroundColor.White, 255)]
+    [InlineData(BackgroundColor.Black, 0)]
+    public void Area_outside_the_image_is_the_step1_background(BackgroundColor background, byte expected)
+    {
+        var source = new RgbaImage(4, 4, 10, 20, 30, 255);
+        var shifted = new CropViewport(0, 2, 1);
+        RgbaImage result = Render(source, 4, 4, shifted, ResampleMode.AreaAverage, background);
+        result.GetPixel(0, 2, out byte r, out byte g, out byte b, out byte a);
+        Assert.Equal((expected, expected, expected, (byte)255), (r, g, b, a));
+        result.GetPixel(3, 2, out r, out g, out b, out _);
+        Assert.Equal(10, r);
+        Assert.Equal(20, g);
+        Assert.Equal(30, b);
+    }
+
+    [Fact]
+    public void Fractional_center_is_deterministic()
+    {
+        var source = new RgbaImage(6, 4);
+        for (int y = 0; y < 4; y++)
+        {
+            for (int x = 0; x < 6; x++)
+            {
+                source.SetPixel(x, y, (byte)(x * 30), (byte)(y * 40), 8, 255);
+            }
+        }
+
+        var crop = new CropViewport(2.5, 1.5, 1.25);
+        RgbaImage first = Render(source, 5, 3, crop, ResampleMode.AreaAverage, BackgroundColor.White);
+        RgbaImage second = Render(source, 5, 3, crop, ResampleMode.AreaAverage, BackgroundColor.White);
         Assert.True(first.ContentEquals(second));
+        first.GetPixel(0, 0, out byte r, out _, out _, out _);
+        Assert.InRange(r, 0, 255);
     }
 
-    private static RgbaImage Resize(
-        RgbaImage source,
-        int width,
-        int height,
-        FitMode fit,
-        Alignment alignment,
-        BackgroundColor background,
-        ResampleMode resample = ResampleMode.NearestNeighbor,
-        int offsetX = 0,
-        int offsetY = 0) =>
-        ResizeStep.Apply(source, width, height, fit, alignment, offsetX, offsetY, resample, background);
-
-    private static void AssertBackgroundRow(RgbaImage image, int y, bool background)
+    [Fact]
+    public void Nearest_at_scale_two_duplicates_a_two_by_two_block()
     {
-        image.GetPixel(0, y, out byte r, out _, out _, out _);
-        Assert.Equal(background ? 0 : 255, r);
+        var source = new RgbaImage(2, 2);
+        source.SetPixel(0, 0, 1, 0, 0, 255);
+        source.SetPixel(1, 0, 2, 0, 0, 255);
+        source.SetPixel(0, 1, 3, 0, 0, 255);
+        source.SetPixel(1, 1, 4, 0, 0, 255);
+        var crop = new CropViewport(1, 1, 2);
+        RgbaImage result = Render(source, 4, 4, crop, ResampleMode.NearestNeighbor, BackgroundColor.White);
+        AssertPixel(result, 0, 0, 1);
+        AssertPixel(result, 1, 0, 1);
+        AssertPixel(result, 0, 1, 1);
+        AssertPixel(result, 2, 0, 2);
+        AssertPixel(result, 0, 2, 3);
+        AssertPixel(result, 3, 3, 4);
     }
 
-    private static (byte, byte, byte, byte) Row(RgbaImage image, int y)
+    [Fact]
+    public void Area_at_half_scale_averages_a_two_by_two_block()
     {
-        image.GetPixel(0, y, out byte a, out _, out _, out _);
-        image.GetPixel(1, y, out byte b, out _, out _, out _);
-        image.GetPixel(2, y, out byte c, out _, out _, out _);
-        image.GetPixel(3, y, out byte d, out _, out _, out _);
-        return (a, b, c, d);
+        var source = new RgbaImage(2, 2);
+        source.SetPixel(0, 0, 0, 0, 0, 255);
+        source.SetPixel(1, 0, 100, 0, 0, 255);
+        source.SetPixel(0, 1, 0, 0, 0, 255);
+        source.SetPixel(1, 1, 0, 0, 0, 255);
+        var crop = new CropViewport(1, 1, 0.5);
+        RgbaImage result = Render(source, 1, 1, crop, ResampleMode.AreaAverage, BackgroundColor.White);
+        result.GetPixel(0, 0, out byte r, out _, out _, out _);
+        Assert.Equal(25, r);
+    }
+
+    private static void AssertPixel(RgbaImage image, int x, int y, byte r)
+    {
+        image.GetPixel(x, y, out byte actual, out _, out _, out _);
+        Assert.Equal(r, actual);
+    }
+
+    private static RgbaImage Render(RgbaImage source, int width, int height, CropViewport crop, ResampleMode resample, BackgroundColor background)
+    {
+        CropWindow window = CropGeometry.Window(crop, source.Width, source.Height, width, height, Rotation.Rotate0, false, false);
+        return ResizeStep.Apply(source, width, height, window.OriginX, window.OriginY, window.Span, resample, background);
     }
 }

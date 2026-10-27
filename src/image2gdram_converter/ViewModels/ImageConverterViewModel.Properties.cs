@@ -19,11 +19,20 @@ public sealed partial class ImageConverterViewModel
         get => _rotation;
         set
         {
-            OffsetSnapshot saved = CaptureOffsets();
+            CropViewport? saved = _crop;
             BeginChange(ref _rotation, value, step: true, preset: false, () =>
             {
-                RestoreOffsetsIfReverted(saved);
-                ClampOffsetsToSize();
+                if (_suppress)
+                {
+                    _crop = saved;
+                }
+                else
+                {
+                    _pending = null;
+                    _crop = null;
+                }
+
+                NotifyCrop();
             });
         }
     }
@@ -38,22 +47,6 @@ public sealed partial class ImageConverterViewModel
     {
         get => _flipVertical;
         set => BeginChange(ref _flipVertical, value, step: true, preset: false);
-    }
-
-    public TargetSizeMode SizeMode
-    {
-        get => _sizeMode;
-        set
-        {
-            OffsetSnapshot saved = CaptureOffsets();
-            BeginChange(ref _sizeMode, value, step: true, preset: true, () =>
-            {
-                ValidateProperty(_widthText, nameof(WidthText));
-                ValidateProperty(_heightText, nameof(HeightText));
-                RestoreOffsetsIfReverted(saved);
-                ClampOffsetsToSize();
-            });
-        }
     }
 
     [CustomValidation(typeof(ImageConverterViewModel), nameof(ValidateWidthText))]
@@ -86,45 +79,93 @@ public sealed partial class ImageConverterViewModel
         }
     }
 
-    public FitMode Fit
+    public CropViewport Crop
     {
-        get => _fit;
-        set => BeginChange(ref _fit, value, step: true, preset: false);
-    }
-
-    public Alignment Alignment
-    {
-        get => _alignment;
-        set => BeginChange(ref _alignment, value, step: true, preset: false);
-    }
-
-    [CustomValidation(typeof(ImageConverterViewModel), nameof(ValidateOffset))]
-    public string OffsetXText
-    {
-        get => _offsetXText;
+        get => DisplayedCrop();
         set
         {
-            if (!SetProperty(ref _offsetXText, value, true))
+            if (!TryApplyCrop(value))
             {
-                return;
+                OnPropertyChanged();
             }
-
-            ApplyOffset(ref _offsetX, value, horizontal: true);
         }
     }
 
-    [CustomValidation(typeof(ImageConverterViewModel), nameof(ValidateOffset))]
-    public string OffsetYText
+    public SourceRect CropRect => _image is null
+        ? default
+        : CropGeometry.SourceRect(DisplayedCrop(), _width, _height, _rotation);
+
+    public double ScaleMin => ScaleBounds().Min;
+
+    public double ScaleMax => ScaleBounds().Max;
+
+    public double ScaleLog
     {
-        get => _offsetYText;
+        get => Math.Log2(Math.Max(DisplayedCrop().Scale, 1e-12));
         set
         {
-            if (!SetProperty(ref _offsetYText, value, true))
+            if (_suppress || _image is null || !double.IsFinite(value))
             {
                 return;
             }
 
-            ApplyOffset(ref _offsetY, value, horizontal: false);
+            double scale = Math.Pow(2, value);
+            if (Math.Abs(scale - DisplayedCrop().Scale) <= 1e-9)
+            {
+                return;
+            }
+
+            if (!TryApplyCrop(DisplayedCrop() with { Scale = scale }))
+            {
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    public double ScaleLogMin => _image is null ? 0 : Math.Log2(Math.Max(ScaleMin, 1e-12));
+
+    public double ScaleLogMax
+    {
+        get
+        {
+            if (_image is null)
+            {
+                return 1;
+            }
+
+            double max = Math.Max(ScaleMax, ScaleMin);
+            return Math.Log2(Math.Max(max, 1e-12));
+        }
+    }
+
+    public double ScaleLogStep => ScaleFormat.LogStep;
+
+    public string CropSizeText
+    {
+        get
+        {
+            if (_image is null || _width < 1 || _height < 1)
+            {
+                return string.Empty;
+            }
+
+            SourceRect rect = CropGeometry.SourceRect(DisplayedCrop(), _width, _height, _rotation);
+            return _loc.Format("Status.CropFragment", ScaleFormat.FormatDim(rect.Width), ScaleFormat.FormatDim(rect.Height));
+        }
+    }
+
+    [CustomValidation(typeof(ImageConverterViewModel), nameof(ValidateScaleText))]
+    public string ScaleText
+    {
+        get => _scaleText;
+        set
+        {
+            if (!SetProperty(ref _scaleText, value, true))
+            {
+                return;
+            }
+
+            ApplyScale(value);
         }
     }
 

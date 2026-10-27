@@ -49,7 +49,7 @@ public static class ProjectSerializer
             throw new ProjectException(ProjectError.Corrupt, full, ex);
         }
 
-        if (dto.FormatVersion != ProjectDocument.FormatVersion && dto.FormatVersion != LegacyMigration.ScreenAxesOffsetYVersion)
+        if (dto.FormatVersion is < LegacyMigration.ScreenAxesOffsetYVersion or > ProjectDocument.FormatVersion)
         {
             throw new ProjectException(ProjectError.UnsupportedVersion, full);
         }

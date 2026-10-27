@@ -81,8 +81,7 @@ internal static class ModelValidation
 
     private static void Ensure(ProcessingOptions options)
     {
-        if (!Enum.IsDefined(options.Background) || !Enum.IsDefined(options.Rotation) || !Enum.IsDefined(options.SizeMode)
-            || !Enum.IsDefined(options.Fit) || !Enum.IsDefined(options.Alignment) || !Enum.IsDefined(options.Resample)
+        if (!Enum.IsDefined(options.Background) || !Enum.IsDefined(options.Rotation) || !Enum.IsDefined(options.Resample)
             || !Enum.IsDefined(options.Binarize))
         {
             throw new ArgumentOutOfRangeException(nameof(options), "Processing options contain an undefined enum value.");
@@ -93,17 +92,16 @@ internal static class ModelValidation
             throw new ArgumentOutOfRangeException(nameof(options), options.Threshold, "Threshold must be in 0..255.");
         }
 
-        if (options.OffsetX is < ProcessingOptions.MinOffset or > ProcessingOptions.MaxOffset
-            || options.OffsetY is < ProcessingOptions.MinOffset or > ProcessingOptions.MaxOffset)
-        {
-            throw new ArgumentOutOfRangeException(nameof(options), "Offset must be in -1024..1024.");
-        }
-
-        if (options.SizeMode == TargetSizeMode.Manual
-            && (options.TargetWidth is < ProcessingOptions.MinTargetSide or > ProcessingOptions.MaxTargetSide
-                || options.TargetHeight is < ProcessingOptions.MinTargetSide or > ProcessingOptions.MaxTargetSide))
+        if (options.TargetWidth is < ProcessingOptions.MinTargetSide or > ProcessingOptions.MaxTargetSide
+            || options.TargetHeight is < ProcessingOptions.MinTargetSide or > ProcessingOptions.MaxTargetSide)
         {
             throw new ArgumentOutOfRangeException(nameof(options), "Target size must be in 1..1024.");
+        }
+
+        if (options.Crop is CropViewport crop
+            && (!double.IsFinite(crop.Scale) || crop.Scale <= 0 || !double.IsFinite(crop.CenterX) || !double.IsFinite(crop.CenterY)))
+        {
+            throw new ArgumentOutOfRangeException(nameof(options), "Crop scale must be finite and positive, and the center must be finite.");
         }
     }
 

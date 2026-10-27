@@ -643,7 +643,6 @@ public class ThresholdStepTests : IDisposable
     {
         vm.WidthText = "8";
         vm.HeightText = "8";
-        vm.Fit = FitMode.None;
         var image = new RgbaImage(8, 8, 255, 255, 255, 255);
         image.SetPixel(0, 0, 0, 0, 0, 255);
         vm.LoadDecoded(new DecodedImage(ImageFileFormat.Png, new[] { image }), "dot.png", resetFrame: true, userAction: false);

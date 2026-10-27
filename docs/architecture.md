@@ -120,14 +120,15 @@ flowchart LR
 
 ### 3.2. `Image2Gdram.Core.Processing` — обработка, шаги 1–6 п. 4.1.2 (этап 2)
 
-**Фактически (этап 2).** Классы шагов совпадают с черновиком. Дополнительно: `Binarizer.Create`, `FramePixelOverrides`, `ImagePipeline.Pack` и `RunAndPack` (шаг 7 через `PackerRegistry`), `PipelineException` с кодом `SourceLargerThan1024` (D-07).
+**Фактически (этап 2, шаг 3 заменён N-80).** Классы шагов совпадают с черновиком. Дополнительно: `Binarizer.Create`, `FramePixelOverrides`, `ImagePipeline.Pack` и `RunAndPack` (шаг 7 через `PackerRegistry`). Ошибка «сторона больше 1024» убрана вместе с режимом «по исходному»: ширина и высота всегда 1…1024.
 
-- `ProcessingOptions` (sealed record, `Default`) — фон, поворот, отражения, ручной размер или «по исходному», режим вписывания, выравнивание, смещение, алгоритм масштабирования, режим бинаризации, порог. Значения по умолчанию — N-41. `MinOffset`/`MaxOffset` (±1024) — абсолютная граница файла, настроек и `ImagePipeline.Validate`. В интерфейсе предел уже: его считает `OffsetLimits` (N-67).
-- `OffsetLimits` — `Percent = 80`, `For(side)` возвращает `side * 80 / 100` (при `side < 1` — `ArgumentOutOfRangeException`), `Clamp(offset, side, absoluteMax)` ограничивает смещение диапазоном `±min(For(side), absoluteMax)`. Формулу вызывают обе вкладки, в интерфейсе она не дублируется.
+- `ProcessingOptions` (sealed record, `Default`) — фон, поворот, отражения, ширина и высота 1…1024, `Crop` (`CropViewport?`: центр и масштаб; `null` — вписать), алгоритм масштабирования, режим бинаризации, порог. Значения по умолчанию — N-41 и N-80.
+- `CropViewport`, `CropGeometry`, `CropWindow` — геометрия фрагмента: вписывание, диапазон k, ограничение центра, окно в ориентированных координатах, перевод старых режимов `FromLegacy` (N-80).
+- `OffsetLimits` — `Percent = 80`, `For(side)` возвращает `side * 80 / 100`. На вкладке картинок смещения нет (N-80). Класс остаётся для смещения глифа: абсолютный предел передаёт `TrueTypeOptions.MaxOffset` (±32).
 - Шаги, каждый — отдельный класс с явными параметрами:
   - `BackgroundCompositor` — F-06;
-  - `RotateFlipStep` — F-07, N-10; им же пользуется декодер для EXIF;
-  - `ResizeStep` (`FitMode`: `None`/`Fit`/`Stretch`/`Fill`; `Alignment`: 9 позиций; `ResampleMode`: `AreaAverage`/`NearestNeighbor`) — F-08, D-06;
+  - `RotateFlipStep` — F-07, N-10; им же пользуется декодер для EXIF и `CropGeometry.ToOriented`;
+  - `ResizeStep` — окно фрагмента, ближайший сосед или усреднение по площади; доля окна вне кадра входит как фон шага 1 (N-80, D-06);
   - `GrayscaleStep` → `GrayImage` — F-09;
   - `IBinarizer` → `MonoBitmap`: `ThresholdBinarizer`, `FloydSteinbergDitherer`, `AtkinsonDitherer`, `BayerDitherer(4|8)` — F-09, F-10. Выбор — `Binarizer.Create`.
 - `ImagePipeline` — `MonoBitmap Run(RgbaImage source, ProcessingOptions options, PixelOverrides? overrides, CancellationToken cancellationToken)`. Кэш промежуточных кадров принадлежит экземпляру и не потокобезопасен: смена порога или режима бинаризации не повторяет масштабирование. `RunAndPack` добавляет шаг 7.
@@ -247,7 +248,8 @@ flowchart LR
 - `App` регистрирует CP1251, три обработчика необработанных исключений и показывает причину. `app.manifest` — `PerMonitorV2`. Просмотр при 100–200 % и замеры времени — сделаны на этапе 8.
 - Словарь `Resources/Strings.ru-RU.xaml`. Код берёт фразы через `ILocalizationService`. Дополнительный словарь — `Languages\<язык>.xaml` рядом с программой (с этапа 10 — `LoadExternal`, N-61).
 - `MainViewModel`: проект `.iiu`, запрос «Сохранить / Не сохранять / Отмена» (N-15), запись `settings.json` через секунду и при выходе.
-- `ImageConverterViewModel`: шаги 1–5, упаковка, вывод, пресеты, кадр GIF, правки и undo/redo. Пересчёт — `RecalcScheduler` (пауза 40 мс, отмена предыдущего). В тестах — `ImmediateRecalcScheduler`.
+- `ImageConverterViewModel`: шаги 1–5, упаковка, вывод, пресеты, кадр GIF, правки и undo/redo, прямоугольник фрагмента (N-80). Пересчёт — `RecalcScheduler` (пауза 40 мс, отмена предыдущего). В тестах — `ImmediateRecalcScheduler`.
+- `SourceCropControl`: исходник и прямоугольник фрагмента в `OnRender`. Вид вписывает объединение картинки и прямоугольника; на время перетаскивания масштаб вида заморожен.
 - `PixelGridControl`: один `WriteableBitmap`, масштаб 1…32 и «по размеру окна», линии сетки (N-54), мышь. `CodeView` на AvalonEdit подсвечивает байт по `ByteSpanMap`.
 - Диалоги, файлы и буфер — за интерфейсами, в тестах подменяются.
 
@@ -259,7 +261,7 @@ src/image2gdram_converter/
   app.manifest             PerMonitorV2
   Views/                   MainWindow, ImageConverterView, FontGeneratorView, диалоги
   ViewModels/              MVVM (CommunityToolkit.Mvvm)
-  Controls/                PixelGridControl, GlyphTableControl, CodeView, TextBoxCommit
+  Controls/                PixelGridControl, SourceCropControl, GlyphTableControl, CodeView, TextBoxCommit
   Services/                диалоги, файлы, буфер обмена, локализация, пересчёт
   Resources/Strings.ru-RU.xaml   встроенный словарь строк
 Languages/ (рядом с exe)   дополнительные словари, выбираются в settings.json
@@ -303,8 +305,8 @@ sequenceDiagram
 Сделано на этапе 5 (N-16, N-25, N-53). ViewModel напрямую не сериализуются.
 
 - Встроенные пресеты — ресурс `Presets/presets.json` в Core (D-01). Пользовательские — массив в `settings.json`.
-- `settings.json` — рядом с программой (`AppContext.BaseDirectory`) или, если туда нельзя записать файл, в `%APPDATA%\ImageIU\settings.json`. Версия формата 2; версия 1 принимается со сменой знака смещения Y (N-69).
-- Проект `.iiu` — JSON UTF-8 без BOM, `formatVersion` 2 (версия 1 принимается со сменой знака смещения Y, N-69). В нём обе вкладки, параметры, правки пикселей и все 256 символов.
+- `settings.json` — рядом с программой (`AppContext.BaseDirectory`) или, если туда нельзя записать файл, в `%APPDATA%\ImageIU\settings.json`. Версия формата 3. Версия 1 сначала меняет знак смещения Y (N-69), затем версии 1 и 2 переводятся в прямоугольник (N-80).
+- Проект `.iiu` — JSON UTF-8 без BOM, `formatVersion` 3. Версия 1 принимается со сменой знака смещения Y, затем так же, как версия 2, получает прямоугольник фрагмента (N-80). В файле обе вкладки, параметры, правки пикселей и все 256 символов. Поля `cropCenterX`, `cropCenterY`, `cropScale` пустые — вписать. Старые `sizeMode`, `fit`, `alignment`, `offsetX`, `offsetY` только читаются и в новую запись не попадают.
 - Порядок полей в JSON — порядок свойств DTO. Списки, у которых есть естественный порядок (коды, кадры, точки), пишутся в этом порядке. `Dictionary` для файла не используется.
 
 ---

@@ -11,7 +11,6 @@ using Image2Gdram.Core.Packing;
 using Image2Gdram.Core.Presets;
 using Image2Gdram.Core.Processing;
 using Image2Gdram.Core.Settings;
-using LimitMath = Image2Gdram.Core.Processing.OffsetLimits;
 using Image2Gdram.Core.Text;
 using image2gdram_converter.Services;
 
@@ -53,17 +52,17 @@ public sealed partial class ImageConverterViewModel : ObservableValidator, ICode
     private Rotation _rotation = Rotation.Rotate0;
     private bool _flipHorizontal;
     private bool _flipVertical;
-    private TargetSizeMode _sizeMode = TargetSizeMode.Manual;
     private int _width = 128;
     private int _height = 64;
     private string _widthText = "128";
     private string _heightText = "64";
-    private FitMode _fit = FitMode.Fit;
-    private Alignment _alignment = Alignment.Center;
-    private int _offsetX;
-    private int _offsetY;
-    private string _offsetXText = "0";
-    private string _offsetYText = "0";
+
+    /// <summary><c>null</c> — вписать. Явное значение — прямоугольник, который задал пользователь или миграция.</summary>
+    private CropViewport? _crop;
+
+    private LegacyPlacement? _pending;
+    private bool _stretchDropped;
+    private string _scaleText = "1";
     private ResampleMode _resample = ResampleMode.AreaAverage;
     private BinarizeMode _binarize = BinarizeMode.Threshold;
     private const int MinThreshold = 0;
@@ -127,9 +126,6 @@ public sealed partial class ImageConverterViewModel : ObservableValidator, ICode
         _users = userPresets;
         Backgrounds = OptionLists.Backgrounds(localization);
         Rotations = OptionLists.Rotations(localization);
-        SizeModes = OptionLists.SizeModes(localization);
-        Fits = OptionLists.Fits(localization);
-        Alignments = OptionLists.Alignments(localization);
         Resamples = OptionLists.Resamples(localization);
         BinarizeModes = OptionLists.BinarizeModes(localization);
         Directions = OptionLists.Directions(localization);
@@ -183,12 +179,6 @@ public sealed partial class ImageConverterViewModel : ObservableValidator, ICode
 
     public IReadOnlyList<Labeled<Rotation>> Rotations { get; }
 
-    public IReadOnlyList<Labeled<TargetSizeMode>> SizeModes { get; }
-
-    public IReadOnlyList<Labeled<FitMode>> Fits { get; }
-
-    public IReadOnlyList<Labeled<Alignment>> Alignments { get; }
-
     public IReadOnlyList<Labeled<ResampleMode>> Resamples { get; }
 
     public IReadOnlyList<Labeled<BinarizeMode>> BinarizeModes { get; }
@@ -239,7 +229,9 @@ public sealed partial class ImageConverterViewModel : ObservableValidator, ICode
 
     public string PresetCaption => Presets.Caption;
 
-    public bool ManualSize => _sizeMode == TargetSizeMode.Manual;
+    public int TargetWidth => _width;
+
+    public int TargetHeight => _height;
 
     public bool BitsEnabled => _direction == PackDirection.Horizontal;
 
@@ -343,28 +335,15 @@ public sealed partial class ImageConverterViewModel : ObservableValidator, ICode
         _rotation = processing.Rotation;
         _flipHorizontal = processing.FlipHorizontal;
         _flipVertical = processing.FlipVertical;
-        _sizeMode = processing.SizeMode;
         _width = processing.TargetWidth;
         _height = processing.TargetHeight;
         _widthText = IntText.Format(_width);
         _heightText = IntText.Format(_height);
-        _fit = processing.Fit;
-        _alignment = processing.Alignment;
-        if (_sizeMode == TargetSizeMode.MatchSource && _image is not null)
-        {
-            // Картинка может быть от предыдущего проекта: OpenProjectFile вызывает LoadState до LoadDecoded.
-            _offsetX = Math.Clamp(processing.OffsetX, ProcessingOptions.MinOffset, ProcessingOptions.MaxOffset);
-            _offsetY = Math.Clamp(processing.OffsetY, ProcessingOptions.MinOffset, ProcessingOptions.MaxOffset);
-        }
-        else
-        {
-            TryEffectiveSize(out int width, out int height);
-            _offsetX = LimitMath.Clamp(processing.OffsetX, width, ProcessingOptions.MaxOffset);
-            _offsetY = LimitMath.Clamp(processing.OffsetY, height, ProcessingOptions.MaxOffset);
-        }
-
-        _offsetXText = IntText.Format(_offsetX);
-        _offsetYText = IntText.Format(_offsetY);
+        // Картинка может быть от предыдущего проекта: OpenProjectFile вызывает LoadState до LoadDecoded.
+        _crop = processing.Crop;
+        _pending = parameters.PendingLegacy;
+        _stretchDropped = parameters.LegacyStretchDropped;
+        _scaleText = ScaleFormat.Format(DisplayedCrop().Scale);
         _resample = processing.Resample;
         _binarize = processing.Binarize;
         _threshold = processing.Threshold;
@@ -419,12 +398,18 @@ public sealed partial class ImageConverterViewModel : ObservableValidator, ICode
 
         RebuildFrames();
         OnPropertyChanged(nameof(SelectedFrame));
-        UpdateAutomaticName();
-        if (_sizeMode == TargetSizeMode.MatchSource)
+        if (_pending is not null)
         {
-            ClampOffsetsToSize();
+            ApplyPending(_pending);
+            _pending = null;
+        }
+        else if (userAction)
+        {
+            _crop = null;
         }
 
+        UpdateAutomaticName();
+        NotifyCrop();
         if (userAction)
         {
             ParametersChanged?.Invoke();
@@ -437,12 +422,10 @@ public sealed partial class ImageConverterViewModel : ObservableValidator, ICode
     public void UnloadPixels()
     {
         _image = null;
+        _pending = null;
+        _crop = null;
         RebuildFrames();
-        if (_sizeMode == TargetSizeMode.MatchSource)
-        {
-            ClampOffsetsToSize();
-        }
-
+        NotifyCrop();
         Schedule();
     }
 
@@ -661,25 +644,52 @@ public sealed partial class ImageConverterViewModel : ObservableValidator, ICode
         ?? OutputSaveFlow.FolderOf(_sourcePath)
         ?? OutputSaveFlow.NullIfEmpty(_openFolder);
 
-    /// <summary>
-    /// Пустое или недопустимое смещение при выходе из поля и по Enter
-    /// возвращается к последнему разобранному значению (N-65).
-    /// </summary>
-    [RelayCommand]
-    private void RestoreOffsets()
+    [RelayCommand(CanExecute = nameof(CanDecreaseScale))]
+    private void DecreaseScale()
     {
-        (int limitX, int limitY) = OffsetLimits();
-        _offsetX = Math.Clamp(_offsetX, -limitX, limitX);
-        _offsetY = Math.Clamp(_offsetY, -limitY, limitY);
-        if (!IntText.TryParse(OffsetXText, -limitX, limitX, out _))
+        if (CanDecreaseScale())
         {
-            OffsetXText = IntText.Format(_offsetX);
+            MultiplyScale(1.0 / ScaleFormat.StepFactor);
+        }
+    }
+
+    private bool CanDecreaseScale() => CanAdjustScale() && DisplayedCrop().Scale > ScaleBounds().Min + 1e-12;
+
+    [RelayCommand(CanExecute = nameof(CanIncreaseScale))]
+    private void IncreaseScale()
+    {
+        if (CanIncreaseScale())
+        {
+            MultiplyScale(ScaleFormat.StepFactor);
+        }
+    }
+
+    private bool CanIncreaseScale() => CanAdjustScale() && DisplayedCrop().Scale < ScaleBounds().Max - 1e-12;
+
+    private bool CanAdjustScale() => _image is not null && FirstError() is null;
+
+    private bool CanFitCrop() => _image is not null;
+
+    [RelayCommand(CanExecute = nameof(CanFitCrop))]
+    private void FitCrop()
+    {
+        if (_image is null)
+        {
+            return;
         }
 
-        if (!IntText.TryParse(OffsetYText, -limitY, limitY, out _))
+        if (_crop is null)
         {
-            OffsetYText = IntText.Format(_offsetY);
+            return;
         }
+
+        if (!ConfirmStep())
+        {
+            return;
+        }
+
+        _crop = null;
+        PublishCrop();
     }
 
     [RelayCommand]
@@ -820,10 +830,10 @@ public sealed partial class ImageConverterViewModel : ObservableValidator, ICode
     private void ChoosePreset(Preset? preset)
     {
         ImageTabParameters next = PresetApplication.Apply(ToParameters(), preset);
-        bool sizeChanged = next.Processing.SizeMode != _sizeMode
-            || next.Processing.TargetWidth != _width
-            || next.Processing.TargetHeight != _height;
-        if (sizeChanged && !ConfirmStep())
+        bool placementChanged = next.Processing.TargetWidth != _width
+            || next.Processing.TargetHeight != _height
+            || _crop is not null;
+        if (placementChanged && !ConfirmStep())
         {
             Presets.Show(_binding);
             return;
@@ -833,8 +843,8 @@ public sealed partial class ImageConverterViewModel : ObservableValidator, ICode
         LoadState(next, schedule: false);
         _nameCustomized = nameCustomized;
         _namePendingSource = false;
-        ClampOffsetsToSize();
         UpdateAutomaticName();
+        NotifyCrop();
         Schedule();
         ParametersChanged?.Invoke();
         CommandsChanged?.Invoke();
@@ -875,9 +885,7 @@ public sealed partial class ImageConverterViewModel : ObservableValidator, ICode
             return new PreviewResult { Kind = request.Kind, Message = request.Message };
         }
 
-        try
-        {
-            int selected = Math.Clamp(request.FrameIndex, 0, request.Image.Frames.Count - 1);
+        int selected = Math.Clamp(request.FrameIndex, 0, request.Image.Frames.Count - 1);
             int count = request.ExportAll ? request.Image.Frames.Count : 1;
             var packed = new byte[count][];
             MonoBitmap? bitmap = null;
@@ -924,15 +932,6 @@ public sealed partial class ImageConverterViewModel : ObservableValidator, ICode
                 Width = bitmap.Width,
                 Height = bitmap.Height,
             };
-        }
-        catch (PipelineException ex)
-        {
-            return new PreviewResult
-            {
-                Kind = PreviewKind.Clear,
-                Message = _loc.Format("Error.Pipeline.TooLarge", ex.Width, ex.Height),
-            };
-        }
     }
 
     private void Apply(PreviewResult result)
@@ -964,9 +963,7 @@ public sealed partial class ImageConverterViewModel : ObservableValidator, ICode
             FillCode(result.Document);
         }
 
-        WarningText = string.Join(
-            Environment.NewLine,
-            result.Diagnostics.Select(item => UserText.Diagnostic(_loc, item)));
+        WarningText = ComposeWarnings(result.Diagnostics);
         OnPropertyChanged(nameof(Document));
         NotifyDerived();
         RefreshCommands();
@@ -1106,20 +1103,13 @@ public sealed partial class ImageConverterViewModel : ObservableValidator, ICode
             return true;
         }
 
-        int width = _width;
-        int height = _height;
-        if (_sizeMode == TargetSizeMode.MatchSource && _image is not null)
-        {
-            (width, height) = Oriented(_image.Width, _image.Height, _rotation);
-        }
-
-        if (width < 1 || height < 1)
+        if (_width < 1 || _height < 1)
         {
             return false;
         }
 
-        return name == BuildAutoName(width, height, NameValidator.MaxLength)
-            || name == BuildAutoName(width, height, NameValidator.MaxLengthA51Module);
+        return name == BuildAutoName(_width, _height, NameValidator.MaxLength)
+            || name == BuildAutoName(_width, _height, NameValidator.MaxLengthA51Module);
     }
 
     private string? NamePath => string.IsNullOrWhiteSpace(_sourcePath) ? _nameSourcePath : _sourcePath;
@@ -1137,22 +1127,9 @@ public sealed partial class ImageConverterViewModel : ObservableValidator, ICode
 
     private bool TryEffectiveSize(out int width, out int height)
     {
-        if (_sizeMode != TargetSizeMode.MatchSource)
-        {
-            width = _width;
-            height = _height;
-            return true;
-        }
-
-        if (_image is null)
-        {
-            width = _width;
-            height = _height;
-            return false;
-        }
-
-        (width, height) = Oriented(_image.Width, _image.Height, _rotation);
-        return width <= ProcessingOptions.MaxTargetSide && height <= ProcessingOptions.MaxTargetSide;
+        width = _width;
+        height = _height;
+        return true;
     }
 
     private int EffectiveHeight() => TryEffectiveSize(out _, out int height) ? height : _height;
@@ -1167,13 +1144,9 @@ public sealed partial class ImageConverterViewModel : ObservableValidator, ICode
         Rotation = _rotation,
         FlipHorizontal = _flipHorizontal,
         FlipVertical = _flipVertical,
-        SizeMode = _sizeMode,
         TargetWidth = _width,
         TargetHeight = _height,
-        Fit = _fit,
-        Alignment = _alignment,
-        OffsetX = _offsetX,
-        OffsetY = _offsetY,
+        Crop = _crop,
         Resample = _resample,
         Binarize = _binarize,
         Threshold = _threshold,
@@ -1216,7 +1189,6 @@ public sealed partial class ImageConverterViewModel : ObservableValidator, ICode
 
     private void NotifyDerived()
     {
-        OnPropertyChanged(nameof(ManualSize));
         OnPropertyChanged(nameof(BitsEnabled));
         OnPropertyChanged(nameof(TraversalEnabled));
         OnPropertyChanged(nameof(AsmEnabled));
@@ -1247,6 +1219,9 @@ public sealed partial class ImageConverterViewModel : ObservableValidator, ICode
         OpenImageCommand.NotifyCanExecuteChanged();
         DecreaseThresholdCommand.NotifyCanExecuteChanged();
         IncreaseThresholdCommand.NotifyCanExecuteChanged();
+        DecreaseScaleCommand.NotifyCanExecuteChanged();
+        IncreaseScaleCommand.NotifyCanExecuteChanged();
+        FitCropCommand.NotifyCanExecuteChanged();
     }
 
     private string? FirstError()
@@ -1267,83 +1242,191 @@ public sealed partial class ImageConverterViewModel : ObservableValidator, ICode
         return null;
     }
 
-    /// <summary>Модуль смещения не больше 80 % уже принятого размера и абсолютного предела (N-67).</summary>
-    private (int X, int Y) OffsetLimits()
+    /// <summary>
+    /// Начало жеста прямоугольника. При ручных правках спрашивает сброс один раз;
+    /// <c>false</c> — жест отменить и вернуть прямоугольник на место (N-80).
+    /// </summary>
+    public bool BeginCropGesture()
     {
-        TryEffectiveSize(out int width, out int height);
-        return (
-            Math.Min(LimitMath.For(width), ProcessingOptions.MaxOffset),
-            Math.Min(LimitMath.For(height), ProcessingOptions.MaxOffset));
+        bool hadEdits = _edits.HasEdits;
+        if (!ConfirmStep())
+        {
+            return false;
+        }
+
+        if (hadEdits)
+        {
+            Schedule();
+        }
+
+        return true;
     }
 
-    private OffsetSnapshot CaptureOffsets() => new(_offsetX, _offsetY, _offsetXText, _offsetYText);
+    public Func<bool> ConfirmCropGesture => BeginCropGesture;
 
-    /// <summary>
-    /// Отказ в <see cref="ConfirmStep"/> повторяет <c>beforeCommit</c> с прежним размером.
-    /// Смещение, ужатое до подтверждения, возвращается и заново ограничивается старым пределом.
-    /// </summary>
-    private void RestoreOffsetsIfReverted(OffsetSnapshot saved)
+    private CropViewport DisplayedCrop()
     {
-        if (!_suppress)
+        if (_crop is CropViewport set)
+        {
+            return set;
+        }
+
+        if (_image is null || _width < 1 || _height < 1)
+        {
+            return new CropViewport(0, 0, 1);
+        }
+
+        return CropGeometry.Fit(_image.Width, _image.Height, _width, _height, _rotation);
+    }
+
+    private (double Min, double Max) ScaleBounds()
+    {
+        if (_image is null || _width < 1 || _height < 1)
+        {
+            return (1, 1);
+        }
+
+        return CropGeometry.ScaleRange(_image.Width, _image.Height, _width, _height, _rotation);
+    }
+
+    private void ApplyPending(LegacyPlacement pending)
+    {
+        if (_image is null)
         {
             return;
         }
 
-        _offsetX = saved.X;
-        _offsetY = saved.Y;
-        if (_offsetXText != saved.XText)
+        if (pending.SizeMode == TargetSizeMode.MatchSource)
         {
-            OffsetXText = saved.XText;
+            (int orientedWidth, int orientedHeight) = CropGeometry.OrientedSize(_image.Width, _image.Height, _rotation);
+            _width = Math.Clamp(orientedWidth, ProcessingOptions.MinTargetSide, ProcessingOptions.MaxTargetSide);
+            _height = Math.Clamp(orientedHeight, ProcessingOptions.MinTargetSide, ProcessingOptions.MaxTargetSide);
+            _widthText = IntText.Format(_width);
+            _heightText = IntText.Format(_height);
+            _crop = null;
+            OnPropertyChanged(nameof(WidthText));
+            OnPropertyChanged(nameof(HeightText));
+            return;
         }
 
-        if (_offsetYText != saved.YText)
-        {
-            OffsetYText = saved.YText;
-        }
+        _crop = CropGeometry.FromLegacy(
+            _image.Width,
+            _image.Height,
+            _width,
+            _height,
+            _rotation,
+            _flipHorizontal,
+            _flipVertical,
+            pending.Fit,
+            pending.Alignment,
+            pending.OffsetX,
+            pending.OffsetY);
     }
 
-    /// <summary>
-    /// Ужимает принятые смещения до текущего предела. Недопустимый текст, который ещё набирают, не трогает.
-    /// Подтверждение правок и пересчёт делает вызывающий код.
-    /// </summary>
-    private void ClampOffsetsToSize()
+    private void PublishCrop()
     {
-        (int limitX, int limitY) = OffsetLimits();
-        ClampOffset(ref _offsetX, _offsetXText, limitX, horizontal: true);
-        ClampOffset(ref _offsetY, _offsetYText, limitY, horizontal: false);
-        ValidateProperty(_offsetXText, nameof(OffsetXText));
-        ValidateProperty(_offsetYText, nameof(OffsetYText));
+        NotifyCrop();
+        CommitUi(preset: false);
     }
 
-    private void ClampOffset(ref int stored, string text, int limit, bool horizontal)
+    private void SyncScaleText()
     {
-        int previous = stored;
-        stored = Math.Clamp(stored, -limit, limit);
-        if (stored == previous
-            || !IntText.TryParse(text, ProcessingOptions.MinOffset, ProcessingOptions.MaxOffset, out int parsed)
-            || parsed != previous)
+        string text = ScaleFormat.Format(DisplayedCrop().Scale);
+        if (_scaleText == text)
         {
             return;
         }
 
-        string formatted = IntText.Format(stored);
         bool outer = _suppress;
         _suppress = true;
-        try
+        ScaleText = text;
+        _suppress = outer;
+    }
+
+    private void NotifyCrop()
+    {
+        SyncScaleText();
+        OnPropertyChanged(nameof(Crop));
+        OnPropertyChanged(nameof(CropRect));
+        OnPropertyChanged(nameof(ScaleLog));
+        OnPropertyChanged(nameof(ScaleLogMin));
+        OnPropertyChanged(nameof(ScaleLogMax));
+        OnPropertyChanged(nameof(ScaleLogStep));
+        OnPropertyChanged(nameof(ScaleMin));
+        OnPropertyChanged(nameof(ScaleMax));
+        OnPropertyChanged(nameof(TargetWidth));
+        OnPropertyChanged(nameof(TargetHeight));
+        OnPropertyChanged(nameof(CropSizeText));
+        ValidateProperty(_scaleText, nameof(ScaleText));
+        DecreaseScaleCommand.NotifyCanExecuteChanged();
+        IncreaseScaleCommand.NotifyCanExecuteChanged();
+        FitCropCommand.NotifyCanExecuteChanged();
+    }
+
+    private void MultiplyScale(double factor)
+    {
+        if (_image is null)
         {
-            if (horizontal)
+            return;
+        }
+
+        CropViewport current = DisplayedCrop();
+        (double min, double max) = ScaleBounds();
+        double scale = Math.Min(Math.Max(current.Scale * factor, min), max);
+        if (!TryApplyCrop(current with { Scale = scale }))
+        {
+            OnPropertyChanged(nameof(ScaleLog));
+        }
+    }
+
+    private bool TryApplyCrop(CropViewport next)
+    {
+        if (_image is null)
+        {
+            return false;
+        }
+
+        CropViewport clamped = CropGeometry.Clamp(next, _image.Width, _image.Height, _width, _height, _rotation);
+        CropViewport shown = DisplayedCrop();
+        if (clamped.Equals(shown))
+        {
+            Unblock();
+            return true;
+        }
+
+        if (!_suppress && !ConfirmStep())
+        {
+            return false;
+        }
+
+        CropViewport fit = CropGeometry.Fit(_image.Width, _image.Height, _width, _height, _rotation);
+        _crop = clamped.Equals(fit) ? null : clamped;
+        if (!_suppress)
+        {
+            PublishCrop();
+        }
+
+        return true;
+    }
+
+    private string ComposeWarnings(IEnumerable<Image2Gdram.Core.Diagnostics.Diagnostic> diagnostics)
+    {
+        var lines = new List<string>();
+        foreach (Image2Gdram.Core.Diagnostics.Diagnostic item in diagnostics)
+        {
+            string text = UserText.Diagnostic(_loc, item);
+            if (text.Length > 0)
             {
-                OffsetXText = formatted;
-            }
-            else
-            {
-                OffsetYText = formatted;
+                lines.Add(text);
             }
         }
-        finally
+
+        if (_stretchDropped)
         {
-            _suppress = outer;
+            lines.Add(_loc.Get("Diag.LegacyStretch"));
         }
+
+        return string.Join(Environment.NewLine, lines);
     }
 
     private bool BeginChange<T>(ref T field, T value, bool step, bool preset, Action? beforeCommit = null, [CallerMemberName] string? propertyName = null)
@@ -1378,7 +1461,7 @@ public sealed partial class ImageConverterViewModel : ObservableValidator, ICode
 
     private void ApplySide(ref int stored, string text, bool width)
     {
-        if (_suppress || _sizeMode != TargetSizeMode.Manual)
+        if (_suppress)
         {
             return;
         }
@@ -1413,49 +1496,48 @@ public sealed partial class ImageConverterViewModel : ObservableValidator, ICode
         }
 
         stored = value;
-        ClampOffsetsToSize();
+        _pending = null;
+        _crop = null;
         CommitUi(preset: true);
+        NotifyCrop();
     }
 
-    private void ApplyOffset(ref int stored, string text, bool horizontal)
+    private void ApplyScale(string text)
     {
         if (_suppress)
         {
             return;
         }
 
-        int limit = horizontal ? OffsetLimits().X : OffsetLimits().Y;
-        if (!IntText.TryParse(text, -limit, limit, out int value))
+        if (_image is null || !ScaleFormat.TryParse(text, out double scale))
         {
             RefreshCommands();
             Schedule();
             return;
         }
 
-        if (value == stored)
+        (double min, double max) = ScaleBounds();
+        if (scale < min || scale > max)
+        {
+            RefreshCommands();
+            Schedule();
+            return;
+        }
+
+        CropViewport current = DisplayedCrop();
+        if (Math.Abs(scale - current.Scale) <= 5e-7)
         {
             Unblock();
             return;
         }
 
-        if (!ConfirmStep())
+        string previous = ScaleFormat.Format(current.Scale);
+        if (!TryApplyCrop(current with { Scale = scale }))
         {
             _suppress = true;
-            if (horizontal)
-            {
-                OffsetXText = IntText.Format(stored);
-            }
-            else
-            {
-                OffsetYText = IntText.Format(stored);
-            }
-
+            ScaleText = previous;
             _suppress = false;
-            return;
         }
-
-        stored = value;
-        CommitUi(preset: false);
     }
 
     /// <summary>Поле вернулось к прежнему допустимому значению: снять блокировку, если других ошибок нет.</summary>
@@ -1485,17 +1567,9 @@ public sealed partial class ImageConverterViewModel : ObservableValidator, ICode
         return copy;
     }
 
-    private static (int Width, int Height) Oriented(int width, int height, Rotation rotation) =>
-        rotation is Rotation.Rotate90 or Rotation.Rotate270 ? (height, width) : (width, height);
-
     public static ValidationResult? ValidateWidthText(string? text, ValidationContext context)
     {
         var vm = (ImageConverterViewModel)context.ObjectInstance!;
-        if (vm._sizeMode != TargetSizeMode.Manual)
-        {
-            return null;
-        }
-
         return IntText.TryParse(text, ProcessingOptions.MinTargetSide, ProcessingOptions.MaxTargetSide, out _)
             ? null
             : new ValidationResult(vm._loc.Get("Error.Width"));
@@ -1504,27 +1578,27 @@ public sealed partial class ImageConverterViewModel : ObservableValidator, ICode
     public static ValidationResult? ValidateHeightText(string? text, ValidationContext context)
     {
         var vm = (ImageConverterViewModel)context.ObjectInstance!;
-        if (vm._sizeMode != TargetSizeMode.Manual)
-        {
-            return null;
-        }
-
         return IntText.TryParse(text, ProcessingOptions.MinTargetSide, ProcessingOptions.MaxTargetSide, out _)
             ? null
             : new ValidationResult(vm._loc.Get("Error.Height"));
     }
 
-    public static ValidationResult? ValidateOffset(string? text, ValidationContext context)
+    public static ValidationResult? ValidateScaleText(string? text, ValidationContext context)
     {
         var vm = (ImageConverterViewModel)context.ObjectInstance!;
-        bool vertical = context.MemberName == nameof(OffsetYText);
-        (int limitX, int limitY) = vm.OffsetLimits();
-        int limit = vertical ? limitY : limitX;
-        vm.TryEffectiveSize(out int width, out int height);
-        int side = vertical ? height : width;
-        return IntText.TryParse(text, -limit, limit, out _)
+        if (vm._image is null)
+        {
+            return ScaleFormat.TryParse(text, out _) || string.IsNullOrWhiteSpace(text)
+                ? null
+                : new ValidationResult(vm._loc.Format("Error.Scale.Range", "0", "1"));
+        }
+
+        (double min, double max) = vm.ScaleBounds();
+        string minText = ScaleFormat.FormatBound(min);
+        string maxText = ScaleFormat.FormatBound(max);
+        return ScaleFormat.TryParse(text, out double scale) && scale >= min && scale <= max
             ? null
-            : new ValidationResult(vm._loc.Format(vertical ? "Error.OffsetY" : "Error.OffsetX", limit, side));
+            : new ValidationResult(vm._loc.Format("Error.Scale.Range", minText, maxText));
     }
 
     public static ValidationResult? ValidateThreshold(string? text, ValidationContext context)
@@ -1549,6 +1623,4 @@ public sealed partial class ImageConverterViewModel : ObservableValidator, ICode
         NameValidationResult result = NameValidator.Validate(name, vm._format);
         return result.IsValid ? null : new ValidationResult(UserText.Name(vm._loc, result));
     }
-
-    private readonly record struct OffsetSnapshot(int X, int Y, string XText, string YText);
 }

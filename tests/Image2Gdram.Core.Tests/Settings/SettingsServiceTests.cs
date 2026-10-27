@@ -4,6 +4,7 @@ using Image2Gdram.Core.Fonts;
 using Image2Gdram.Core.Output;
 using Image2Gdram.Core.Packing;
 using Image2Gdram.Core.Presets;
+using Image2Gdram.Core.Processing;
 using Image2Gdram.Core.Settings;
 
 namespace Image2Gdram.Core.Tests.Settings;
@@ -52,7 +53,7 @@ public sealed class SettingsServiceTests : IDisposable
         string text = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true).GetString(first);
         Assert.Contains("\u041f\u0440\u0438\u0432\u0435\u0442", text, StringComparison.Ordinal);
         Assert.DoesNotContain("\\u041F", text, StringComparison.Ordinal);
-        Assert.Contains("\"formatVersion\": 2", text, StringComparison.Ordinal);
+        Assert.Contains("\"formatVersion\": 3", text, StringComparison.Ordinal);
         Assert.Contains("\"direction\": \"Horizontal\"", text, StringComparison.Ordinal);
         Assert.Contains("\"colorScheme\": \"Lcd\"", text, StringComparison.Ordinal);
         Assert.DoesNotContain("generatedAt", text, StringComparison.OrdinalIgnoreCase);
@@ -90,9 +91,9 @@ public sealed class SettingsServiceTests : IDisposable
         Assert.Equal(AppSettings.DefaultLanguage, broken.Settings.Language);
         Assert.Equal("{", File.ReadAllText(service.FilePath));
 
-        foreach (string unsupported in new[] { "3", "9" })
+        foreach (string unsupported in new[] { "4", "9" })
         {
-            File.WriteAllText(service.FilePath, original.Replace("\"formatVersion\": 2", $"\"formatVersion\": {unsupported}", StringComparison.Ordinal));
+            File.WriteAllText(service.FilePath, original.Replace("\"formatVersion\": 3", $"\"formatVersion\": {unsupported}", StringComparison.Ordinal));
             SettingsLoadResult unsupportedResult = service.Load();
             Assert.NotNull(unsupportedResult.Diagnostic);
             Assert.Equal(DiagnosticCode.SettingsFileReset, unsupportedResult.Diagnostic!.Code);
@@ -103,64 +104,48 @@ public sealed class SettingsServiceTests : IDisposable
     }
 
     [Fact]
-    public void Legacy_version_1_flips_offset_y_and_keeps_offset_x()
+    public void Legacy_version_1_flips_offset_y_before_the_crop_is_deferred()
     {
         SettingsService service = Service();
-        AppSettings settings = AppSettings.CreateDefault();
-        settings.Image = settings.Image with
-        {
-            Parameters = settings.Image.Parameters with
-            {
-                Processing = settings.Image.Parameters.Processing with { OffsetX = -4, OffsetY = 6 },
-            },
-        };
-        settings.Font = settings.Font with
-        {
-            Parameters = settings.Font.Parameters with { GlyphOffsetX = -3, GlyphOffsetY = 5 },
-        };
-        service.Save(settings);
-        DowngradeToVersion1(service.FilePath);
+        service.Save(AppSettings.CreateDefault());
+        InjectLegacy(service.FilePath, 1, "None", "TopLeft", -4, 6, glyphOffsetX: -3, glyphOffsetY: 5);
 
         SettingsLoadResult loaded = service.Load();
 
-        // Версия 1 хранила Y по экранным осям: знак меняется при чтении (N-69), X не трогается.
         Assert.Null(loaded.Diagnostic);
-        Assert.Equal(-6, loaded.Settings.Image.Parameters.Processing.OffsetY);
+        LegacyPlacement pending = Assert.IsType<LegacyPlacement>(loaded.Settings.Image.Parameters.PendingLegacy);
+        Assert.Equal(-4, pending.OffsetX);
+        Assert.Equal(-6, pending.OffsetY);
         Assert.Equal(-5, loaded.Settings.Font.Parameters.GlyphOffsetY);
-        Assert.Equal(-4, loaded.Settings.Image.Parameters.Processing.OffsetX);
         Assert.Equal(-3, loaded.Settings.Font.Parameters.GlyphOffsetX);
     }
 
     [Theory]
-    [InlineData(0, 0, 0, 0)]
-    [InlineData(-1024, 1024, 32, -32)]
-    public void Legacy_version_1_flips_zero_and_boundary_offsets(int imageStored, int imageExpected, int glyphStored, int glyphExpected)
+    [InlineData(0, 0)]
+    [InlineData(-1024, 1024)]
+    public void Legacy_version_1_flips_zero_and_boundary_offsets(int imageStored, int imageExpected)
     {
         SettingsService service = Service();
-        AppSettings settings = AppSettings.CreateDefault();
-        settings.Image = settings.Image with
-        {
-            Parameters = settings.Image.Parameters with
-            {
-                Processing = settings.Image.Parameters.Processing with { OffsetY = imageStored },
-            },
-        };
-        settings.Font = settings.Font with
-        {
-            Parameters = settings.Font.Parameters with { GlyphOffsetY = glyphStored },
-        };
-        service.Save(settings);
-        DowngradeToVersion1(service.FilePath);
+        service.Save(AppSettings.CreateDefault());
+        InjectLegacy(service.FilePath, 1, "Fit", "Center", 0, imageStored, glyphOffsetX: 0, glyphOffsetY: 32);
 
         SettingsLoadResult loaded = service.Load();
 
         Assert.Null(loaded.Diagnostic);
-        Assert.Equal(imageExpected, loaded.Settings.Image.Parameters.Processing.OffsetY);
-        Assert.Equal(glyphExpected, loaded.Settings.Font.Parameters.GlyphOffsetY);
+        if (imageStored == 0)
+        {
+            Assert.Null(loaded.Settings.Image.Parameters.PendingLegacy);
+        }
+        else
+        {
+            Assert.Equal(imageExpected, loaded.Settings.Image.Parameters.PendingLegacy!.OffsetY);
+        }
+
+        Assert.Equal(-32, loaded.Settings.Font.Parameters.GlyphOffsetY);
     }
 
     [Fact]
-    public void Version_2_roundtrip_keeps_the_sign_and_writes_version_2()
+    public void Version_3_roundtrip_keeps_the_crop_and_version_2_defers_the_old_placement()
     {
         SettingsService service = Service();
         AppSettings settings = AppSettings.CreateDefault();
@@ -168,7 +153,7 @@ public sealed class SettingsServiceTests : IDisposable
         {
             Parameters = settings.Image.Parameters with
             {
-                Processing = settings.Image.Parameters.Processing with { OffsetY = 6 },
+                Processing = settings.Image.Parameters.Processing with { Crop = new CropViewport(4, 8, 1.25) },
             },
         };
         settings.Font = settings.Font with
@@ -179,14 +164,23 @@ public sealed class SettingsServiceTests : IDisposable
 
         SettingsLoadResult loaded = service.Load();
         Assert.Null(loaded.Diagnostic);
-        Assert.Equal(6, loaded.Settings.Image.Parameters.Processing.OffsetY);
+        Assert.Equal(new CropViewport(4, 8, 1.25), loaded.Settings.Image.Parameters.Processing.Crop);
         Assert.Equal(5, loaded.Settings.Font.Parameters.GlyphOffsetY);
 
         service.Save(loaded.Settings);
         string text = File.ReadAllText(service.FilePath);
-        Assert.Contains("\"formatVersion\": 2", text, StringComparison.Ordinal);
-        Assert.Contains("\"offsetY\": 6", text, StringComparison.Ordinal);
+        Assert.Contains("\"formatVersion\": 3", text, StringComparison.Ordinal);
+        Assert.Contains("\"cropScale\": 1.25", text, StringComparison.Ordinal);
         Assert.Contains("\"glyphOffsetY\": 5", text, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"offsetY\"", text, StringComparison.Ordinal);
+
+        InjectLegacy(service.FilePath, 2, "Fill", "MiddleLeft", 3, -2, glyphOffsetX: 0, glyphOffsetY: 5);
+        SettingsLoadResult legacy = service.Load();
+        Assert.Null(legacy.Diagnostic);
+        Assert.Equal(FitMode.Fill, legacy.Settings.Image.Parameters.PendingLegacy!.Fit);
+        Assert.Equal(Alignment.MiddleLeft, legacy.Settings.Image.Parameters.PendingLegacy.Alignment);
+        Assert.Equal(3, legacy.Settings.Image.Parameters.PendingLegacy.OffsetX);
+        Assert.Equal(-2, legacy.Settings.Image.Parameters.PendingLegacy.OffsetY);
     }
 
     [Fact]
@@ -262,10 +256,27 @@ public sealed class SettingsServiceTests : IDisposable
 
     private SettingsService Service() => new(Path.Combine(_root, "exe"), Path.Combine(_root, "appdata"));
 
-    private static void DowngradeToVersion1(string path)
+    private static void InjectLegacy(
+        string path,
+        int version,
+        string fit,
+        string alignment,
+        int offsetX,
+        int offsetY,
+        int glyphOffsetX,
+        int glyphOffsetY)
     {
         string text = File.ReadAllText(path);
-        File.WriteAllText(path, text.Replace("\"formatVersion\": 2", "\"formatVersion\": 1", StringComparison.Ordinal));
+        text = text.Replace("\"formatVersion\": 3", "\"formatVersion\": " + version.ToString(System.Globalization.CultureInfo.InvariantCulture), StringComparison.Ordinal);
+        text = text.Replace(
+            "\"processing\": {",
+            "\"processing\": { \"sizeMode\": \"Manual\", \"fit\": \"" + fit + "\", \"alignment\": \"" + alignment
+            + "\", \"offsetX\": " + offsetX.ToString(System.Globalization.CultureInfo.InvariantCulture)
+            + ", \"offsetY\": " + offsetY.ToString(System.Globalization.CultureInfo.InvariantCulture) + ",",
+            StringComparison.Ordinal);
+        text = text.Replace("\"glyphOffsetX\": 0", "\"glyphOffsetX\": " + glyphOffsetX.ToString(System.Globalization.CultureInfo.InvariantCulture), StringComparison.Ordinal);
+        text = text.Replace("\"glyphOffsetY\": 0", "\"glyphOffsetY\": " + glyphOffsetY.ToString(System.Globalization.CultureInfo.InvariantCulture), StringComparison.Ordinal);
+        File.WriteAllText(path, text);
     }
 
     private AppSettings Sample()

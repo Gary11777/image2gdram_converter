@@ -3,133 +3,54 @@ using Image2Gdram.Core.Imaging;
 namespace Image2Gdram.Core.Processing;
 
 /// <summary>
-/// Шаг 3: масштаб, выравнивание и смещение (п. 4.1.3 ТЗ, решение F-08).
-/// Непокрытые пиксели получают цвет фона шага 1 (решение D-06).
+/// Шаг 3: фрагмент ориентированного кадра переносится в целевой размер (N-80, D-06).
+/// Выходной пиксель <c>(x, y)</c> покрывает окно
+/// <c>[ox + x·span/W, ox + (x+1)·span/W) × [oy + y·spanH/H, oy + (y+1)·spanH/H)</c>,
+/// где <c>span = W/k</c> и <c>spanH = H/k</c>. При <c>ox = 0</c> и <c>span</c>, равном ширине исходника,
+/// окно совпадает с прежним усреднением по площади.
 /// </summary>
 public static class ResizeStep
 {
-    public readonly record struct ScaledSize(int Width, int Height);
-
     public static RgbaImage Apply(
-        RgbaImage source,
+        RgbaImage oriented,
         int targetWidth,
         int targetHeight,
-        FitMode fit,
-        Alignment alignment,
-        int offsetX,
-        int offsetY,
+        double originX,
+        double originY,
+        double span,
         ResampleMode resample,
         BackgroundColor background,
         CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(source);
+        ArgumentNullException.ThrowIfNull(oriented);
         ArgumentOutOfRangeException.ThrowIfLessThan(targetWidth, 1);
         ArgumentOutOfRangeException.ThrowIfLessThan(targetHeight, 1);
-
-        ScaledSize scaled = GetScaledSize(source.Width, source.Height, targetWidth, targetHeight, fit);
-        RgbaImage content = scaled.Width == source.Width && scaled.Height == source.Height
-            ? source
-            : Resample(source, scaled.Width, scaled.Height, resample, cancellationToken);
-
-        byte bg = BackgroundCompositor.BackgroundValue(background);
-        var canvas = new RgbaImage(targetWidth, targetHeight, bg, bg, bg, 255);
-        (int originX, int originY) = GetOrigin(alignment, targetWidth, targetHeight, content.Width, content.Height);
-        // Смещение Y: положительное — вверх, отрицательное — вниз (N-69).
-        Blit(content, canvas, originX + offsetX, originY - offsetY, cancellationToken);
-        return canvas;
-    }
-
-    /// <summary>Размер изображения после масштаба и до обрезки по холсту.</summary>
-    public static ScaledSize GetScaledSize(int sourceWidth, int sourceHeight, int targetWidth, int targetHeight, FitMode fit)
-    {
-        ArgumentOutOfRangeException.ThrowIfLessThan(sourceWidth, 1);
-        ArgumentOutOfRangeException.ThrowIfLessThan(sourceHeight, 1);
-        ArgumentOutOfRangeException.ThrowIfLessThan(targetWidth, 1);
-        ArgumentOutOfRangeException.ThrowIfLessThan(targetHeight, 1);
-
-        return fit switch
+        if (!double.IsFinite(originX) || !double.IsFinite(originY) || !double.IsFinite(span) || span <= 0)
         {
-            FitMode.None => new ScaledSize(sourceWidth, sourceHeight),
-            FitMode.Stretch => new ScaledSize(targetWidth, targetHeight),
-            FitMode.Fit => ScaleTo(sourceWidth, sourceHeight, targetWidth, targetHeight, useMax: false),
-            FitMode.Fill => ScaleTo(sourceWidth, sourceHeight, targetWidth, targetHeight, useMax: true),
-            _ => throw new ArgumentOutOfRangeException(nameof(fit), fit, "Unknown fit mode."),
-        };
-    }
-
-    /// <summary>
-    /// Левый верхний угол содержимого на холсте до смещения.
-    /// При центрировании нечётный остаток остаётся справа и снизу (влево и вверх).
-    /// </summary>
-    public static (int X, int Y) GetOrigin(Alignment alignment, int canvasWidth, int canvasHeight, int contentWidth, int contentHeight)
-    {
-        (HorizontalAlign horizontal, VerticalAlign vertical) = alignment switch
-        {
-            Alignment.TopLeft => (HorizontalAlign.Left, VerticalAlign.Top),
-            Alignment.TopCenter => (HorizontalAlign.Center, VerticalAlign.Top),
-            Alignment.TopRight => (HorizontalAlign.Right, VerticalAlign.Top),
-            Alignment.MiddleLeft => (HorizontalAlign.Left, VerticalAlign.Middle),
-            Alignment.Center => (HorizontalAlign.Center, VerticalAlign.Middle),
-            Alignment.MiddleRight => (HorizontalAlign.Right, VerticalAlign.Middle),
-            Alignment.BottomLeft => (HorizontalAlign.Left, VerticalAlign.Bottom),
-            Alignment.BottomCenter => (HorizontalAlign.Center, VerticalAlign.Bottom),
-            Alignment.BottomRight => (HorizontalAlign.Right, VerticalAlign.Bottom),
-            _ => throw new ArgumentOutOfRangeException(nameof(alignment), alignment, "Unknown alignment."),
-        };
-
-        int x = horizontal switch
-        {
-            HorizontalAlign.Left => 0,
-            HorizontalAlign.Center => FloorDiv2(canvasWidth - contentWidth),
-            HorizontalAlign.Right => canvasWidth - contentWidth,
-            _ => throw new ArgumentOutOfRangeException(nameof(alignment)),
-        };
-        int y = vertical switch
-        {
-            VerticalAlign.Top => 0,
-            VerticalAlign.Middle => FloorDiv2(canvasHeight - contentHeight),
-            VerticalAlign.Bottom => canvasHeight - contentHeight,
-            _ => throw new ArgumentOutOfRangeException(nameof(alignment)),
-        };
-        return (x, y);
-    }
-
-    public static RgbaImage Resample(RgbaImage source, int width, int height, ResampleMode mode, CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(source);
-        return mode switch
-        {
-            ResampleMode.NearestNeighbor => Nearest(source, width, height, cancellationToken),
-            ResampleMode.AreaAverage => AreaAverage(source, width, height, cancellationToken),
-            _ => throw new ArgumentOutOfRangeException(nameof(mode), mode, "Unknown resample mode."),
-        };
-    }
-
-    private static ScaledSize ScaleTo(int sourceWidth, int sourceHeight, int targetWidth, int targetHeight, bool useMax)
-    {
-        long crossWidth = (long)targetWidth * sourceHeight;
-        long crossHeight = (long)targetHeight * sourceWidth;
-        bool widthDefines = useMax ? crossWidth >= crossHeight : crossWidth <= crossHeight;
-        if (widthDefines)
-        {
-            int height = Math.Max(1, RoundHalfUp((long)sourceHeight * targetWidth, sourceWidth));
-            return new ScaledSize(targetWidth, height);
+            throw new ArgumentOutOfRangeException(nameof(span), span, "Origin and span must be finite, span positive.");
         }
 
-        int width = Math.Max(1, RoundHalfUp((long)sourceWidth * targetHeight, sourceHeight));
-        return new ScaledSize(width, targetHeight);
+        double spanH = span * targetHeight / targetWidth;
+        return resample switch
+        {
+            ResampleMode.NearestNeighbor => Nearest(oriented, targetWidth, targetHeight, originX, originY, span, spanH, background, cancellationToken),
+            ResampleMode.AreaAverage => AreaAverage(oriented, targetWidth, targetHeight, originX, originY, span, spanH, background, cancellationToken),
+            _ => throw new ArgumentOutOfRangeException(nameof(resample), resample, "Unknown resample mode."),
+        };
     }
 
-    /// <summary>Округление <c>numer / denom</c> к ближайшему, половина — вверх. Оба аргумента положительны.</summary>
-    public static int RoundHalfUp(long numer, long denom)
+    private static RgbaImage Nearest(
+        RgbaImage source,
+        int width,
+        int height,
+        double originX,
+        double originY,
+        double span,
+        double spanH,
+        BackgroundColor background,
+        CancellationToken cancellationToken)
     {
-        ArgumentOutOfRangeException.ThrowIfLessThan(denom, 1);
-        ArgumentOutOfRangeException.ThrowIfNegative(numer);
-        return (int)((numer + denom / 2) / denom);
-    }
-
-    private static RgbaImage Nearest(RgbaImage source, int width, int height, CancellationToken cancellationToken)
-    {
+        byte bg = BackgroundCompositor.BackgroundValue(background);
         var destination = new RgbaImage(width, height);
         byte[] dst = destination.PixelBuffer;
         int srcW = source.Width;
@@ -137,12 +58,21 @@ public static class ResizeStep
         for (int y = 0; y < height; y++)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            int sy = Sample(y, srcH, height);
+            int sy = (int)Math.Floor(originY + (y + 0.5) * spanH / height);
             for (int x = 0; x < width; x++)
             {
-                int sx = Sample(x, srcW, width);
-                source.GetPixel(sx, sy, out byte r, out byte g, out byte b, out byte a);
+                int sx = (int)Math.Floor(originX + (x + 0.5) * span / width);
                 int i = (y * width + x) * RgbaImage.BytesPerPixel;
+                if ((uint)sx >= (uint)srcW || (uint)sy >= (uint)srcH)
+                {
+                    dst[i] = bg;
+                    dst[i + 1] = bg;
+                    dst[i + 2] = bg;
+                    dst[i + 3] = 255;
+                    continue;
+                }
+
+                source.GetPixel(sx, sy, out byte r, out byte g, out byte b, out byte a);
                 dst[i] = r;
                 dst[i + 1] = g;
                 dst[i + 2] = b;
@@ -153,12 +83,18 @@ public static class ResizeStep
         return destination;
     }
 
-    /// <summary>Индекс исходного пикселя по центру целевого: <c>((2·t + 1) · src) / (2 · dst)</c>.</summary>
-    public static int Sample(int targetIndex, int sourceSize, int targetSize) =>
-        (int)(((2L * targetIndex + 1) * sourceSize) / (2L * targetSize));
-
-    private static RgbaImage AreaAverage(RgbaImage source, int width, int height, CancellationToken cancellationToken)
+    private static RgbaImage AreaAverage(
+        RgbaImage source,
+        int width,
+        int height,
+        double originX,
+        double originY,
+        double span,
+        double spanH,
+        BackgroundColor background,
+        CancellationToken cancellationToken)
     {
+        byte bg = BackgroundCompositor.BackgroundValue(background);
         var destination = new RgbaImage(width, height);
         byte[] dst = destination.PixelBuffer;
         int srcW = source.Width;
@@ -167,29 +103,35 @@ public static class ResizeStep
         for (int y = 0; y < height; y++)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            double y0 = y * (double)srcH / height;
-            double y1 = (y + 1) * (double)srcH / height;
-            int sy0 = (int)Math.Floor(y0);
-            int sy1 = (int)Math.Ceiling(y1) - 1;
-            if (sy0 < 0)
-            {
-                sy0 = 0;
-            }
-
-            if (sy1 >= srcH)
-            {
-                sy1 = srcH - 1;
-            }
-
+            double y0 = originY + y * spanH / height;
+            double y1 = originY + (y + 1) * spanH / height;
             for (int x = 0; x < width; x++)
             {
-                double x0 = x * (double)srcW / width;
-                double x1 = (x + 1) * (double)srcW / width;
+                double x0 = originX + x * span / width;
+                double x1 = originX + (x + 1) * span / width;
+                double windowArea = (x1 - x0) * (y1 - y0);
+                int o = (y * width + x) * RgbaImage.BytesPerPixel;
+                if (windowArea <= 0)
+                {
+                    dst[o] = bg;
+                    dst[o + 1] = bg;
+                    dst[o + 2] = bg;
+                    dst[o + 3] = 255;
+                    continue;
+                }
+
                 int sx0 = (int)Math.Floor(x0);
                 int sx1 = (int)Math.Ceiling(x1) - 1;
+                int sy0 = (int)Math.Floor(y0);
+                int sy1 = (int)Math.Ceiling(y1) - 1;
                 if (sx0 < 0)
                 {
                     sx0 = 0;
+                }
+
+                if (sy0 < 0)
+                {
+                    sy0 = 0;
                 }
 
                 if (sx1 >= srcW)
@@ -197,43 +139,59 @@ public static class ResizeStep
                     sx1 = srcW - 1;
                 }
 
+                if (sy1 >= srcH)
+                {
+                    sy1 = srcH - 1;
+                }
+
                 double sumR = 0;
                 double sumG = 0;
                 double sumB = 0;
                 double sumA = 0;
-                double sumW = 0;
-                for (int sy = sy0; sy <= sy1; sy++)
+                double inside = 0;
+                if (sx0 <= sx1 && sy0 <= sy1)
                 {
-                    double wy = Overlap(sy, sy + 1, y0, y1);
-                    if (wy <= 0)
+                    for (int sy = sy0; sy <= sy1; sy++)
                     {
-                        continue;
-                    }
-
-                    int row = sy * srcW * RgbaImage.BytesPerPixel;
-                    for (int sx = sx0; sx <= sx1; sx++)
-                    {
-                        double wx = Overlap(sx, sx + 1, x0, x1);
-                        double weight = wx * wy;
-                        if (weight <= 0)
+                        double wy = Overlap(sy, sy + 1, y0, y1);
+                        if (wy <= 0)
                         {
                             continue;
                         }
 
-                        int i = row + sx * RgbaImage.BytesPerPixel;
-                        sumR += src[i] * weight;
-                        sumG += src[i + 1] * weight;
-                        sumB += src[i + 2] * weight;
-                        sumA += src[i + 3] * weight;
-                        sumW += weight;
+                        int row = sy * srcW * RgbaImage.BytesPerPixel;
+                        for (int sx = sx0; sx <= sx1; sx++)
+                        {
+                            double weight = Overlap(sx, sx + 1, x0, x1) * wy;
+                            if (weight <= 0)
+                            {
+                                continue;
+                            }
+
+                            int i = row + sx * RgbaImage.BytesPerPixel;
+                            sumR += src[i] * weight;
+                            sumG += src[i + 1] * weight;
+                            sumB += src[i + 2] * weight;
+                            sumA += src[i + 3] * weight;
+                            inside += weight;
+                        }
                     }
                 }
 
-                int o = (y * width + x) * RgbaImage.BytesPerPixel;
-                dst[o] = RoundChannel(sumR, sumW);
-                dst[o + 1] = RoundChannel(sumG, sumW);
-                dst[o + 2] = RoundChannel(sumB, sumW);
-                dst[o + 3] = RoundChannel(sumA, sumW);
+                double outside = windowArea - inside;
+                if (outside < 0)
+                {
+                    outside = 0;
+                }
+
+                sumR += bg * outside;
+                sumG += bg * outside;
+                sumB += bg * outside;
+                sumA += 255d * outside;
+                dst[o] = RoundChannel(sumR, windowArea);
+                dst[o + 1] = RoundChannel(sumG, windowArea);
+                dst[o + 2] = RoundChannel(sumB, windowArea);
+                dst[o + 3] = RoundChannel(sumA, windowArea);
             }
         }
 
@@ -266,53 +224,5 @@ public static class ResizeStep
         }
 
         return (byte)Math.Round(value, MidpointRounding.AwayFromZero);
-    }
-
-    private static void Blit(RgbaImage content, RgbaImage canvas, int destX, int destY, CancellationToken cancellationToken)
-    {
-        byte[] dst = canvas.PixelBuffer;
-        ReadOnlySpan<byte> src = content.Pixels;
-        for (int y = 0; y < content.Height; y++)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            int cy = destY + y;
-            if ((uint)cy >= (uint)canvas.Height)
-            {
-                continue;
-            }
-
-            for (int x = 0; x < content.Width; x++)
-            {
-                int cx = destX + x;
-                if ((uint)cx >= (uint)canvas.Width)
-                {
-                    continue;
-                }
-
-                int from = (y * content.Width + x) * RgbaImage.BytesPerPixel;
-                int to = (cy * canvas.Width + cx) * RgbaImage.BytesPerPixel;
-                dst[to] = src[from];
-                dst[to + 1] = src[from + 1];
-                dst[to + 2] = src[from + 2];
-                dst[to + 3] = src[from + 3];
-            }
-        }
-    }
-
-    /// <summary>Деление на 2 с округлением к минус бесконечности.</summary>
-    private static int FloorDiv2(int value) => value >= 0 ? value / 2 : (value - 1) / 2;
-
-    private enum HorizontalAlign
-    {
-        Left,
-        Center,
-        Right,
-    }
-
-    private enum VerticalAlign
-    {
-        Top,
-        Middle,
-        Bottom,
     }
 }

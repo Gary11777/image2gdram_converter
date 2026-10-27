@@ -26,8 +26,8 @@ public class ValidationTests : IDisposable
         { nameof(ImageConverterViewModel.WidthText), "12a", "128", "Error.Width" },
         { nameof(ImageConverterViewModel.HeightText), "", "64", "Error.Height" },
         { nameof(ImageConverterViewModel.HeightText), "-1", "64", "Error.Height" },
-        { nameof(ImageConverterViewModel.OffsetXText), "103", "0", "Error.OffsetX" },
-        { nameof(ImageConverterViewModel.OffsetYText), "-52", "0", "Error.OffsetY" },
+        { nameof(ImageConverterViewModel.ScaleText), "0", "1", "Error.Scale.Range" },
+        { nameof(ImageConverterViewModel.ScaleText), "9999", "1", "Error.Scale.Range" },
         { nameof(ImageConverterViewModel.ThresholdText), "256", "128", "Error.Threshold" },
         { nameof(ImageConverterViewModel.ThresholdText), "x", "128", "Error.Threshold" },
         { nameof(ImageConverterViewModel.BytesPerLineText), "0", "16", "Error.BytesPerLine" },
@@ -125,14 +125,14 @@ public class ValidationTests : IDisposable
     }
 
     [Fact]
-    public void Size_fields_are_not_checked_when_the_size_follows_the_source()
+    public void Width_is_checked_while_an_image_is_open()
     {
         ImageConverterViewModel vm = CreateImage();
         LoadWhite(vm);
         vm.WidthText = "0";
         Assert.False(vm.CanCopy);
 
-        vm.SizeMode = Image2Gdram.Core.Processing.TargetSizeMode.MatchSource;
+        vm.WidthText = "128";
 
         Assert.Empty(Errors(vm, nameof(vm.WidthText)));
         Assert.True(vm.CanCopy);
@@ -233,8 +233,7 @@ public class ValidationTests : IDisposable
 
     private static string ExpectedText(string key) => key switch
     {
-        "Error.OffsetX" => string.Format(CultureInfo.InvariantCulture, Text[key], 102, 128),
-        "Error.OffsetY" => string.Format(CultureInfo.InvariantCulture, Text[key], 51, 64),
+        "Error.Scale.Range" => string.Format(CultureInfo.InvariantCulture, Text[key], "1", "64"),
         "Error.GlyphOffsetX" => string.Format(CultureInfo.InvariantCulture, Text[key], 4, 6),
         "Error.GlyphOffsetY" => string.Format(CultureInfo.InvariantCulture, Text[key], 6, 8),
         _ => Text[key],

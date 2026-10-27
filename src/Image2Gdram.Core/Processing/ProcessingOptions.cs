@@ -1,16 +1,12 @@
 namespace Image2Gdram.Core.Processing;
 
 /// <summary>
-/// Параметры шагов 1–5 (п. 4.1.2 ТЗ). Значения по умолчанию — решение N-41:
-/// белый фон, без поворота, ручной размер 128×64, вписывание, центр, усреднение, порог 128.
+/// Параметры шагов 1–5 (п. 4.1.2 ТЗ). Значения по умолчанию — N-41 и N-80:
+/// белый фон, без поворота, размер 128×64, фрагмент вписан (<see cref="Crop"/> = <c>null</c>),
+/// усреднение по площади, порог 128.
 /// </summary>
 public sealed record ProcessingOptions
 {
-    /// <summary>Абсолютная граница смещения. В интерфейсе предел уже: 80 % стороны (N-67, <see cref="OffsetLimits"/>).</summary>
-    public const int MinOffset = -1024;
-
-    /// <summary>Абсолютная граница смещения. В интерфейсе предел уже: 80 % стороны (N-67, <see cref="OffsetLimits"/>).</summary>
-    public const int MaxOffset = 1024;
     public const int MinTargetSide = 1;
     public const int MaxTargetSide = 1024;
     public const int DefaultThreshold = 128;
@@ -25,19 +21,15 @@ public sealed record ProcessingOptions
 
     public bool FlipVertical { get; init; }
 
-    public TargetSizeMode SizeMode { get; init; } = TargetSizeMode.Manual;
-
     public int TargetWidth { get; init; } = 128;
 
     public int TargetHeight { get; init; } = 64;
 
-    public FitMode Fit { get; init; } = FitMode.Fit;
-
-    public Alignment Alignment { get; init; } = Alignment.Center;
-
-    public int OffsetX { get; init; }
-
-    public int OffsetY { get; init; }
+    /// <summary>
+    /// Фрагмент исходника. <c>null</c> — вписать автоматически (<see cref="CropGeometry.Fit"/>):
+    /// так при старте без изображения и для файлов, где прежнее «вписать по центру» ничем не отличалось.
+    /// </summary>
+    public CropViewport? Crop { get; init; }
 
     public ResampleMode Resample { get; init; } = ResampleMode.AreaAverage;
 

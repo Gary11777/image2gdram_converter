@@ -92,7 +92,15 @@ public class ReferenceFileTests
         ImageTabParameters parameters = ImageTabParameters.CreateDefault();
         if (presetName is null)
         {
-            parameters = parameters with { Processing = parameters.Processing with { SizeMode = TargetSizeMode.MatchSource } };
+            parameters = parameters with
+            {
+                Processing = parameters.Processing with
+                {
+                    TargetWidth = frame.Width,
+                    TargetHeight = frame.Height,
+                    Crop = null,
+                },
+            };
         }
         else
         {
