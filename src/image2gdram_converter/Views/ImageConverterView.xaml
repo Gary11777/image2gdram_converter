@@ -78,17 +78,8 @@
                         <ColumnDefinition Width="140"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
-                    <TextBlock Style="{StaticResource Field}" Text="{DynamicResource Label.SizeMode}"/>
-                    <ComboBox Grid.Column="1" ItemsSource="{Binding SizeModes}" DisplayMemberPath="Caption"
-                              SelectedValuePath="Value" SelectedValue="{Binding SizeMode}"/>
-                </Grid>
-                <Grid Margin="0,2">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="140"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
                     <TextBlock Style="{StaticResource Field}" Text="{DynamicResource Label.Width}"/>
-                    <TextBox Grid.Column="1" IsEnabled="{Binding ManualSize}">
+                    <TextBox Grid.Column="1">
                         <TextBox.Text>
                             <Binding Path="WidthText" UpdateSourceTrigger="PropertyChanged" Delay="400"/>
                         </TextBox.Text>
@@ -100,7 +91,7 @@
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
                     <TextBlock Style="{StaticResource Field}" Text="{DynamicResource Label.Height}"/>
-                    <TextBox Grid.Column="1" IsEnabled="{Binding ManualSize}">
+                    <TextBox Grid.Column="1">
                         <TextBox.Text>
                             <Binding Path="HeightText" UpdateSourceTrigger="PropertyChanged" Delay="400"/>
                         </TextBox.Text>
@@ -111,42 +102,48 @@
                         <ColumnDefinition Width="140"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
-                    <TextBlock Style="{StaticResource Field}" Text="{DynamicResource Label.Fit}"/>
-                    <ComboBox Grid.Column="1" ItemsSource="{Binding Fits}" DisplayMemberPath="Caption"
-                              SelectedValuePath="Value" SelectedValue="{Binding Fit}"/>
+                    <TextBlock Style="{StaticResource Field}" Text="{DynamicResource Label.TransformScale}"/>
+                    <DockPanel Grid.Column="1">
+                        <Button DockPanel.Dock="Right" Margin="6,0,0,0" Padding="8,2"
+                                Content="{DynamicResource Button.FitCrop}"
+                                Command="{Binding FitCropCommand}"
+                                ToolTip="{DynamicResource Tip.FitCrop}"/>
+                        <TextBox controls:TextBoxCommit.Flush="True">
+                            <TextBox.Text>
+                                <Binding Path="ScaleText" UpdateSourceTrigger="PropertyChanged" Delay="400"/>
+                            </TextBox.Text>
+                        </TextBox>
+                    </DockPanel>
                 </Grid>
                 <Grid Margin="0,2">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="140"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
-                    <TextBlock Style="{StaticResource Field}" Text="{DynamicResource Label.Alignment}"/>
-                    <ComboBox Grid.Column="1" ItemsSource="{Binding Alignments}" DisplayMemberPath="Caption"
-                              SelectedValuePath="Value" SelectedValue="{Binding Alignment}"/>
-                </Grid>
-                <Grid Margin="0,2">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="140"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
-                    <TextBlock Style="{StaticResource Field}" Text="{DynamicResource Label.OffsetX}"/>
-                    <TextBox Grid.Column="1" controls:TextBoxCommit.Command="{Binding RestoreOffsetsCommand}">
-                        <TextBox.Text>
-                            <Binding Path="OffsetXText" UpdateSourceTrigger="PropertyChanged" Delay="400"/>
-                        </TextBox.Text>
-                    </TextBox>
-                </Grid>
-                <Grid Margin="0,2">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="140"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
-                    <TextBlock Style="{StaticResource Field}" Text="{DynamicResource Label.OffsetY}"/>
-                    <TextBox Grid.Column="1" controls:TextBoxCommit.Command="{Binding RestoreOffsetsCommand}">
-                        <TextBox.Text>
-                            <Binding Path="OffsetYText" UpdateSourceTrigger="PropertyChanged" Delay="400"/>
-                        </TextBox.Text>
-                    </TextBox>
+                    <DockPanel Grid.Column="1">
+                        <RepeatButton DockPanel.Dock="Right"
+                                      Style="{StaticResource ThresholdIncreaseButton}"
+                                      Delay="{Binding Delay, ElementName=ScaleSlider}"
+                                      Interval="{Binding Interval, ElementName=ScaleSlider}"
+                                      ToolTip="{DynamicResource Tip.ScaleIncrease}"
+                                      AutomationProperties.Name="{DynamicResource Tip.ScaleIncrease}"
+                                      Command="{Binding IncreaseScaleCommand}"/>
+                        <RepeatButton DockPanel.Dock="Left"
+                                      Style="{StaticResource ThresholdDecreaseButton}"
+                                      Delay="{Binding Delay, ElementName=ScaleSlider}"
+                                      Interval="{Binding Interval, ElementName=ScaleSlider}"
+                                      ToolTip="{DynamicResource Tip.ScaleDecrease}"
+                                      AutomationProperties.Name="{DynamicResource Tip.ScaleDecrease}"
+                                      Command="{Binding DecreaseScaleCommand}"/>
+                        <Slider x:Name="ScaleSlider"
+                                Minimum="{Binding ScaleLogMin}"
+                                Maximum="{Binding ScaleLogMax}"
+                                SmallChange="{Binding ScaleLogStep}"
+                                LargeChange="{Binding ScaleLogStep}"
+                                IsEnabled="{Binding HasImage}"
+                                Value="{Binding ScaleLog, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                VerticalAlignment="Center"/>
+                    </DockPanel>
                 </Grid>
 
                 <TextBlock Style="{StaticResource Section}" Text="{DynamicResource Section.Binarize}"/>
@@ -341,8 +338,11 @@
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
-                <TextBlock Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" Margin="0,0,8,4"
-                           Text="{DynamicResource Label.Source}"/>
+                <StackPanel Grid.Row="0" Grid.Column="0" Orientation="Horizontal" Margin="0,0,8,4">
+                    <TextBlock VerticalAlignment="Center" Text="{DynamicResource Label.Source}"/>
+                    <TextBlock VerticalAlignment="Center" Margin="12,0,0,0" Text="{Binding CropSizeText}"
+                               TextTrimming="CharacterEllipsis"/>
+                </StackPanel>
                 <Grid Grid.Row="0" Grid.Column="1" Margin="0,0,0,4">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
@@ -360,8 +360,16 @@
                     </StackPanel>
                 </Grid>
                 <Border Grid.Row="1" Grid.Column="0" Margin="0,0,8,0" BorderBrush="#FFB0B0B0" BorderThickness="1" Background="#FFE8E8E8">
-                    <Image Source="{Binding SourcePreview, Converter={StaticResource RgbaToBitmap}}" Stretch="Uniform"
-                           RenderOptions.BitmapScalingMode="HighQuality"/>
+                    <controls:SourceCropControl Source="{Binding SourcePreview}"
+                                                Crop="{Binding Crop, Mode=TwoWay}"
+                                                TargetWidth="{Binding TargetWidth}"
+                                                TargetHeight="{Binding TargetHeight}"
+                                                Rotation="{Binding Rotation}"
+                                                ScaleMin="{Binding ScaleMin}"
+                                                ScaleMax="{Binding ScaleMax}"
+                                                Background="{Binding Background}"
+                                                ConfirmGesture="{Binding ConfirmCropGesture}"
+                                                ToolTip="{DynamicResource Tip.CropMove}"/>
                 </Border>
                 <controls:PixelGridControl Grid.Row="1" Grid.Column="1" x:Name="Pixels"
                                            Pixels="{Binding Preview}"

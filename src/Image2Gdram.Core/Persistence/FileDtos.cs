@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using Image2Gdram.Core.Fonts;
 using Image2Gdram.Core.Output;
 using Image2Gdram.Core.Packing;
@@ -55,18 +56,31 @@ internal sealed class ProcessingDto
 
     public bool FlipVertical { get; set; }
 
-    public TargetSizeMode SizeMode { get; set; } = TargetSizeMode.Manual;
-
     public int TargetWidth { get; set; } = 128;
 
     public int TargetHeight { get; set; } = 64;
 
-    public FitMode Fit { get; set; } = FitMode.Fit;
+    /// <summary>Центр фрагмента. Вместе с <see cref="CropCenterY"/> и <see cref="CropScale"/>; пусто — вписать (N-80).</summary>
+    public double? CropCenterX { get; set; }
 
-    public Alignment Alignment { get; set; } = Alignment.Center;
+    public double? CropCenterY { get; set; }
 
+    public double? CropScale { get; set; }
+
+    /// <summary>Только чтение файлов версий 1 и 2. При записи не выводится.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public TargetSizeMode SizeMode { get; set; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public FitMode Fit { get; set; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public Alignment Alignment { get; set; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public int OffsetX { get; set; }
 
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public int OffsetY { get; set; }
 
     public ResampleMode Resample { get; set; } = ResampleMode.AreaAverage;

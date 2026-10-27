@@ -19,31 +19,6 @@ public class OffsetSignTests : IDisposable
     public OffsetSignTests() => Directory.CreateDirectory(_directory);
 
     [Fact]
-    public void Image_offset_y_minus_moves_the_picture_down()
-    {
-        ImageConverterViewModel vm = CreateImage();
-        vm.SizeMode = TargetSizeMode.MatchSource;
-        Load(vm, 16, 16, "stripes.png");
-
-        vm.OffsetYText = "0";
-        MonoBitmap zero = vm.Preview!;
-        Assert.Equal(16, zero.Width);
-        Assert.Equal(16, zero.Height);
-
-        vm.OffsetYText = "-10";
-        MonoBitmap shifted = vm.Preview!;
-
-        // Строка y результата равна строке y - 10 при смещении 0, верхние 10 строк — фон (N-69).
-        for (int y = 0; y < 16; y++)
-        {
-            for (int x = 0; x < 16; x++)
-            {
-                Assert.Equal(y >= 10 && zero[x, y - 10], shifted[x, y]);
-            }
-        }
-    }
-
-    [Fact]
     public void Glyph_offset_y_minus_moves_the_glyph_down()
     {
         FontGeneratorViewModel vm = CreateFont();

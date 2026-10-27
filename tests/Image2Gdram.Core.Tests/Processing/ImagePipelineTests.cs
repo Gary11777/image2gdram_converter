@@ -18,25 +18,18 @@ public class ImagePipelineTests
         {
             Background = BackgroundColor.White,
             Rotation = Rotation.Rotate90,
-            Fit = FitMode.Stretch,
             TargetWidth = 4,
             TargetHeight = 4,
             Resample = ResampleMode.NearestNeighbor,
             Binarize = BinarizeMode.Threshold,
             Threshold = 128,
-            Alignment = Alignment.TopLeft,
         };
 
+        RgbaImage oriented = RotateFlipStep.Apply(BackgroundCompositor.Apply(source, BackgroundColor.White), Rotation.Rotate90, false, false);
+        CropViewport crop = CropGeometry.Fit(source.Width, source.Height, 4, 4, Rotation.Rotate90);
+        CropWindow window = CropGeometry.Window(crop, source.Width, source.Height, 4, 4, Rotation.Rotate90, false, false);
         RgbaImage expectedImage = ResizeStep.Apply(
-            RotateFlipStep.Apply(BackgroundCompositor.Apply(source, BackgroundColor.White), Rotation.Rotate90, false, false),
-            4,
-            4,
-            FitMode.Stretch,
-            Alignment.TopLeft,
-            0,
-            0,
-            ResampleMode.NearestNeighbor,
-            BackgroundColor.White);
+            oriented, 4, 4, window.OriginX, window.OriginY, window.Span, ResampleMode.NearestNeighbor, BackgroundColor.White);
         MonoBitmap expected = new ThresholdBinarizer().Apply(GrayscaleStep.Apply(expectedImage), 128);
 
         MonoBitmap actual = _pipeline.Run(source, options);
@@ -51,7 +44,8 @@ public class ImagePipelineTests
         RgbaImage source = ProcessingTestImages.Solid(4, 4, 255, 255, 255);
         var options = new ProcessingOptions
         {
-            SizeMode = TargetSizeMode.MatchSource,
+            TargetWidth = 4,
+            TargetHeight = 4,
             Binarize = BinarizeMode.Threshold,
             Threshold = 128,
         };
@@ -72,7 +66,8 @@ public class ImagePipelineTests
         var options = new ProcessingOptions
         {
             Background = BackgroundColor.White,
-            SizeMode = TargetSizeMode.MatchSource,
+            TargetWidth = 1,
+            TargetHeight = 1,
             Threshold = 128,
         };
 
@@ -81,21 +76,15 @@ public class ImagePipelineTests
     }
 
     [Fact]
-    public void Match_source_rejects_a_side_above_1024_and_accepts_1024()
+    public void Same_size_crop_accepts_1024_and_rejects_a_target_above_1024()
     {
-        var tooWide = ProcessingTestImages.Solid(1025, 2, 0, 0, 0);
-        var rotated = ProcessingTestImages.Solid(2, 1025, 0, 0, 0);
-        var options = new ProcessingOptions { SizeMode = TargetSizeMode.MatchSource };
-
-        PipelineException wide = Assert.Throws<PipelineException>(() => _pipeline.Run(tooWide, options));
-        Assert.Equal(PipelineErrorCode.SourceLargerThan1024, wide.Code);
-        Assert.Equal(1025, wide.Width);
-
-        PipelineException tall = Assert.Throws<PipelineException>(() => _pipeline.Run(rotated, options with { Rotation = Rotation.Rotate90 }));
-        Assert.Equal(1025, tall.Width);
-
-        MonoBitmap accepted = _pipeline.Run(ProcessingTestImages.Solid(1024, 2, 0, 0, 0), options);
+        RgbaImage acceptedSource = ProcessingTestImages.Solid(1024, 2, 0, 0, 0);
+        MonoBitmap accepted = _pipeline.Run(acceptedSource, new ProcessingOptions { TargetWidth = 1024, TargetHeight = 2 });
         Assert.Equal(1024, accepted.Width);
+
+        RgbaImage source = ProcessingTestImages.Solid(2, 2, 0, 0, 0);
+        Assert.Throws<ArgumentOutOfRangeException>(() => _pipeline.Run(source, new ProcessingOptions { TargetWidth = 1025 }));
+        Assert.Throws<ArgumentOutOfRangeException>(() => _pipeline.Run(source, new ProcessingOptions { TargetHeight = 0 }));
     }
 
     [Fact]
@@ -103,7 +92,7 @@ public class ImagePipelineTests
     {
         var source = new RgbaImage(8, 8, 255, 255, 255, 255);
         source.SetPixel(0, 0, 0, 0, 0, 255);
-        var options = new ProcessingOptions { SizeMode = TargetSizeMode.MatchSource, Threshold = 128 };
+        var options = new ProcessingOptions { TargetWidth = 8, TargetHeight = 8, Threshold = 128 };
         var packing = new PackingOptions { Direction = PackDirection.Vertical, BitOrder = BitOrder.LsbFirst };
 
         byte[] bytes = _pipeline.RunAndPack(source, options, packing);
@@ -129,7 +118,7 @@ public class ImagePipelineTests
         {
             TargetWidth = 5,
             TargetHeight = 3,
-            Fit = FitMode.Stretch,
+            Crop = new CropViewport(3.25, 2.5, 1.2),
             Binarize = BinarizeMode.FloydSteinberg,
             Threshold = 140,
         };
@@ -143,7 +132,7 @@ public class ImagePipelineTests
     public void Changing_only_the_threshold_keeps_the_target_size_and_changes_the_pixels()
     {
         RgbaImage source = ProcessingTestImages.Solid(8, 8, 100, 100, 100);
-        var options = new ProcessingOptions { TargetWidth = 8, TargetHeight = 8, Fit = FitMode.Stretch, Threshold = 1 };
+        var options = new ProcessingOptions { TargetWidth = 8, TargetHeight = 8, Threshold = 1 };
         MonoBitmap dark = _pipeline.Run(source, options);
         MonoBitmap bright = _pipeline.Run(source, options with { Threshold = 255 });
 
@@ -156,7 +145,7 @@ public class ImagePipelineTests
     }
 
     [Fact]
-    public void Negative_offset_y_moves_the_picture_down()
+    public void Moving_the_center_down_shows_the_background_on_top()
     {
         var source = new RgbaImage(4, 16);
         for (int y = 0; y < 16; y++)
@@ -171,33 +160,31 @@ public class ImagePipelineTests
         {
             TargetWidth = 4,
             TargetHeight = 16,
-            Fit = FitMode.None,
             Resample = ResampleMode.NearestNeighbor,
             Binarize = BinarizeMode.Threshold,
             Threshold = 128,
-            Alignment = Alignment.TopLeft,
         };
 
-        MonoBitmap zero = _pipeline.Run(source, options);
-        MonoBitmap shifted = _pipeline.Run(source, options with { OffsetY = -10 });
+        MonoBitmap centered = _pipeline.Run(source, options);
+        MonoBitmap shifted = _pipeline.Run(source, options with { Crop = new CropViewport(2, 4, 1) });
 
-        // Y < 0 — вниз (N-69): строка y равна строке y - 10 при смещении 0, верхние 10 строк — фон.
         for (int y = 0; y < 16; y++)
         {
             for (int x = 0; x < 4; x++)
             {
-                Assert.Equal(y >= 10 && zero[x, y - 10], shifted[x, y]);
+                Assert.Equal(y >= 4 && centered[x, y - 4], shifted[x, y]);
             }
         }
     }
 
     [Fact]
-    public void Invalid_manual_size_and_threshold_are_rejected()
+    public void Invalid_size_threshold_and_scale_are_rejected()
     {
         RgbaImage source = ProcessingTestImages.Solid(2, 2, 0, 0, 0);
         Assert.Throws<ArgumentOutOfRangeException>(() => _pipeline.Run(source, new ProcessingOptions { TargetWidth = 0 }));
         Assert.Throws<ArgumentOutOfRangeException>(() => _pipeline.Run(source, new ProcessingOptions { TargetHeight = 1025 }));
         Assert.Throws<ArgumentOutOfRangeException>(() => _pipeline.Run(source, new ProcessingOptions { Threshold = 256 }));
-        Assert.Throws<ArgumentOutOfRangeException>(() => _pipeline.Run(source, new ProcessingOptions { OffsetX = 1025 }));
+        Assert.Throws<ArgumentOutOfRangeException>(() => _pipeline.Run(source, new ProcessingOptions { Crop = new CropViewport(1, 1, 0) }));
+        Assert.Throws<ArgumentOutOfRangeException>(() => _pipeline.Run(source, new ProcessingOptions { Crop = new CropViewport(double.NaN, 1, 1) }));
     }
 }

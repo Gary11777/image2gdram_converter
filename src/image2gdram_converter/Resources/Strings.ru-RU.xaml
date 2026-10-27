@@ -31,11 +31,9 @@
     <sys:String x:Key="Label.Background">Фон</sys:String>
     <sys:String x:Key="Label.Rotation">Поворот</sys:String>
     <sys:String x:Key="Label.Preset">Пресет</sys:String>
-    <sys:String x:Key="Label.SizeMode">Размер</sys:String>
     <sys:String x:Key="Label.Width">Ширина</sys:String>
     <sys:String x:Key="Label.Height">Высота</sys:String>
-    <sys:String x:Key="Label.Fit">Вписывание</sys:String>
-    <sys:String x:Key="Label.Alignment">Выравнивание</sys:String>
+    <sys:String x:Key="Label.TransformScale">Масштаб преобразования</sys:String>
     <sys:String x:Key="Label.OffsetX">Смещение X</sys:String>
     <sys:String x:Key="Label.OffsetY">Смещение Y</sys:String>
     <sys:String x:Key="Label.Resample">Грань</sys:String>
@@ -69,6 +67,7 @@
     <sys:String x:Key="Button.DeletePreset">Удалить</sys:String>
     <sys:String x:Key="Button.Copy">Копировать</sys:String>
     <sys:String x:Key="Button.SaveOutput">Сохранить Код</sys:String>
+    <sys:String x:Key="Button.FitCrop">Вписать</sys:String>
     <sys:String x:Key="Button.Undo">Отменить</sys:String>
     <sys:String x:Key="Button.Redo">Повторить</sys:String>
 
@@ -78,21 +77,6 @@
     <sys:String x:Key="Opt.Rotation.90">90°</sys:String>
     <sys:String x:Key="Opt.Rotation.180">180°</sys:String>
     <sys:String x:Key="Opt.Rotation.270">270°</sys:String>
-    <sys:String x:Key="Opt.Size.Manual">Вручную</sys:String>
-    <sys:String x:Key="Opt.Size.Match">По исходному изображению</sys:String>
-    <sys:String x:Key="Opt.Fit.None">Без масштабирования</sys:String>
-    <sys:String x:Key="Opt.Fit.Fit">Вписать</sys:String>
-    <sys:String x:Key="Opt.Fit.Stretch">Растянуть</sys:String>
-    <sys:String x:Key="Opt.Fit.Fill">Заполнить</sys:String>
-    <sys:String x:Key="Opt.Align.TopLeft">Сверху слева</sys:String>
-    <sys:String x:Key="Opt.Align.TopCenter">Сверху по центру</sys:String>
-    <sys:String x:Key="Opt.Align.TopRight">Сверху справа</sys:String>
-    <sys:String x:Key="Opt.Align.MiddleLeft">Слева по центру</sys:String>
-    <sys:String x:Key="Opt.Align.Center">По центру</sys:String>
-    <sys:String x:Key="Opt.Align.MiddleRight">Справа по центру</sys:String>
-    <sys:String x:Key="Opt.Align.BottomLeft">Снизу слева</sys:String>
-    <sys:String x:Key="Opt.Align.BottomCenter">Снизу по центру</sys:String>
-    <sys:String x:Key="Opt.Align.BottomRight">Снизу справа</sys:String>
     <sys:String x:Key="Opt.Resample.Area">С усреднением</sys:String>
     <sys:String x:Key="Opt.Resample.Nearest">Ближайший сосед</sys:String>
     <sys:String x:Key="Opt.Bin.Threshold">Порог</sys:String>
@@ -150,6 +134,7 @@
     <sys:String x:Key="Hover.Frame" xml:space="preserve">{0}    Кадр: {1}    Байт в кадре: 0x{2} ({3})</sys:String>
     <sys:String x:Key="Code.NoImage">Откройте изображение BMP, PNG, JPEG или GIF.</sys:String>
     <sys:String x:Key="Status.Result">{0}x{1}, {2}</sys:String>
+    <sys:String x:Key="Status.CropFragment">Фрагмент {0} x {1}</sys:String>
 
     <sys:String x:Key="Error.Unexpected">Необработанная ошибка: {0}</sys:String>
     <sys:String x:Key="Error.RecentMissing">Файл не найден: {0}</sys:String>
@@ -161,11 +146,9 @@
     <sys:String x:Key="Error.Language.NotFound">Словарь интерфейса Languages\{0}.xaml не найден, используется русский язык.</sys:String>
     <sys:String x:Key="Error.Language.InvalidName">Недопустимое имя языка в settings.json: {0}. Используется русский язык.</sys:String>
     <sys:String x:Key="Error.Language.Broken">Словарь интерфейса Languages\{0}.xaml повреждён, используется русский язык.</sys:String>
-    <sys:String x:Key="Error.Pipeline.TooLarge">Размер после поворота {0}x{1} больше 1024 по одной из сторон. Задайте размер вручную.</sys:String>
     <sys:String x:Key="Error.Width">Ширина — целое число от 1 до 1024.</sys:String>
     <sys:String x:Key="Error.Height">Высота — целое число от 1 до 1024.</sys:String>
-    <sys:String x:Key="Error.OffsetX">Смещение X — целое число от -{0} до {0} (не более 80 % ширины {1}).</sys:String>
-    <sys:String x:Key="Error.OffsetY">Смещение Y — целое число от -{0} до {0} (не более 80 % высоты {1}).</sys:String>
+    <sys:String x:Key="Error.Scale.Range">Масштаб преобразования — число от {0} до {1}.</sys:String>
     <sys:String x:Key="Error.Threshold">Порог — целое число от 0 до 255.</sys:String>
     <sys:String x:Key="Error.BytesPerLine">Число байт в строке — от 1 до 16.</sys:String>
     <sys:String x:Key="Error.Name.Empty">Имя массива пустое.</sys:String>
@@ -204,6 +187,7 @@
     <sys:String x:Key="Diag.ImportCount">Ожидалось значений: {0}, в файле: {1}.</sys:String>
     <sys:String x:Key="Diag.SettingsReset">Файл настроек повреждён и не использован: {0}</sys:String>
     <sys:String x:Key="Diag.SourceMissing">Исходный файл ({0}) не найден: {1}. Параметры и правки загружены.</sys:String>
+    <sys:String x:Key="Diag.LegacyStretch">Режим «Растянуть» из старого файла заменён вписыванием: пропорции фрагмента всегда совпадают с шириной и высотой.</sys:String>
     <sys:String x:Key="Header.SourceFile">исходный файл</sys:String>
     <sys:String x:Key="Header.FontFamily">гарнитура</sys:String>
     <sys:String x:Key="Header.ArrayName">имя массива</sys:String>
@@ -254,6 +238,11 @@
     <sys:String x:Key="Button.ClearGlyph">Очистить</sys:String>
     <sys:String x:Key="Button.InvertGlyph">Инверсия</sys:String>
     <sys:String x:Key="Tip.ThresholdDecrease">Уменьшить порог на 1 (удерживайте для повтора)</sys:String>
+    <sys:String x:Key="Tip.ScaleDecrease">Уменьшить масштаб преобразования (удерживайте для повтора)</sys:String>
+    <sys:String x:Key="Tip.ScaleIncrease">Увеличить масштаб преобразования (удерживайте для повтора)</sys:String>
+    <sys:String x:Key="Tip.FitCrop">Вписать изображение в прямоугольник</sys:String>
+    <sys:String x:Key="Tip.CropMove">Перетащите прямоугольник, чтобы выбрать фрагмент. Колесо меняет масштаб, двойной щелчок и Home вписывают изображение. Стрелки сдвигают на 1 пиксель, Shift — на 10.</sys:String>
+    <sys:String x:Key="Tip.CropResize">Потяните угол: масштаб меняется, противоположный угол остаётся на месте, пропорции сохраняются.</sys:String>
     <sys:String x:Key="Tip.ThresholdIncrease">Увеличить порог на 1 (удерживайте для повтора)</sys:String>
     <sys:String x:Key="Button.ShiftLeft">Влево</sys:String>
     <sys:String x:Key="Button.ShiftRight">Вправо</sys:String>

@@ -67,7 +67,7 @@ internal static class ParameterMapping
         };
     }
 
-    public static ImageTabParameters ToImage(ImageParametersDto? dto, bool strict)
+    public static ImageTabParameters ToImage(ImageParametersDto? dto, bool strict, int formatVersion)
     {
         if (dto is null)
         {
@@ -79,13 +79,16 @@ internal static class ParameterMapping
             return ImageTabParameters.CreateDefault();
         }
 
+        ProcessingRead processing = ToProcessing(dto.Processing, strict, formatVersion);
         var model = new ImageTabParameters
         {
             SelectedFrame = dto.SelectedFrame,
             ExportAllFrames = dto.ExportAllFrames,
             ColorScheme = dto.ColorScheme,
             Preset = ToBinding(dto.Preset),
-            Processing = ToProcessing(dto.Processing, strict),
+            Processing = processing.Options,
+            PendingLegacy = processing.Pending,
+            LegacyStretchDropped = processing.StretchDropped,
             Packing = ToPacking(dto.Packing, strict),
             Output = ToOutput(dto.Output, strict, "image"),
         };
@@ -208,19 +211,19 @@ internal static class ParameterMapping
         Rotation = options.Rotation,
         FlipHorizontal = options.FlipHorizontal,
         FlipVertical = options.FlipVertical,
-        SizeMode = options.SizeMode,
         TargetWidth = options.TargetWidth,
         TargetHeight = options.TargetHeight,
-        Fit = options.Fit,
-        Alignment = options.Alignment,
-        OffsetX = options.OffsetX,
-        OffsetY = options.OffsetY,
+        CropCenterX = options.Crop?.CenterX,
+        CropCenterY = options.Crop?.CenterY,
+        CropScale = options.Crop?.Scale,
         Resample = options.Resample,
         Binarize = options.Binarize,
         Threshold = options.Threshold,
     };
 
-    private static ProcessingOptions ToProcessing(ProcessingDto? dto, bool strict)
+    private readonly record struct ProcessingRead(ProcessingOptions Options, LegacyPlacement? Pending, bool StretchDropped);
+
+    private static ProcessingRead ToProcessing(ProcessingDto? dto, bool strict, int formatVersion)
     {
         if (dto is null)
         {
@@ -229,26 +232,67 @@ internal static class ParameterMapping
                 throw new StoredDataException("Processing parameters are missing.");
             }
 
-            return ProcessingOptions.Default;
+            return new ProcessingRead(ProcessingOptions.Default, null, false);
         }
 
-        return new ProcessingOptions
+        bool cropAny = dto.CropCenterX is not null || dto.CropCenterY is not null || dto.CropScale is not null;
+        bool cropAll = dto.CropCenterX is not null && dto.CropCenterY is not null && dto.CropScale is not null;
+        if (cropAny && !cropAll)
+        {
+            throw new StoredDataException("Crop parameters are incomplete.");
+        }
+
+        CropViewport? crop = cropAll
+            ? new CropViewport(dto.CropCenterX!.Value, dto.CropCenterY!.Value, dto.CropScale!.Value)
+            : null;
+        var options = new ProcessingOptions
         {
             Background = dto.Background,
             Rotation = dto.Rotation,
             FlipHorizontal = dto.FlipHorizontal,
             FlipVertical = dto.FlipVertical,
-            SizeMode = dto.SizeMode,
             TargetWidth = dto.TargetWidth,
             TargetHeight = dto.TargetHeight,
-            Fit = dto.Fit,
-            Alignment = dto.Alignment,
-            OffsetX = dto.OffsetX,
-            OffsetY = dto.OffsetY,
+            Crop = formatVersion >= ProjectDocument.FormatVersion ? crop : null,
             Resample = dto.Resample,
             Binarize = dto.Binarize,
             Threshold = dto.Threshold,
         };
+        if (formatVersion >= ProjectDocument.FormatVersion)
+        {
+            return new ProcessingRead(options, null, false);
+        }
+
+        if (dto.OffsetX is < LegacyPlacement.MinOffset or > LegacyPlacement.MaxOffset
+            || dto.OffsetY is < LegacyPlacement.MinOffset or > LegacyPlacement.MaxOffset)
+        {
+            throw new StoredDataException("Offset must be in -1024..1024.");
+        }
+
+        if (!Enum.IsDefined(dto.SizeMode) || !Enum.IsDefined(dto.Fit) || !Enum.IsDefined(dto.Alignment))
+        {
+            throw new StoredDataException("Processing options contain an undefined enum value.");
+        }
+
+        if (dto.SizeMode == TargetSizeMode.MatchSource)
+        {
+            return new ProcessingRead(options, new LegacyPlacement(dto.SizeMode, dto.Fit, dto.Alignment, dto.OffsetX, dto.OffsetY), false);
+        }
+
+        if (dto.Fit == FitMode.Stretch)
+        {
+            return new ProcessingRead(options, null, true);
+        }
+
+        if (dto.Fit == FitMode.Fit && dto.Alignment == Alignment.Center && dto.OffsetX == 0 && dto.OffsetY == 0)
+        {
+            return new ProcessingRead(options, null, false);
+        }
+
+        return new ProcessingRead(
+            options,
+            new LegacyPlacement(dto.SizeMode, dto.Fit, dto.Alignment, dto.OffsetX, dto.OffsetY),
+            false);
     }
 
     private static OutputDto FromOutput(OutputOptions options) => new()
@@ -443,7 +487,7 @@ internal static class SettingsMapping
     public static AppSettings Read(byte[] content)
     {
         SettingsFileDto dto = JsonFormat.Parse<SettingsFileDto>(content);
-        if (dto.FormatVersion != AppSettings.FormatVersion && dto.FormatVersion != LegacyMigration.ScreenAxesOffsetYVersion)
+        if (dto.FormatVersion is < LegacyMigration.ScreenAxesOffsetYVersion or > AppSettings.FormatVersion)
         {
             throw new StoredDataException($"Settings version {dto.FormatVersion} is not supported.");
         }
@@ -470,7 +514,7 @@ internal static class SettingsMapping
                 : new ImageSettingsTab
                 {
                     SourcePath = Clean(dto.Image.SourcePath),
-                    Parameters = ParameterMapping.ToImage(dto.Image.Parameters, strict: false),
+                    Parameters = ParameterMapping.ToImage(dto.Image.Parameters, strict: false, dto.FormatVersion),
                 },
             Font = dto.Font is null
                 ? FontSettingsTab.CreateDefault()
@@ -594,7 +638,7 @@ internal static class ProjectMapping
         FontTabParameters fontParameters = ParameterMapping.ToFont(dto.Font.Parameters, strict: true);
         var document = new ProjectDocument(
             new ImageProjectTab(
-                ParameterMapping.ToImage(dto.Image.Parameters, strict: true),
+                ParameterMapping.ToImage(dto.Image.Parameters, strict: true, dto.FormatVersion),
                 imagePath,
                 EditMapping.ToModel(dto.Image.Edits)),
             new FontProjectTab(

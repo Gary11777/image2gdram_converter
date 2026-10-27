@@ -23,7 +23,7 @@ public class ResampleFieldLayoutTests
         Assert.False(IsBetween(resample, size, binarize));
 
         string[] sizeLabels = LabelsBetween(view, size, binarize);
-        Assert.Equal("{DynamicResource Label.OffsetY}", sizeLabels[^1]);
+        Assert.Equal("{DynamicResource Label.TransformScale}", sizeLabels[^1]);
         Assert.DoesNotContain("{DynamicResource Label.Resample}", sizeLabels);
 
         Assert.Equal(

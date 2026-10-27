@@ -25,6 +25,15 @@ public sealed record ImageTabParameters
 
     public bool ExportAllFrames { get; init; }
 
+    /// <summary>
+    /// Вписывание из файла версии 1 или 2, которое ещё не переведено в прямоугольник.
+    /// В файл версии 3 не записывается: его применяет вкладка после загрузки изображения (N-80).
+    /// </summary>
+    public LegacyPlacement? PendingLegacy { get; init; }
+
+    /// <summary>Файл версии 1 или 2 просил «Растянуть»; прямоугольник так не умеет, показано предупреждение (N-80, Q-14).</summary>
+    public bool LegacyStretchDropped { get; init; }
+
     public static ImageTabParameters CreateDefault() => new();
 }
 

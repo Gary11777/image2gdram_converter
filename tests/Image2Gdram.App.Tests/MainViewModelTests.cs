@@ -206,7 +206,7 @@ public class MainViewModelTests : IDisposable
     }
 
     [Fact]
-    public void Project_saved_by_an_old_version_opens_with_the_flipped_offset_y_and_the_same_picture()
+    public void Project_saved_by_an_old_version_opens_with_the_flipped_offset_as_a_crop()
     {
         string image = Path.Combine(_directory, "pic.png");
         File.WriteAllBytes(image, new byte[] { 0 });
@@ -215,25 +215,26 @@ public class MainViewModelTests : IDisposable
         string project = Path.Combine(_directory, "old.iiu");
         MainViewModel first = Create(new FakeDialogs(), files: new FakeFiles { NextSaveProject = project }, decoder: decoder);
         first.Image.LoadDecoded(decoder.Decode(image), image, true, true);
-        first.Image.SizeMode = TargetSizeMode.MatchSource;
-        first.Image.OffsetYText = "10";
         first.SaveProjectCommand.Execute(null);
 
-        // Файл версии 0.1.4: formatVersion 1, смещение Y по экранным осям (10 — вниз).
+        // Версия 1: смещение Y по экранным осям, 10 — вниз. При чтении знак меняется, затем строится прямоугольник.
         string text = File.ReadAllText(project);
-        File.WriteAllText(project, text.Replace("\"formatVersion\": 2", "\"formatVersion\": 1", StringComparison.Ordinal));
+        text = text.Replace("\"formatVersion\": 3", "\"formatVersion\": 1", StringComparison.Ordinal);
+        text = text.Replace(
+            "\"processing\": {",
+            "\"processing\": { \"sizeMode\": \"Manual\", \"fit\": \"None\", \"alignment\": \"TopLeft\", \"offsetX\": 0, \"offsetY\": 10,",
+            StringComparison.Ordinal);
+        File.WriteAllText(project, text);
 
         MainViewModel second = Create(new FakeDialogs(), files: new FakeFiles { NextOpenProject = project }, decoder: decoder);
         second.OpenProjectCommand.Execute(null);
 
-        Assert.Equal("-10", second.Image.OffsetYText);
-        Assert.Equal(-10, second.Image.ToParameters().Processing.OffsetY);
+        CropViewport expected = CropGeometry.FromLegacy(16, 16, 128, 64, Rotation.Rotate0, false, false, FitMode.None, Alignment.TopLeft, 0, -10);
+        Assert.Equal(expected, second.Image.Crop);
 
-        // Картинка на прежнем месте: как с полем «-10» (10 вниз), а не «10» (10 вверх).
         MainViewModel reference = Create(new FakeDialogs(), decoder: decoder);
-        reference.Image.LoadDecoded(decoder.Decode(image), image, true, true);
-        reference.Image.SizeMode = TargetSizeMode.MatchSource;
-        reference.Image.OffsetYText = "-10";
+        reference.Image.LoadDecoded(decoder.Decode(image), image, true, false);
+        reference.Image.Crop = expected;
         Assert.True(reference.Image.Preview!.ContentEquals(second.Image.Preview!));
         Assert.True(second.TryClose());
     }

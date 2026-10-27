@@ -6,7 +6,7 @@ namespace Image2Gdram.Core.Processing;
 /// <summary>
 /// Шаги 1–7 п. 4.1.2: фон, поворот и отражение, размер, серое, бинаризация, правки, упаковка.
 /// Один экземпляр кэширует промежуточные кадры и не рассчитан на параллельные вызовы.
-/// Смена порога или режима бинаризации не повторяет масштабирование.
+/// Смена порога или режима бинаризации не повторяет выбор фрагмента.
 /// </summary>
 public sealed class ImagePipeline
 {
@@ -41,8 +41,7 @@ public sealed class ImagePipeline
         cancellationToken.ThrowIfCancellationRequested();
 
         RgbaImage oriented = Orient(source, options, cancellationToken);
-        (int targetWidth, int targetHeight) = TargetSize(oriented, options);
-        RgbaImage resized = Resize(oriented, options, targetWidth, targetHeight, cancellationToken);
+        RgbaImage resized = Resize(source, oriented, options, cancellationToken);
         GrayImage gray = Grayscale(resized);
         cancellationToken.ThrowIfCancellationRequested();
 
@@ -102,15 +101,29 @@ public sealed class ImagePipeline
         return _oriented;
     }
 
-    private RgbaImage Resize(RgbaImage oriented, ProcessingOptions options, int targetWidth, int targetHeight, CancellationToken cancellationToken)
+    private RgbaImage Resize(RgbaImage source, RgbaImage oriented, ProcessingOptions options, CancellationToken cancellationToken)
     {
+        CropViewport crop = options.Crop ?? CropGeometry.Fit(
+            source.Width,
+            source.Height,
+            options.TargetWidth,
+            options.TargetHeight,
+            options.Rotation);
+        CropWindow window = CropGeometry.Window(
+            crop,
+            source.Width,
+            source.Height,
+            options.TargetWidth,
+            options.TargetHeight,
+            options.Rotation,
+            options.FlipHorizontal,
+            options.FlipVertical);
         var key = new ResizeKey(
-            targetWidth,
-            targetHeight,
-            options.Fit,
-            options.Alignment,
-            options.OffsetX,
-            options.OffsetY,
+            options.TargetWidth,
+            options.TargetHeight,
+            crop.CenterX,
+            crop.CenterY,
+            crop.Scale,
             options.Resample,
             options.Background);
         if (_resized is null || _resizeKey != key)
@@ -119,12 +132,11 @@ public sealed class ImagePipeline
             _resizeKey = key;
             _resized = ResizeStep.Apply(
                 oriented,
-                targetWidth,
-                targetHeight,
-                options.Fit,
-                options.Alignment,
-                options.OffsetX,
-                options.OffsetY,
+                options.TargetWidth,
+                options.TargetHeight,
+                window.OriginX,
+                window.OriginY,
+                window.Span,
                 options.Resample,
                 options.Background,
                 cancellationToken);
@@ -140,21 +152,6 @@ public sealed class ImagePipeline
         return _gray;
     }
 
-    private static (int Width, int Height) TargetSize(RgbaImage oriented, ProcessingOptions options)
-    {
-        if (options.SizeMode == TargetSizeMode.MatchSource)
-        {
-            if (oriented.Width > ProcessingOptions.MaxTargetSide || oriented.Height > ProcessingOptions.MaxTargetSide)
-            {
-                throw new PipelineException(PipelineErrorCode.SourceLargerThan1024, oriented.Width, oriented.Height);
-            }
-
-            return (oriented.Width, oriented.Height);
-        }
-
-        return (options.TargetWidth, options.TargetHeight);
-    }
-
     private static void Validate(ProcessingOptions options)
     {
         if (!Enum.IsDefined(options.Background))
@@ -165,21 +162,6 @@ public sealed class ImagePipeline
         if (!Enum.IsDefined(options.Rotation))
         {
             throw new ArgumentOutOfRangeException(nameof(options), options.Rotation, "Unknown rotation.");
-        }
-
-        if (!Enum.IsDefined(options.SizeMode))
-        {
-            throw new ArgumentOutOfRangeException(nameof(options), options.SizeMode, "Unknown size mode.");
-        }
-
-        if (!Enum.IsDefined(options.Fit))
-        {
-            throw new ArgumentOutOfRangeException(nameof(options), options.Fit, "Unknown fit mode.");
-        }
-
-        if (!Enum.IsDefined(options.Alignment))
-        {
-            throw new ArgumentOutOfRangeException(nameof(options), options.Alignment, "Unknown alignment.");
         }
 
         if (!Enum.IsDefined(options.Resample))
@@ -197,26 +179,26 @@ public sealed class ImagePipeline
             throw new ArgumentOutOfRangeException(nameof(options), options.Threshold, "Threshold must be in 0..255.");
         }
 
-        if (options.OffsetX is < ProcessingOptions.MinOffset or > ProcessingOptions.MaxOffset)
+        if (options.TargetWidth is < ProcessingOptions.MinTargetSide or > ProcessingOptions.MaxTargetSide)
         {
-            throw new ArgumentOutOfRangeException(nameof(options), options.OffsetX, "Offset X must be in -1024..1024.");
+            throw new ArgumentOutOfRangeException(nameof(options), options.TargetWidth, "Width must be in 1..1024.");
         }
 
-        if (options.OffsetY is < ProcessingOptions.MinOffset or > ProcessingOptions.MaxOffset)
+        if (options.TargetHeight is < ProcessingOptions.MinTargetSide or > ProcessingOptions.MaxTargetSide)
         {
-            throw new ArgumentOutOfRangeException(nameof(options), options.OffsetY, "Offset Y must be in -1024..1024.");
+            throw new ArgumentOutOfRangeException(nameof(options), options.TargetHeight, "Height must be in 1..1024.");
         }
 
-        if (options.SizeMode == TargetSizeMode.Manual)
+        if (options.Crop is CropViewport crop)
         {
-            if (options.TargetWidth is < ProcessingOptions.MinTargetSide or > ProcessingOptions.MaxTargetSide)
+            if (!double.IsFinite(crop.Scale) || crop.Scale <= 0)
             {
-                throw new ArgumentOutOfRangeException(nameof(options), options.TargetWidth, "Width must be in 1..1024.");
+                throw new ArgumentOutOfRangeException(nameof(options), crop.Scale, "Scale must be finite and positive.");
             }
 
-            if (options.TargetHeight is < ProcessingOptions.MinTargetSide or > ProcessingOptions.MaxTargetSide)
+            if (!double.IsFinite(crop.CenterX) || !double.IsFinite(crop.CenterY))
             {
-                throw new ArgumentOutOfRangeException(nameof(options), options.TargetHeight, "Height must be in 1..1024.");
+                throw new ArgumentOutOfRangeException(nameof(options), crop.CenterX, "Crop center must be finite.");
             }
         }
     }
@@ -224,10 +206,9 @@ public sealed class ImagePipeline
     private readonly record struct ResizeKey(
         int TargetWidth,
         int TargetHeight,
-        FitMode Fit,
-        Alignment Alignment,
-        int OffsetX,
-        int OffsetY,
+        double CenterX,
+        double CenterY,
+        double Scale,
         ResampleMode Resample,
         BackgroundColor Background);
 }

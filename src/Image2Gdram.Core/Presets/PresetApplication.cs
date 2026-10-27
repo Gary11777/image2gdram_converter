@@ -23,10 +23,12 @@ public static class PresetApplication
             ColorScheme = preset.ColorScheme,
             Processing = current.Processing with
             {
-                SizeMode = TargetSizeMode.Manual,
                 TargetWidth = preset.Width,
                 TargetHeight = preset.Height,
+                Crop = null,
             },
+            PendingLegacy = null,
+            LegacyStretchDropped = false,
             Preset = PresetBinding.ForPreset(preset),
         };
     }
