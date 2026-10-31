@@ -47,7 +47,7 @@ public sealed class PixelGridControl : Grid
         nameof(Invert), typeof(bool), typeof(PixelGridControl), new PropertyMetadata(false, Redraw));
 
     public static readonly DependencyProperty SchemeProperty = DependencyProperty.Register(
-        nameof(Scheme), typeof(ColorScheme), typeof(PixelGridControl), new PropertyMetadata(ColorScheme.Lcd, Redraw));
+        nameof(Scheme), typeof(ColorScheme), typeof(PixelGridControl), new PropertyMetadata(ColorScheme.Oled, Redraw));
 
     public static readonly DependencyProperty ScaleProperty = DependencyProperty.Register(
         nameof(Scale), typeof(int), typeof(PixelGridControl), new PropertyMetadata(8, LayoutChanged));
@@ -86,7 +86,7 @@ public sealed class PixelGridControl : Grid
         {
             HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
             VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-            Background = _lcdBackBrush,
+            Background = Brushes.Black,
         };
         _host = new Grid
         {

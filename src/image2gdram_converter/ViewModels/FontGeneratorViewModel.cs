@@ -124,6 +124,7 @@ public sealed partial class FontGeneratorViewModel : ObservableValidator, ICodeS
     private int _bits = 8;
     private PageTraversal _traversal = PageTraversal.ByPages;
     private bool _invert;
+    private ColorScheme _scheme = ColorScheme.Oled;
     private PresetBinding _binding = PresetBinding.Custom;
     private OutputFormat _format = OutputFormat.CKeilC51;
     private string _arrayName = "font";
@@ -177,6 +178,7 @@ public sealed partial class FontGeneratorViewModel : ObservableValidator, ICodeS
         BitOrders = OptionLists.BitOrders(localization);
         BitCounts = OptionLists.BitCounts(localization);
         Traversals = OptionLists.Traversals(localization);
+        Schemes = OptionLists.Schemes(localization);
         Formats = OptionLists.Formats(localization);
         Encodings = OptionLists.Encodings(localization);
         AsmNumberFormats = OptionLists.AsmNumbers(localization);
@@ -228,6 +230,8 @@ public sealed partial class FontGeneratorViewModel : ObservableValidator, ICodeS
     public IReadOnlyList<Labeled<int>> BitCounts { get; }
 
     public IReadOnlyList<Labeled<PageTraversal>> Traversals { get; }
+
+    public IReadOnlyList<Labeled<ColorScheme>> Schemes { get; }
 
     public IReadOnlyList<Labeled<OutputFormat>> Formats { get; }
 
@@ -308,7 +312,7 @@ public sealed partial class FontGeneratorViewModel : ObservableValidator, ICodeS
         PreviewScale = _previewScale,
         Packing = ToPacking(),
         Output = ToOutput(),
-        ColorScheme = ColorScheme.Lcd,
+        ColorScheme = _scheme,
         Preset = _binding,
     };
 
@@ -681,7 +685,7 @@ public sealed partial class FontGeneratorViewModel : ObservableValidator, ICodeS
 
         try
         {
-            var preset = new Preset(name, controller: null, _cell.Width, _cell.Height, ToPacking(), ColorScheme.Lcd, isBuiltIn: false);
+            var preset = new Preset(name, controller: null, _cell.Width, _cell.Height, ToPacking(), _scheme, isBuiltIn: false);
             _users.Add(preset);
             _binding = PresetBinding.ForPreset(preset);
             Presets.Show(_binding);
@@ -844,6 +848,7 @@ public sealed partial class FontGeneratorViewModel : ObservableValidator, ICodeS
         _bits = packing.BitsPerByte;
         _traversal = packing.PageTraversal;
         _invert = packing.Invert;
+        _scheme = parameters.ColorScheme;
         _binding = parameters.Preset;
         OutputOptions output = parameters.Output;
         _format = output.Format;

@@ -1,6 +1,7 @@
 using Image2Gdram.Core.Fonts;
 using Image2Gdram.Core.Output;
 using Image2Gdram.Core.Packing;
+using Image2Gdram.Core.Presets;
 using Image2Gdram.Core.Processing;
 using image2gdram_converter.Services;
 
@@ -60,6 +61,12 @@ public static class OptionLists
     {
         new Labeled<PageTraversal>(PageTraversal.ByPages, text.Get("Opt.Page.ByPages")),
         new Labeled<PageTraversal>(PageTraversal.ByColumns, text.Get("Opt.Page.ByColumns")),
+    };
+
+    public static IReadOnlyList<Labeled<ColorScheme>> Schemes(ILocalizationService text) => new[]
+    {
+        new Labeled<ColorScheme>(ColorScheme.Lcd, text.Get("Opt.Scheme.Lcd")),
+        new Labeled<ColorScheme>(ColorScheme.Oled, text.Get("Opt.Scheme.Oled")),
     };
 
     public static IReadOnlyList<Labeled<OutputFormat>> Formats(ILocalizationService text) => new[]
