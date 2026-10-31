@@ -34,6 +34,7 @@ public class FontGeneratorViewModelTests : IDisposable
         vm.Presets.Selected = vm.Presets.Items.First(item => item.Preset?.Name == "WG240128A");
 
         Assert.Equal(PackDirection.Horizontal, vm.Direction);
+        Assert.Equal(ColorScheme.Lcd, vm.Scheme);
         Assert.Equal(6, vm.Cell.Width);
         Assert.Equal(8, vm.Cell.Height);
         Assert.Equal("WG240128A", vm.PresetCaption);

@@ -31,7 +31,7 @@ public sealed class GlyphTableControl : FrameworkElement
         nameof(Invert), typeof(bool), typeof(GlyphTableControl), new PropertyMetadata(false, MarkDirty));
 
     public static readonly DependencyProperty SchemeProperty = DependencyProperty.Register(
-        nameof(Scheme), typeof(ColorScheme), typeof(GlyphTableControl), new PropertyMetadata(ColorScheme.Lcd, MarkDirty));
+        nameof(Scheme), typeof(ColorScheme), typeof(GlyphTableControl), new PropertyMetadata(ColorScheme.Oled, MarkDirty));
 
     private const int Scale = 2;
     private const double Label = 22;

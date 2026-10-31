@@ -289,7 +289,11 @@ public sealed partial class ImageConverterViewModel
         set => BeginChange(ref _invert, value, step: false, preset: true);
     }
 
-    public ColorScheme Scheme => ColorScheme.Lcd;
+    public ColorScheme Scheme
+    {
+        get => _scheme;
+        set => BeginChange(ref _scheme, value, step: false, preset: true);
+    }
 
     public OutputFormat Format
     {
